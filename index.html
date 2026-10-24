@@ -3202,26 +3202,55 @@ async function fpRegisterIdentity(identity, displayName) {
   if (!window.PublicKeyCredential) {
     throw new Error('Perangkat tidak mendukung WebAuthn / sidik jari browser');
   }
+  // Pastikan HTTPS / secure context
+  if (!window.isSecureContext) {
+    throw new Error('Sidik jari hanya berjalan di HTTPS (atau localhost)');
+  }
   const challenge = crypto.getRandomValues(new Uint8Array(32));
-  const userId = new TextEncoder().encode(identity);
-  const cred = await navigator.credentials.create({
-    publicKey: {
-      challenge,
-      rp: { name: 'SIS Absensi', id: location.hostname || 'localhost' },
-      user: { id: userId, name: identity, displayName: displayName || identity },
-      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-      authenticatorSelection: {
+  const userId = new TextEncoder().encode('sis-' + identity);
+  // residentKey discouraged → hindari dialog "Buat kunci sandi" / passkey Google
+  // platform + transports internal → langsung sensor sidik jari HP
+  const publicKey = {
+    challenge,
+    rp: { name: 'SIS Absensi', id: location.hostname },
+    user: {
+      id: userId,
+      name: 'sis-' + identity,
+      displayName: String(displayName || identity).slice(0, 64),
+    },
+    pubKeyCredParams: [
+      { type: 'public-key', alg: -7 },   // ES256 (platform)
+      { type: 'public-key', alg: -257 }, // RS256 fallback
+    ],
+    authenticatorSelection: {
+      authenticatorAttachment: 'platform',
+      userVerification: 'required',
+      residentKey: 'discouraged',
+      requireResidentKey: false,
+    },
+    attestation: 'none',
+    timeout: 90000,
+    excludeCredentials: [],
+  };
+  let cred;
+  try {
+    cred = await navigator.credentials.create({ publicKey });
+  } catch (e1) {
+    // Retry tanpa requireResidentKey (browser lama)
+    try {
+      const pk2 = { ...publicKey, authenticatorSelection: {
         authenticatorAttachment: 'platform',
         userVerification: 'required',
-        residentKey: 'preferred',
-      },
-      timeout: 60000,
+      }};
+      cred = await navigator.credentials.create({ publicKey: pk2 });
+    } catch (e2) {
+      throw e1;
     }
-  });
+  }
   if (!cred) throw new Error('Dibatalkan');
   const credId = bufferToBase64(cred.rawId);
   const map = fpLoadMap();
-  map[identity] = { credId, at: Date.now() };
+  map[identity] = { credId, at: Date.now(), host: location.hostname };
   fpSaveMap(map);
   return credId;
 }
@@ -3232,20 +3261,26 @@ async function fpVerifyIdentity(identity) {
   }
   const map = fpLoadMap();
   const entry = map[identity];
-  if (!entry) throw new Error('Sidik jari belum terdaftar di perangkat ini');
+  if (!entry || !entry.credId) throw new Error('Sidik jari belum terdaftar di perangkat ini');
   const challenge = crypto.getRandomValues(new Uint8Array(32));
-  const allow = [];
-  if (entry.credId) {
-    try {
-      allow.push({ type: 'public-key', id: base64ToBuffer(entry.credId) });
-    } catch (_) {}
+  let credIdBuf;
+  try {
+    credIdBuf = base64ToBuffer(entry.credId);
+  } catch (_) {
+    throw new Error('Data sidik jari rusak. Daftar ulang.');
   }
+  // transports: internal → paksa authenticator di perangkat (sidik jari), bukan password manager
   await navigator.credentials.get({
     publicKey: {
       challenge,
-      timeout: 60000,
+      rpId: location.hostname,
+      timeout: 90000,
       userVerification: 'required',
-      allowCredentials: allow.length ? allow : undefined,
+      allowCredentials: [{
+        type: 'public-key',
+        id: credIdBuf,
+        transports: ['internal'],
+      }],
     }
   });
   return true;
