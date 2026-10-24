@@ -2561,7 +2561,7 @@ async function prosesAbsen(kode, metode) {
 }
 
 function handleAbsenResult(elId, res) {
-  if (!res || res.silent) return; // cooldown kamera: diam saja
+  if (!res || res.silent) return;
   const typeMap = { ok: 'ok', reject: 'warn', warn: 'warn', err: 'err', cooldown: 'warn' };
   const type = typeMap[res.type] || (res.ok ? 'ok' : 'err');
   const titles = {
@@ -2570,10 +2570,11 @@ function handleAbsenResult(elId, res) {
     warn: 'Peringatan',
     err: 'Absen Gagal',
   };
+  // Hanya popup — sembunyikan strip di bawah kamera
   const el = document.getElementById(elId);
   if (el) {
-    el.className = 'absen-result show ' + type;
-    el.innerHTML = res.msg;
+    el.className = 'absen-result';
+    el.innerHTML = '';
   }
   if (typeof showBigPopup === 'function') {
     showBigPopup(type, titles[res.type] || titles[type] || 'Info', res.msg, res.ok ? 2800 : (res.type === 'reject' ? 4000 : 0));
@@ -2596,8 +2597,22 @@ function initScanPage() {
   updateSesiBadges();
   renderScanLogTable();
   const sess = getSession();
+  const modeBtn = document.getElementById('btnScanMode');
+  const modeHint = document.getElementById('scanModeHint');
+  if (sess && sess.role === 'admin') {
+    if (modeBtn) modeBtn.style.display = '';
+    if (modeHint) modeHint.style.display = '';
+  } else {
+    // Guru: hanya scan siswa, tanpa saklar
+    scanTargetRole = 'siswa';
+    if (modeBtn) modeBtn.style.display = 'none';
+    if (modeHint) {
+      modeHint.style.display = '';
+      modeHint.innerHTML = 'Mode: <b>Siswa</b> — scan NISN 10 digit (guru hanya absen siswa)';
+    }
+  }
   if (sess && sess.role === 'siswa') {
-    showAbsenResult('scanResult', 'warn', 'Scanner QR biasanya untuk Guru/Admin. Siswa gunakan menu Sidik Jari.');
+    showBigPopup('warn', 'Akses', 'Scanner QR untuk Guru/Admin. Siswa gunakan menu Sidik Jari.', 3000);
   }
   if (_sesiLockTimer) clearInterval(_sesiLockTimer);
   _sesiLockTimer = setInterval(() => {
