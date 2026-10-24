@@ -1680,12 +1680,7 @@ function renderStrukturOrganisasi() {
       return st === 'aktif' || st === '' || st === 'active';
     })
     .slice()
-    .sort((a, b) => {
-      const ra = rankStruktur(a.jabatan_struktur);
-      const rb = rankStruktur(b.jabatan_struktur);
-      if (ra !== rb) return ra - rb;
-      return String(a.nama || '').localeCompare(String(b.nama || ''), 'id');
-    });
+    .sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), 'en', { numeric: true }));
   if (!rows.length) {
     tb.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada data guru</td></tr>';
     return;
@@ -1774,7 +1769,7 @@ function renderRekapKehadiran(role, sesiList, absenRows) {
         return st === 'aktif' || st === '' || st === 'active';
       })
       .slice()
-      .sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
+      .sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), 'en', { numeric: true }));
   } else {
     people = (store.siswa || [])
       .filter(s => {
