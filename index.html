@@ -91,7 +91,7 @@
     display:flex; align-items:center; gap:10px; }
   .sidebar-header .logo-sekolah { width:38px; height:38px; font-size:14px; }
   .sidebar-header .brand { font-size:14px; font-weight:700; color:#fff; line-height:1.2; }
-  .sidebar-header .brand small { display:block; font-weight:400; font-size:11px; color:#90a4ae; }
+  .sidebar-header .brand SMPll { display:block; font-weight:400; font-size:11px; color:#90a4ae; }
   .sidebar-menu { flex:1; padding:8px 0; }
   .menu-group { margin-bottom:2px; display:none; }
   .menu-group.visible { display:block; }
@@ -603,7 +603,7 @@
   </div>
 
   <div class="topbar-center">
-    <div class="nama-sekolah">SMA NEGERI 1 NUSANTARA</div>
+    <div class="nama-sekolah">SMP NEGERI 1 SOBANG</div>
     <div class="datetime" id="datetime">Kamis, 02 Okt 2026 • 00:00:00</div>
     <div class="user-name" id="topUserName">👤 Tamu (belum login)</div>
   </div>
@@ -630,7 +630,7 @@
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <div class="logo-sekolah">S</div>
-    <div class="brand">SMA N 1 NUSANTARA<small>Sistem Informasi Sekolah</small></div>
+    <div class="brand">SMP N 1 SOBANG<SMPll>Sistem Informasi Sekolah</SMPll></div>
   </div>
   <nav class="sidebar-menu">
 
@@ -709,7 +709,7 @@
     <div class="login-header">
       <div class="logo-circle">S</div>
       <h2>Login Sistem Informasi</h2>
-      <p>SMA Negeri 1 Nusantara</p>
+      <p>SMP Negeri 1 SOBANG</p>
     </div>
     <div class="login-body">
       <label for="inputIdentifier">NISN / PIN</label>
@@ -744,7 +744,7 @@
     <div class="dash-body">
       <div class="dash-left">
         <div class="dash-avatar" id="schoolAvatar">S</div>
-        <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
+        <div class="dash-name" id="schoolName">SMP NEGERI 1 SOBANG</div>
         <div class="dash-detail" id="schoolDetail">
           <p><b>NSS</b> <span>: -</span></p>
           <p><b>NPSN</b> <span>: -</span></p>
@@ -802,7 +802,7 @@
 
   <!-- REKAP KEHADIRAN GURU -->
   <div class="card">
-    <h3>📋 Rekap Kehadiran Guru <small style="font-weight:500;color:#666;font-size:11px" id="labelRekapGuruHari"></small></h3>
+    <h3>📋 Rekap Kehadiran Guru <SMPll style="font-weight:500;color:#666;font-size:11px" id="labelRekapGuruHari"></SMPll></h3>
     <div class="table-scroll rekap-scroll">
       <table id="tableRekapGuru" class="rekap-table">
         <thead id="theadRekapGuru">
@@ -817,7 +817,7 @@
 
   <!-- REKAP KEHADIRAN SISWA -->
   <div class="card">
-    <h3>📋 Rekap Kehadiran Siswa <small style="font-weight:500;color:#666;font-size:11px" id="labelRekapSiswaHari"></small></h3>
+    <h3>📋 Rekap Kehadiran Siswa <SMPll style="font-weight:500;color:#666;font-size:11px" id="labelRekapSiswaHari"></SMPll></h3>
     <div class="table-scroll rekap-scroll">
       <table id="tableRekapSiswa" class="rekap-table">
         <thead id="theadRekapSiswa">
@@ -1200,7 +1200,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
-  &copy; 2025 <b>SMA Negeri 1 Nusantara</b> — Sistem Informasi Sekolah
+  &copy; 2025 <b>SMP Negeri 1 SOBANG</b> — Sistem Informasi Sekolah
 </footer>
 
 <script>
@@ -1426,7 +1426,7 @@ function renderUserUI(session) {
 
   topName.textContent = `👤 ${nama} (${roleLabel})`;
   avatar.textContent = initial;
-  pmHeader.innerHTML = `Masuk sebagai <b>${nama}</b><br><small style="color:#888">${roleLabel}</small>`;
+  pmHeader.innerHTML = `Masuk sebagai <b>${nama}</b><br><SMPll style="color:#888">${roleLabel}</SMPll>`;
   btnLogin.style.display = 'none';
   btnLogout.style.display = '';
   btnEdit.style.display = '';
@@ -1676,12 +1676,12 @@ function seedStore() {
       jenis_kelamin: 'L',
       nisn: '0051234567',
       kelas: 'XII IPA 1',
-      tmp_lahir: 'Nusantara',
+      tmp_lahir: 'SOBANG',
       tgl_lahir: '2008-01-15',
       status_awal: 'Siswa Baru',
       status: 'Aktif',
       mulai_sekolah: '2022-07-15',
-      asal_sekolah: 'SMPN 1 Nusantara',
+      asal_sekolah: 'SMPN 1 SOBANG',
       alamat: 'Jl. Merdeka No. 10',
     }],
     guru: [{
@@ -3091,7 +3091,7 @@ async function prosesAbsen(kode, metode) {
         <b>${escapeHtml(d.nama || '')}</b><br>
         Status: <span class="badge-status ${statusClass(status)}">${status}</span> (${arti})<br>
         ${escapeHtml(d.sesi_nama || '')}<br>
-        <small style="color:#666">Metode: ${escapeHtml(metode || 'qr')} · ${escapeHtml(d.scanned_by || '')}</small>`,
+        <SMPll style="color:#666">Metode: ${escapeHtml(metode || 'qr')} · ${escapeHtml(d.scanned_by || '')}</SMPll>`,
     };
   } catch (e) {
     return { ok: false, type: 'err', msg: 'Gagal absen ke database:<br>' + escapeHtml(errToText(e)) };
