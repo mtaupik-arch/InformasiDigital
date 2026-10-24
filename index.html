@@ -665,11 +665,8 @@
         <thead>
           <tr><th>No</th><th>Nama</th><th>Jabatan Struktur</th><th>Jabatan Fungsional</th></tr>
         </thead>
-        <tbody>
-          <tr><td>1</td><td>Drs. H. Sutrisno, M.Pd</td><td>Kepala Sekolah</td><td>Kepala Sekolah</td></tr>
-          <tr><td>2</td><td>Hj. Siti Aminah, S.Pd</td><td>Wakil Kepala</td><td>Guru Matematika</td></tr>
-          <tr><td>3</td><td>Budi Santoso, S.Kom</td><td>Kepala TU</td><td>Staff Administrasi</td></tr>
-          <tr><td>4</td><td>Rina Wulandari, S.Pd</td><td>Koord. Kurikulum</td><td>Guru B. Indonesia</td></tr>
+        <tbody id="tbodyStrukturOrg">
+          <tr class="empty-row"><td colspan="4">Memuat data…</td></tr>
         </tbody>
       </table>
     </div>
@@ -678,31 +675,21 @@
   <!-- INFORMASI SESI -->
   <div class="card">
     <h3>⏰ Informasi Sesi</h3>
-    <div class="sesi-span">
-      <span class="sesi-chip">Sesi 1 : 06:00 – 07:30</span>
-      <span class="sesi-chip">Sesi 2 : 07:30 – 09:00</span>
-      <span class="sesi-chip">Sesi 3 : 09:15 – 10:45</span>
-      <span class="sesi-chip">Sesi 4 : 10:45 – 12:15</span>
-      <span class="sesi-chip">Sesi 5 : 13:00 – 14:30</span>
+    <div class="sesi-span" id="dashSesiChips">
+      <span class="sesi-chip">Memuat sesi…</span>
     </div>
   </div>
 
   <!-- REKAP KEHADIRAN GURU -->
   <div class="card">
-    <h3>📋 Rekap Kehadiran Guru</h3>
+    <h3>📋 Rekap Kehadiran Guru <small style="font-weight:500;color:#666;font-size:11px" id="labelRekapGuruHari"></small></h3>
     <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>No</th><th>Nama</th>
-            <th>Sesi 1</th><th>Sesi 2</th><th>Sesi 3</th><th>Sesi 4</th><th>Sesi 5</th>
-          </tr>
+      <table id="tableRekapGuru">
+        <thead id="theadRekapGuru">
+          <tr><th>No</th><th>Nama</th></tr>
         </thead>
-        <tbody>
-          <tr><td>1</td><td>Drs. H. Sutrisno</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
-          <tr><td>2</td><td>Hj. Siti Aminah</td><td class="hadir">✓ Hadir</td><td class="izin">Izin</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
-          <tr><td>3</td><td>Budi Santoso</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="sakit">Sakit</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
-          <tr><td>4</td><td>Rina Wulandari</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="alpa">Alpa</td><td class="hadir">✓ Hadir</td></tr>
+        <tbody id="tbodyRekapGuru">
+          <tr class="empty-row"><td colspan="2">Memuat data…</td></tr>
         </tbody>
       </table>
     </div>
@@ -710,20 +697,14 @@
 
   <!-- REKAP KEHADIRAN SISWA -->
   <div class="card">
-    <h3>📋 Rekap Kehadiran Siswa</h3>
+    <h3>📋 Rekap Kehadiran Siswa <small style="font-weight:500;color:#666;font-size:11px" id="labelRekapSiswaHari"></small></h3>
     <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>No</th><th>Nama</th><th>Kelas</th>
-            <th>Sesi 1</th><th>Sesi 2</th><th>Sesi 3</th><th>Sesi 4</th><th>Sesi 5</th>
-          </tr>
+      <table id="tableRekapSiswa">
+        <thead id="theadRekapSiswa">
+          <tr><th>No</th><th>Nama</th><th>Kelas</th></tr>
         </thead>
-        <tbody>
-          <tr><td>1</td><td>Ahmad Fauzi</td><td>XII IPA 1</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
-          <tr><td>2</td><td>Bella Putri</td><td>XII IPA 1</td><td class="hadir">✓ Hadir</td><td class="izin">Izin</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
-          <tr><td>3</td><td>Candra Wijaya</td><td>XII IPS 1</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="sakit">Sakit</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
-          <tr><td>4</td><td>Dewi Lestari</td><td>XII IPS 2</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="alpa">Alpa</td><td class="hadir">✓ Hadir</td></tr>
+        <tbody id="tbodyRekapSiswa">
+          <tr class="empty-row"><td colspan="3">Memuat data…</td></tr>
         </tbody>
       </table>
     </div>
@@ -1668,6 +1649,165 @@ function buildSesiStatsHtml(sesiList, absenRows, role) {
   }).join('');
 }
 
+/** Urutan jabatan struktural (semakin kecil = semakin tinggi) */
+const STRUKTUR_RANK = {
+  'kepala sekolah': 1,
+  'wakil kepala': 2,
+  'wakil kepala sekolah': 2,
+  'kepala tu': 3,
+  'kepala tata usaha': 3,
+  'koord. kurikulum': 4,
+  'koordinator kurikulum': 4,
+  'kurikulum': 4,
+};
+
+function rankStruktur(jab) {
+  const k = String(jab || '').trim().toLowerCase();
+  if (!k) return 900;
+  if (STRUKTUR_RANK[k] != null) return STRUKTUR_RANK[k];
+  for (const [key, val] of Object.entries(STRUKTUR_RANK)) {
+    if (k.includes(key) || key.includes(k)) return val;
+  }
+  return 500;
+}
+
+function renderStrukturOrganisasi() {
+  const tb = document.getElementById('tbodyStrukturOrg');
+  if (!tb) return;
+  const rows = (store.guru || [])
+    .filter(g => {
+      const st = String(g.status || 'Aktif').toLowerCase();
+      return st === 'aktif' || st === '' || st === 'active';
+    })
+    .slice()
+    .sort((a, b) => {
+      const ra = rankStruktur(a.jabatan_struktur);
+      const rb = rankStruktur(b.jabatan_struktur);
+      if (ra !== rb) return ra - rb;
+      return String(a.nama || '').localeCompare(String(b.nama || ''), 'id');
+    });
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada data guru</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((g, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(g.nama || '-')}</td>
+      <td>${escapeHtml(g.jabatan_struktur || '-')}</td>
+      <td>${escapeHtml(g.jabatan_fungsional || '-')}</td>
+    </tr>`).join('');
+}
+
+/** Kelas CSS + teks tampilan status absensi di tabel rekap */
+function absenCellDisplay(status) {
+  const u = String(status || '').trim().toUpperCase();
+  if (!u) return { cls: '', text: '—' };
+  if (u === 'TW' || u === 'HADIR') return { cls: 'hadir', text: u === 'TW' ? '✓ TW' : '✓ Hadir' };
+  if (u === 'TL') return { cls: 'hadir', text: 'TL' };
+  if (u === 'SAKIT') return { cls: 'sakit', text: 'Sakit' };
+  if (u === 'IZIN') return { cls: 'izin', text: 'Izin' };
+  if (u === 'ALPA') return { cls: 'alpa', text: 'Alpa' };
+  if (u === 'BOLOS') return { cls: 'alpa', text: 'Bolos' };
+  return { cls: '', text: status };
+}
+
+function matchAbsenPerson(row, person, role) {
+  if (row.role && String(row.role) !== role) return false;
+  // ref_id dari tabel absensi terpadu (Edge Function index.js)
+  if (row.ref_id && person.id && String(row.ref_id) === String(person.id)) return true;
+  if (role === 'guru') {
+    // backend menyimpan kode = nip || pin
+    if (row.kode && person.pin && String(row.kode) === String(person.pin)) return true;
+    if (row.kode && person.nip && String(row.kode) === String(person.nip)) return true;
+    if (row.guru_id && person.id && String(row.guru_id) === String(person.id)) return true;
+    if (row.nama && person.nama && String(row.nama).toLowerCase() === String(person.nama).toLowerCase()) return true;
+    return false;
+  }
+  // siswa — kode absensi = NISN
+  if (row.kode && person.nisn && String(row.kode) === String(person.nisn)) return true;
+  if (row.nisn && person.nisn && String(row.nisn) === String(person.nisn)) return true;
+  if (row.siswa_id && person.id && String(row.siswa_id) === String(person.id)) return true;
+  if (row.nama && person.nama && String(row.nama).toLowerCase() === String(person.nama).toLowerCase()) return true;
+  return false;
+}
+
+function findAbsenStatus(absenRows, person, role, sesi) {
+  const today = todayStr();
+  const hits = (absenRows || []).filter(r => {
+    if (r.tanggal && String(r.tanggal).slice(0, 10) !== today) return false;
+    if (!matchAbsenPerson(r, person, role)) return false;
+    if (sesi) {
+      if (r.sesi_id != null && String(r.sesi_id) === String(sesi.id)) return true;
+      if (r.sesi_nama && sesi.nama && String(r.sesi_nama) === String(sesi.nama)) return true;
+      return false;
+    }
+    return true;
+  });
+  if (!hits.length) return '';
+  // ambil status terakhir jika ada beberapa
+  return hits[hits.length - 1].status || '';
+}
+
+function renderRekapKehadiran(role, sesiList, absenRows) {
+  const isGuru = role === 'guru';
+  const thead = document.getElementById(isGuru ? 'theadRekapGuru' : 'theadRekapSiswa');
+  const tbody = document.getElementById(isGuru ? 'tbodyRekapGuru' : 'tbodyRekapSiswa');
+  const label = document.getElementById(isGuru ? 'labelRekapGuruHari' : 'labelRekapSiswaHari');
+  if (!thead || !tbody) return;
+
+  const list = (sesiList || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  if (label) label.textContent = '· ' + todayStr();
+
+  // header dinamis sesuai sesi
+  if (isGuru) {
+    thead.innerHTML = `<tr><th>No</th><th>Nama</th>${list.map(s => `<th>${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}</tr>`;
+  } else {
+    thead.innerHTML = `<tr><th>No</th><th>Nama</th><th>Kelas</th>${list.map(s => `<th>${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}</tr>`;
+  }
+
+  let people;
+  if (isGuru) {
+    people = (store.guru || [])
+      .filter(g => {
+        const st = String(g.status || 'Aktif').toLowerCase();
+        return st === 'aktif' || st === '' || st === 'active';
+      })
+      .slice()
+      .sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
+  } else {
+    people = (store.siswa || [])
+      .filter(s => {
+        const st = String(s.status || 'Aktif').toLowerCase();
+        return st === 'aktif' || st === '' || st === 'active';
+      })
+      .slice()
+      .sort((a, b) => {
+        const kc = String(a.kelas || '').localeCompare(String(b.kelas || ''), 'id');
+        if (kc !== 0) return kc;
+        return String(a.nama || '').localeCompare(String(b.nama || ''), 'id');
+      });
+  }
+
+  const colSpan = (isGuru ? 2 : 3) + list.length;
+  if (!people.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${colSpan}">Belum ada data ${isGuru ? 'guru' : 'siswa'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = people.map((p, i) => {
+    const cells = list.map(s => {
+      const st = findAbsenStatus(absenRows, p, role, s);
+      const d = absenCellDisplay(st);
+      return `<td class="${d.cls}">${escapeHtml(d.text)}</td>`;
+    }).join('');
+    if (isGuru) {
+      return `<tr><td>${i + 1}</td><td>${escapeHtml(p.nama || '-')}</td>${cells}</tr>`;
+    }
+    return `<tr><td>${i + 1}</td><td>${escapeHtml(p.nama || '-')}</td><td>${escapeHtml(p.kelas || '-')}</td>${cells}</tr>`;
+  }).join('');
+}
+
 async function renderDashboard() {
   const countGuru = document.getElementById('countGuru');
   const countSiswa = document.getElementById('countSiswa');
@@ -1693,12 +1833,22 @@ async function renderDashboard() {
   if (statsSiswa) statsSiswa.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'siswa');
 
   // info sesi chips
-  const chipWrap = document.querySelector('#page-dashboard .sesi-span');
-  if (chipWrap && sesiList.length) {
-    chipWrap.innerHTML = sesiList.map(s =>
-      `<span class="sesi-chip">${escapeHtml(s.nama)} : ${escapeHtml((s.waktu1||s.mulai||'').toString().slice(0,5))} – ${escapeHtml((s.waktu3||s.selesai||'').toString().slice(0,5))}</span>`
-    ).join('');
+  const chipWrap = document.getElementById('dashSesiChips') || document.querySelector('#page-dashboard .sesi-span');
+  if (chipWrap) {
+    if (sesiList.length) {
+      chipWrap.innerHTML = sesiList.map(s =>
+        `<span class="sesi-chip">${escapeHtml(s.nama)} : ${escapeHtml((s.waktu1||s.mulai||'').toString().slice(0,5))} – ${escapeHtml((s.waktu3||s.selesai||'').toString().slice(0,5))}</span>`
+      ).join('');
+    } else {
+      chipWrap.innerHTML = '<span class="sesi-chip">Belum ada sesi</span>';
+    }
   }
+
+  // Struktur Organisasi dari data guru
+  renderStrukturOrganisasi();
+  // Rekap kehadiran guru & siswa (nama dari DB, status dari absensi)
+  renderRekapKehadiran('guru', sesiList, absenRows);
+  renderRekapKehadiran('siswa', sesiList, absenRows);
 }
 
 /* ----- Navigation ----- */
