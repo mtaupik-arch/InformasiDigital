@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Informasi Sekolah</title>
+<!-- Supabase JS Client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
+  :root {
+    --biru:#2196F3; --hijau:#4CAF50; --orange:#FF9800;
+    --kuning:#FFC107; --pink:#E91E63; --merah:#C62828;
+    --primary:#1e3a5f; --primary-light:#2c5282;
+    --topbar-h:90px; --footer-h:40px; --sidebar-w:270px;
+  }
+  body { background:#f0f2f5; color:#333; padding-top:var(--topbar-h); padding-bottom:var(--footer-h); }
+
+  /* ===== TOPBAR FIXED ===== */
+  .topbar {
+    position:fixed; top:0; left:0; right:0; height:var(--topbar-h);
+    background:linear-gradient(135deg,var(--primary),var(--primary-light));
+    color:#fff; display:flex; align-items:center; padding:0 12px; z-index:1000;
+    box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
+  .topbar-left { display:flex; align-items:center; gap:8px; }
+  .hamburger {
+    width:40px; height:40px; border:none; border-radius:8px; cursor:pointer;
+    background:rgba(255,255,255,.15); color:#fff; font-size:20px;
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    transition:.2s; flex-shrink:0;
+  }
+  .hamburger:hover { background:rgba(255,255,255,.3); }
+  .hamburger span { display:block; width:20px; height:2.5px; background:#fff; border-radius:2px; }
+  .logo-sekolah { width:40px; height:40px; border-radius:50%; background:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:bold; color:var(--primary); font-size:16px; flex-shrink:0; }
+
+  .topbar-center { flex:1; text-align:center; line-height:1.25; padding:0 5px; overflow:hidden; }
+  .topbar-center .nama-sekolah { font-size:14px; font-weight:700; letter-spacing:.3px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+  .topbar-center .datetime { font-size:11px; opacity:.9; margin: 1px 0; }
+  .topbar-center .user-name { font-size:11px; font-weight:600; color:#ffd54f; }
+
+  .topbar-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+  .icon-btn { position:relative; width:36px; height:36px; border:none; border-radius:50%;
+    background:rgba(255,255,255,.15); color:#fff; font-size:16px; cursor:pointer; transition:.2s; }
+  .icon-btn:hover { background:rgba(255,255,255,.3); }
+  .badge { position:absolute; top:-2px; right:-2px; background:#e53935; color:#fff;
+    font-size:10px; font-weight:700; min-width:18px; height:18px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center; padding:0 4px; }
+  .profile-wrap { position:relative; }
+  .avatar { width:36px; height:36px; border-radius:50%; border:2px solid #ffd54f;
+    object-fit:cover; cursor:pointer; background:#fff; display:flex; align-items:center; justify-content:center; color:var(--primary); font-weight:700; font-size:14px; }
+  .profile-menu {
+    position:absolute; top:46px; right:0; background:#fff; color:#333; border-radius:10px;
+    box-shadow:0 6px 20px rgba(0,0,0,.2); min-width:190px; overflow:hidden;
+    opacity:0; visibility:hidden; transform:translateY(-8px); transition:.2s; z-index:1001;
+  }
+  .profile-wrap:hover .profile-menu { opacity:1; visibility:visible; transform:translateY(0); }
+  .profile-menu .pm-header { padding:12px 14px; background:#f8f9fa; border-bottom:1px solid #eee; font-size:12px; color:#666; }
+  .profile-menu a { display:flex; align-items:center; gap:10px; padding:10px 14px; color:#333;
+    text-decoration:none; font-size:13.5px; transition:.15s; cursor:pointer; }
+  .profile-menu a:hover { background:#e8f0fe; color:var(--primary); }
+  .profile-menu a.logout { color:#c62828; border-top:1px solid #eee; }
+  .profile-menu a.login-link { color:var(--primary); font-weight:600; }
+
+  @media(max-width:480px){
+    .topbar { padding: 0 8px; }
+    .topbar-left { gap: 4px; }
+    .topbar-right { gap: 6px; }
+    .hamburger, .logo-sekolah, .icon-btn, .avatar { width: 32px; height: 32px; font-size: 12px; }
+    .topbar-center .nama-sekolah { font-size: 12px; }
+    .topbar-center .datetime { font-size: 10px; }
+    .topbar-center .user-name { font-size: 10px; }
+  }
+
+  /* ===== SIDEBAR OVERLAY ===== */
+  .sidebar-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1100;
+    opacity:0; visibility:hidden; transition:.25s;
+  }
+  .sidebar-overlay.active { opacity:1; visibility:visible; }
+  .sidebar {
+    position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w); z-index:1200;
+    background:#14263d; color:#cfd8e3; transform:translateX(-100%); transition:.3s ease;
+    display:flex; flex-direction:column; overflow-y:auto;
+  }
+  .sidebar.active { transform:translateX(0); }
+  .sidebar-header { padding:18px 16px; border-bottom:1px solid rgba(255,255,255,.08);
+    display:flex; align-items:center; gap:10px; }
+  .sidebar-header .logo-sekolah { width:38px; height:38px; font-size:14px; }
+  .sidebar-header .brand { font-size:14px; font-weight:700; color:#fff; line-height:1.2; }
+  .sidebar-header .brand small { display:block; font-weight:400; font-size:11px; color:#90a4ae; }
+  .sidebar-menu { flex:1; padding:8px 0; }
+  .menu-group { margin-bottom:2px; display:none; }
+  .menu-group.visible { display:block; }
+  .menu-group-title {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 18px; cursor:pointer; font-size:13px; font-weight:600; color:#8fa8c0;
+    text-transform:uppercase; letter-spacing:.6px; transition:.2s; user-select:none;
+  }
+  .menu-group-title:hover { color:#fff; background:rgba(255,255,255,.05); }
+  .menu-group-title .arrow { transition:.3s; font-size:10px; }
+  .menu-group.open .arrow { transform:rotate(90deg); }
+  .submenu { max-height:0; overflow:hidden; transition:max-height .35s ease; }
+  .menu-group.open .submenu { max-height:600px; }
+  .submenu a { display:flex; align-items:center; gap:8px; padding:10px 18px 10px 28px; color:#b0c4d8;
+    text-decoration:none; font-size:13px; border-left:3px solid transparent; transition:.15s; }
+  .submenu a:hover, .submenu a.active { background:rgba(33,150,243,.15); color:#fff; border-left-color:#2196F3; }
+  .submenu a .ico { width:18px; text-align:center; flex-shrink:0; }
+
+  /* ===== CONTENT ===== */
+  .content { max-width:1200px; margin:16px auto; padding:0 12px; }
+  .card { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.08);
+    padding:16px; margin-bottom:16px; }
+  .card h3 { font-size:14px; color:var(--primary); margin-bottom:12px;
+    padding-bottom:8px; border-bottom:2px solid #eef2f7; display:flex; align-items:center; gap:6px; }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  @media(min-width:768px){
+    .grid-2 { grid-template-columns: 1fr 1fr; gap: 16px; }
+  }
+
+  .school-info { display: flex; flex-direction: row; align-items: center; gap: 16px; }
+  .school-logo-big {
+    width: 70px; height: 70px; border-radius: 16px;
+    background: linear-gradient(135deg,var(--primary),var(--primary-light));
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 700; flex-shrink: 0;
+  }
+  .school-detail { flex: 1; }
+  .school-detail p { font-size: 13px; margin-bottom: 6px; color: #555; display: flex; }
+  .school-detail p b { color: #222; min-width: 100px; flex-shrink: 0; }
+  .school-detail p span { flex: 1; text-align: left; }
+
+  .user-info { display: flex; flex-direction: row; align-items: center; gap: 16px; }
+  .user-photo {
+    width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
+    border: 3px solid #e3eaf3; background: #e8eef5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; color: #90a4ae; flex-shrink: 0;
+  }
+  .user-detail { flex: 1; }
+  .user-detail p { font-size: 13px; margin-bottom: 6px; color: #555; display: flex; }
+  .user-detail p b { color: #222; min-width: 60px; flex-shrink: 0; }
+  .user-detail p span { flex: 1; text-align: left; }
+
+  @media(max-width:480px){
+    .card { padding: 12px; }
+    .school-info, .user-info { gap: 10px; }
+    .school-logo-big { width: 50px; height: 50px; font-size: 18px; border-radius: 10px; }
+    .user-photo { width: 60px; height: 60px; font-size: 22px; border-width: 2px; }
+    .school-detail p, .user-detail p { font-size: 11.5px; margin-bottom: 4px; }
+    .school-detail p b { min-width: 75px; }
+    .user-detail p b { min-width: 45px; }
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  @media(min-width:900px){
+    .stat-grid { grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  }
+  .stat-box { border-radius:8px; padding:12px 4px; text-align:center; color:#fff; transition:.2s; }
+  .stat-box:hover { transform:translateY(-3px); box-shadow:0 6px 14px rgba(0,0,0,.18); }
+  .stat-box .num { font-size:20px; font-weight:800; line-height:1; }
+  .stat-box .lbl { font-size:11px; margin-top:4px; font-weight:600; opacity:.95; }
+
+  .c-biru { background:var(--biru); } .c-hijau { background:var(--hijau); }
+  .c-orange { background:var(--orange); } .c-kuning { background:var(--kuning); color:#5d4037; }
+  .c-pink { background:var(--pink); } .c-merah { background:var(--merah); }
+
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  thead th { background:#eef3fa; color:var(--primary); padding:8px 10px; text-align:left;
+    font-size:11px; text-transform:uppercase; letter-spacing:.4px; border-bottom:2px solid #d6e2f0; }
+  tbody td { padding:8px 10px; border-bottom:1px solid #f0f3f7; color:#444; }
+  tbody tr:hover { background:#f7fafd; }
+
+  .sesi-span { display:flex; flex-wrap:wrap; gap:8px; }
+  .sesi-chip { background:linear-gradient(135deg,#e3f2fd,#bbdefb); color:#0d47a1;
+    padding:6px 12px; border-radius:20px; font-size:11px; font-weight:600;
+    border:1px solid #90caf9; }
+
+  .table-scroll { overflow-x:auto; }
+  .table-scroll table { min-width:600px; }
+  .hadir { color:#2e7d32; font-weight:700; } .alpa { color:#c62828; font-weight:700; }
+  .izin { color:#ef6c00; font-weight:700; } .sakit { color:#1565c0; font-weight:700; }
+
+  .footer {
+    position:fixed; bottom:0; left:0; right:0; height:var(--footer-h);
+    background:var(--primary); color:#cfd8e3; display:flex; align-items:center;
+    justify-content:center; font-size:12px; z-index:1000;
+    box-shadow:0 -2px 8px rgba(0,0,0,.2);
+  }
+  .footer b { color:#ffd54f; }
+
+  /* ===== LOGIN MODAL ===== */
+  .login-overlay {
+    position:fixed; inset:0; background:rgba(15,23,42,.65); z-index:2000;
+    display:flex; align-items:center; justify-content:center; padding:16px;
+    opacity:0; visibility:hidden; transition:.25s;
+  }
+  .login-overlay.active { opacity:1; visibility:visible; }
+  .login-box {
+    background:#fff; border-radius:16px; width:100%; max-width:380px;
+    box-shadow:0 20px 50px rgba(0,0,0,.3); overflow:hidden;
+    transform:translateY(12px); transition:.25s;
+  }
+  .login-overlay.active .login-box { transform:translateY(0); }
+  .login-header {
+    background:linear-gradient(135deg,var(--primary),var(--primary-light));
+    color:#fff; padding:22px 20px; text-align:center;
+  }
+  .login-header .logo-circle {
+    width:56px; height:56px; border-radius:50%; background:#fff; color:var(--primary);
+    display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800;
+    margin:0 auto 10px;
+  }
+  .login-header h2 { font-size:16px; font-weight:700; }
+  .login-header p { font-size:12px; opacity:.85; margin-top:4px; }
+  .login-body { padding:22px 20px 18px; }
+  .login-body label { display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:6px; }
+  .login-body input {
+    width:100%; padding:12px 14px; border:1.5px solid #d0d7e2; border-radius:10px;
+    font-size:16px; letter-spacing:2px; text-align:center; outline:none; transition:.2s;
+  }
+  .login-body input:focus { border-color:var(--biru); box-shadow:0 0 0 3px rgba(33,150,243,.15); }
+  .login-hint { font-size:11px; color:#888; margin-top:8px; text-align:center; line-height:1.4; }
+  .login-error {
+    display:none; margin-top:10px; padding:8px 12px; background:#fdecea; color:#c62828;
+    border-radius:8px; font-size:12px; text-align:center;
+  }
+  .login-error.show { display:block; }
+  .login-btn {
+    width:100%; margin-top:16px; padding:12px; border:none; border-radius:10px;
+    background:linear-gradient(135deg,var(--primary),var(--primary-light));
+    color:#fff; font-size:14px; font-weight:700; cursor:pointer; transition:.2s;
+  }
+  .login-btn:hover { filter:brightness(1.08); }
+  .login-btn:disabled { opacity:.6; cursor:not-allowed; }
+  .login-footer { padding:0 20px 18px; text-align:center; }
+  .login-footer button {
+    background:none; border:none; color:#888; font-size:12px; cursor:pointer; text-decoration:underline;
+  }
+
+  /* Guest banner */
+  .guest-banner {
+    background:linear-gradient(90deg,#e3f2fd,#bbdefb); color:#0d47a1;
+    padding:10px 14px; border-radius:10px; font-size:13px; margin-bottom:16px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  .guest-banner button {
+    background:var(--primary); color:#fff; border:none; padding:6px 14px; border-radius:8px;
+    font-size:12px; font-weight:600; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= TOPBAR ================= -->
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="hamburger" id="btnSidebar" aria-label="Toggle Sidebar">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="logo-sekolah">S</div>
+  </div>
+
+  <div class="topbar-center">
+    <div class="nama-sekolah">SMA NEGERI 1 NUSANTARA</div>
+    <div class="datetime" id="datetime">Kamis, 02 Okt 2026 • 00:00:00</div>
+    <div class="user-name" id="topUserName">👤 Tamu (belum login)</div>
+  </div>
+
+  <div class="topbar-right">
+    <button class="icon-btn" title="Notifikasi" id="btnNotif">
+      🔔<span class="badge" id="notifBadge" style="display:none">0</span>
+    </button>
+    <div class="profile-wrap">
+      <div class="avatar" id="avatarInitial">T</div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-header" id="pmHeader">Belum masuk</div>
+        <a href="#" id="btnLoginMenu" class="login-link">🔑 Login</a>
+        <a href="#" id="btnEditProfil" style="display:none">✏️ Edit Profil</a>
+        <a href="#" id="btnPengaturan" style="display:none">⚙️ Pengaturan</a>
+        <a href="#" id="btnLogout" class="logout" style="display:none">🚪 Logout</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= SIDEBAR ================= -->
+<div class="sidebar-overlay" id="overlay"></div>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo-sekolah">S</div>
+    <div class="brand">SMA N 1 NUSANTARA<small>Sistem Informasi Sekolah</small></div>
+  </div>
+  <nav class="sidebar-menu">
+
+    <!-- DASHBOARD — selalu tampil (guest + semua role) -->
+    <div class="menu-group visible open" data-role="all" id="menuDashboard">
+      <div class="menu-group-title">DASHBOARD <span class="arrow">▶</span></div>
+      <div class="submenu">
+        <a href="#" class="active" data-page="dashboard"><span class="ico">📊</span> Dashboard</a>
+        <a href="#" data-page="cari-siswa"><span class="ico">🔍</span> Cari Data Siswa</a>
+        <a href="#" data-page="validasi-lulusan"><span class="ico">✅</span> Validasi Data Lulusan</a>
+      </div>
+    </div>
+
+    <!-- SISWA / ORANG TUA — hanya siswa -->
+    <div class="menu-group" data-role="siswa" id="menuSiswa">
+      <div class="menu-group-title">SISWA / ORANG TUA <span class="arrow">▶</span></div>
+      <div class="submenu">
+        <a href="#" data-page="jadwal-mapel-kelas"><span class="ico">📅</span> Jadwal Mapel Kelas</a>
+        <a href="#" data-page="sidik-jari-siswa"><span class="ico">👆</span> Sidik Jari Siswa</a>
+        <a href="#" data-page="syarat-naik"><span class="ico">📋</span> Cek Syarat Naik Kelas / Lulus</a>
+        <a href="#" data-page="tugas-ujian"><span class="ico">📝</span> Kerjakan Tugas / Ujian</a>
+        <a href="#" data-page="nilai-saya"><span class="ico">📈</span> Lihat Nilai Saya</a>
+        <a href="#" data-page="pengumuman-lulus"><span class="ico">📢</span> Pengumuman Kelulusan</a>
+      </div>
+    </div>
+
+    <!-- GURU — hanya guru -->
+    <div class="menu-group" data-role="guru" id="menuGuru">
+      <div class="menu-group-title">GURU <span class="arrow">▶</span></div>
+      <div class="submenu">
+        <a href="#" data-page="jadwal-mapel"><span class="ico">📅</span> Jadwal Mapel</a>
+        <a href="#" data-page="scan-barcode"><span class="ico">📷</span> Scan Barcode</a>
+        <a href="#" data-page="input-izin"><span class="ico">🤒</span> Input Izin / Sakit</a>
+        <a href="#" data-page="rekap-data"><span class="ico">📊</span> Rekap Data</a>
+        <a href="#" data-page="input-nilai"><span class="ico">✏️</span> Input Nilai</a>
+        <a href="#" data-page="daftar-nilai"><span class="ico">📋</span> Daftar Nilai</a>
+        <a href="#" data-page="bank-soal"><span class="ico">📚</span> Bank Soal</a>
+        <a href="#" data-page="download-absensi"><span class="ico">⬇️</span> Download Absensi</a>
+      </div>
+    </div>
+
+    <!-- ADMIN — hanya admin -->
+    <div class="menu-group" data-role="admin" id="menuAdmin">
+      <div class="menu-group-title">ADMIN <span class="arrow">▶</span></div>
+      <div class="submenu">
+        <a href="#" data-page="data-siswa"><span class="ico">👨‍🎓</span> Data Siswa</a>
+        <a href="#" data-page="data-guru"><span class="ico">👨‍🏫</span> Data Guru</a>
+        <a href="#" data-page="data-lulusan"><span class="ico">🎓</span> Data Lulusan</a>
+      </div>
+    </div>
+
+    <!-- PENGATURAN — hanya admin -->
+    <div class="menu-group" data-role="admin" id="menuPengaturan">
+      <div class="menu-group-title">PENGATURAN <span class="arrow">▶</span></div>
+      <div class="submenu">
+        <a href="#" data-page="mapel-kelas"><span class="ico">📖</span> Mapel & Kelas</a>
+        <a href="#" data-page="periode"><span class="ico">🗓️</span> Periode</a>
+        <a href="#" data-page="sesi-libur"><span class="ico">⏰</span> Sesi & Hari Libur</a>
+        <a href="#" data-page="izin-sidik"><span class="ico">🔐</span> Izin Sidik Jari & Ujian</a>
+        <a href="#" data-page="arsip-absensi"><span class="ico">🗂️</span> Arsip Absensi</a>
+        <a href="#" data-page="naik-kelas"><span class="ico">⬆️</span> Naik Kelas & Kelulusan</a>
+        <a href="#" data-page="reset-pin"><span class="ico">🔑</span> Reset PIN</a>
+        <a href="#" data-page="edit-profil-user"><span class="ico">👤</span> Edit Profil User</a>
+        <a href="#" data-page="data-sekolah"><span class="ico">🏫</span> Data Sekolah</a>
+        <a href="#" data-page="integrasi-gdrive"><span class="ico">☁️</span> Integrasi Gdrive</a>
+        <a href="#" data-page="backup-data"><span class="ico">💾</span> Backup Data</a>
+      </div>
+    </div>
+
+  </nav>
+</aside>
+
+<!-- ================= LOGIN MODAL ================= -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-header">
+      <div class="logo-circle">S</div>
+      <h2>Login Sistem Informasi</h2>
+      <p>SMA Negeri 1 Nusantara</p>
+    </div>
+    <div class="login-body">
+      <label for="inputIdentifier">NISN / PIN</label>
+      <input type="text" id="inputIdentifier" inputmode="numeric" pattern="[0-9]*"
+             maxlength="10" placeholder="Masukkan angka saja" autocomplete="off" />
+      <div class="login-hint">
+        Siswa: <b>NISN 10 digit</b><br>
+        Guru &amp; Admin: <b>PIN 6 digit</b>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button class="login-btn" id="btnDoLogin">Masuk</button>
+    </div>
+    <div class="login-footer">
+      <button type="button" id="btnCloseLogin">Tutup (lanjut sebagai tamu)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CONTENT ================= -->
+<main class="content" id="mainContent">
+
+  <div class="guest-banner" id="guestBanner">
+    <span>👋 Anda sedang melihat sebagai <b>Tamu</b>. Login untuk mengakses fitur sesuai peran.</span>
+    <button type="button" id="btnOpenLogin">Login</button>
+  </div>
+
+  <!-- ROW 1 : Info Sekolah + Statistik Guru -->
+  <div class="grid-2">
+    <div class="card">
+      <h3>🏫 Profil Sekolah</h3>
+      <div class="school-info">
+        <div class="school-logo-big">S</div>
+        <div class="school-detail">
+          <p><b>NSS</b> <span>: 30101010101</span></p>
+          <p><b>NPSN</b> <span>: 20201010</span></p>
+          <p><b>Tahun Berdiri</b> <span>: 1975</span></p>
+          <p><b>Alamat</b> <span>: Jl. Pendidikan No. 1, Nusantara</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📊 Statistik Guru</h3>
+      <div class="stat-grid">
+        <div class="stat-box c-biru"><div class="num">42</div><div class="lbl">TW</div></div>
+        <div class="stat-box c-hijau"><div class="num">5</div><div class="lbl">TL</div></div>
+        <div class="stat-box c-orange"><div class="num">3</div><div class="lbl">Sakit</div></div>
+        <div class="stat-box c-kuning"><div class="num">2</div><div class="lbl">Izin</div></div>
+        <div class="stat-box c-pink"><div class="num">1</div><div class="lbl">Alpa</div></div>
+        <div class="stat-box c-merah"><div class="num">0</div><div class="lbl">Bolos</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2 : Profil User + Statistik Siswa -->
+  <div class="grid-2">
+    <div class="card" id="cardProfilUser">
+      <h3>👤 Profil Pengguna</h3>
+      <div class="user-info">
+        <div class="user-photo" id="userPhoto">👤</div>
+        <div class="user-detail" id="userDetail">
+          <p><b>Status</b> <span>: Tamu</span></p>
+          <p><b>Akses</b> <span>: Dashboard publik</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📊 Statistik Siswa</h3>
+      <div class="stat-grid">
+        <div class="stat-box c-biru"><div class="num">120</div><div class="lbl">TW</div></div>
+        <div class="stat-box c-hijau"><div class="num">8</div><div class="lbl">TL</div></div>
+        <div class="stat-box c-orange"><div class="num">5</div><div class="lbl">Sakit</div></div>
+        <div class="stat-box c-kuning"><div class="num">4</div><div class="lbl">Izin</div></div>
+        <div class="stat-box c-pink"><div class="num">2</div><div class="lbl">Alpa</div></div>
+        <div class="stat-box c-merah"><div class="num">1</div><div class="lbl">Bolos</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STRUKTUR ORGANISASI -->
+  <div class="card">
+    <h3>🏛️ Struktur Organisasi</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>No</th><th>Nama</th><th>Jabatan Struktur</th><th>Jabatan Fungsional</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Drs. H. Sutrisno, M.Pd</td><td>Kepala Sekolah</td><td>Kepala Sekolah</td></tr>
+          <tr><td>2</td><td>Hj. Siti Aminah, S.Pd</td><td>Wakil Kepala</td><td>Guru Matematika</td></tr>
+          <tr><td>3</td><td>Budi Santoso, S.Kom</td><td>Kepala TU</td><td>Staff Administrasi</td></tr>
+          <tr><td>4</td><td>Rina Wulandari, S.Pd</td><td>Koord. Kurikulum</td><td>Guru B. Indonesia</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- INFORMASI SESI -->
+  <div class="card">
+    <h3>⏰ Informasi Sesi</h3>
+    <div class="sesi-span">
+      <span class="sesi-chip">Sesi 1 : 06:00 – 07:30</span>
+      <span class="sesi-chip">Sesi 2 : 07:30 – 09:00</span>
+      <span class="sesi-chip">Sesi 3 : 09:15 – 10:45</span>
+      <span class="sesi-chip">Sesi 4 : 10:45 – 12:15</span>
+      <span class="sesi-chip">Sesi 5 : 13:00 – 14:30</span>
+    </div>
+  </div>
+
+  <!-- REKAP KEHADIRAN GURU -->
+  <div class="card">
+    <h3>📋 Rekap Kehadiran Guru</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>No</th><th>Nama</th>
+            <th>Sesi 1</th><th>Sesi 2</th><th>Sesi 3</th><th>Sesi 4</th><th>Sesi 5</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Drs. H. Sutrisno</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
+          <tr><td>2</td><td>Hj. Siti Aminah</td><td class="hadir">✓ Hadir</td><td class="izin">Izin</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
+          <tr><td>3</td><td>Budi Santoso</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="sakit">Sakit</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
+          <tr><td>4</td><td>Rina Wulandari</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="alpa">Alpa</td><td class="hadir">✓ Hadir</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- REKAP KEHADIRAN SISWA -->
+  <div class="card">
+    <h3>📋 Rekap Kehadiran Siswa</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>No</th><th>Nama</th><th>Kelas</th>
+            <th>Sesi 1</th><th>Sesi 2</th><th>Sesi 3</th><th>Sesi 4</th><th>Sesi 5</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Ahmad Fauzi</td><td>XII IPA 1</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
+          <tr><td>2</td><td>Bella Putri</td><td>XII IPA 1</td><td class="hadir">✓ Hadir</td><td class="izin">Izin</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
+          <tr><td>3</td><td>Candra Wijaya</td><td>XII IPS 1</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="sakit">Sakit</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td></tr>
+          <tr><td>4</td><td>Dewi Lestari</td><td>XII IPS 2</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="hadir">✓ Hadir</td><td class="alpa">Alpa</td><td class="hadir">✓ Hadir</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- ================= FOOTER ================= -->
+<footer class="footer">
+  &copy; 2025 <b>SMA Negeri 1 Nusantara</b> — Sistem Informasi Sekolah
+</footer>
+
+<script>
+/* ============================================================
+   KONFIGURASI SUPABASE
+   Ganti nilai di bawah dengan project Anda.
+   ============================================================ */
+const SUPABASE_URL = 'https://suvpmkycfifulxizqyam.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1dnBta3ljZmlmdWx4aXpxeWFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3ODUxNjUsImV4cCI6MjEwODM2MTE2NX0.AR4dhBXEbm-kAeSWteeKp2wFmDuZmg0OIFpThQv0FLw';
+const LOGIN_FN_URL = SUPABASE_URL + '/functions/v1/login';
+
+// Client untuk query data (dengan JWT setelah login)
+let supabaseClient = null;
+if (window.supabase) {
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+/* ===== Session helpers ===== */
+const SESSION_KEY = 'sis_session';
+
+function getSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (s.expires_at && s.expires_at * 1000 < Date.now()) {
+      clearSession();
+      return null;
+    }
+    return s;
+  } catch { return null; }
+}
+
+function saveSession(data) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+/* ===== UI: jam ===== */
+const hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const bulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+function updateDateTime(){
+  const d = new Date();
+  const tglAngka = String(d.getDate()).padStart(2, '0');
+  const tgl = `${hari[d.getDay()]}, ${tglAngka} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
+  const jam = [d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+  document.getElementById('datetime').textContent = `${tgl} • ${jam}`;
+}
+updateDateTime(); setInterval(updateDateTime,1000);
+
+/* ===== Sidebar ===== */
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('overlay');
+const btnSidebar = document.getElementById('btnSidebar');
+
+function bukaSidebar(){ sidebar.classList.add('active'); overlay.classList.add('active'); }
+function tutupSidebar(){ sidebar.classList.remove('active'); overlay.classList.remove('active'); }
+
+btnSidebar.addEventListener('click', () => {
+  sidebar.classList.contains('active') ? tutupSidebar() : bukaSidebar();
+});
+overlay.addEventListener('click', tutupSidebar);
+document.addEventListener('click', (e) => {
+  if (!sidebar.classList.contains('active')) return;
+  if (!sidebar.contains(e.target) && !btnSidebar.contains(e.target)) tutupSidebar();
+});
+
+document.querySelectorAll('.menu-group-title').forEach(title => {
+  title.addEventListener('click', () => {
+    title.parentElement.classList.toggle('open');
+  });
+});
+
+/* ===== Role-based menu visibility =====
+   Guest  : hanya DASHBOARD
+   Siswa  : DASHBOARD + SISWA/ORANG TUA (open)
+   Guru   : DASHBOARD + GURU (open)
+   Admin  : semua menu (open)
+*/
+function applyRoleMenus(role) {
+  const groups = document.querySelectorAll('.menu-group');
+  groups.forEach(g => {
+    const r = g.dataset.role;
+    g.classList.remove('visible', 'open');
+    if (r === 'all') {
+      g.classList.add('visible', 'open');
+    } else if (role === 'admin') {
+      g.classList.add('visible', 'open');
+    } else if (role === 'siswa' && r === 'siswa') {
+      g.classList.add('visible', 'open');
+    } else if (role === 'guru' && r === 'guru') {
+      g.classList.add('visible', 'open');
+    }
+  });
+  // Pastikan DASHBOARD selalu open untuk navigasi cepat
+  document.getElementById('menuDashboard').classList.add('open');
+}
+
+/* ===== Profil & topbar ===== */
+function renderUserUI(session) {
+  const topName = document.getElementById('topUserName');
+  const avatar = document.getElementById('avatarInitial');
+  const pmHeader = document.getElementById('pmHeader');
+  const btnLogin = document.getElementById('btnLoginMenu');
+  const btnLogout = document.getElementById('btnLogout');
+  const btnEdit = document.getElementById('btnEditProfil');
+  const btnSet = document.getElementById('btnPengaturan');
+  const guestBanner = document.getElementById('guestBanner');
+  const userDetail = document.getElementById('userDetail');
+  const userPhoto = document.getElementById('userPhoto');
+
+  if (!session) {
+    topName.textContent = '👤 Tamu (belum login)';
+    avatar.textContent = 'T';
+    pmHeader.innerHTML = 'Belum masuk';
+    btnLogin.style.display = '';
+    btnLogout.style.display = 'none';
+    btnEdit.style.display = 'none';
+    btnSet.style.display = 'none';
+    guestBanner.style.display = 'flex';
+    userPhoto.textContent = '👤';
+    userDetail.innerHTML = `
+      <p><b>Status</b> <span>: Tamu</span></p>
+      <p><b>Akses</b> <span>: Dashboard publik</span></p>`;
+    applyRoleMenus(null);
+    return;
+  }
+
+  const { role, user } = session;
+  const nama = user.nama || 'Pengguna';
+  const initial = nama.charAt(0).toUpperCase();
+  const roleLabel = role === 'siswa' ? 'Siswa' : role === 'guru' ? 'Guru' : 'Administrator';
+
+  topName.textContent = `👤 ${nama} (${roleLabel})`;
+  avatar.textContent = initial;
+  pmHeader.innerHTML = `Masuk sebagai <b>${nama}</b><br><small style="color:#888">${roleLabel}</small>`;
+  btnLogin.style.display = 'none';
+  btnLogout.style.display = '';
+  btnEdit.style.display = '';
+  btnSet.style.display = role === 'admin' ? '' : 'none';
+  guestBanner.style.display = 'none';
+
+  if (role === 'siswa') {
+    userPhoto.textContent = '👨‍🎓';
+    userDetail.innerHTML = `
+      <p><b>Nama</b> <span>: ${escapeHtml(user.nama)}</span></p>
+      <p><b>NISN</b> <span>: ${escapeHtml(user.nisn || '-')}</span></p>
+      <p><b>Kelas</b> <span>: ${escapeHtml(user.kelas || '-')}</span></p>
+      <p><b>Alamat</b> <span>: ${escapeHtml(user.alamat || '-')}</span></p>`;
+  } else if (role === 'guru') {
+    userPhoto.textContent = '👨‍🏫';
+    userDetail.innerHTML = `
+      <p><b>Nama</b> <span>: ${escapeHtml(user.nama)}</span></p>
+      <p><b>NIP</b> <span>: ${escapeHtml(user.nip || '-')}</span></p>
+      <p><b>Jabatan</b> <span>: ${escapeHtml(user.jabatan_struktur || '-')}</span></p>
+      <p><b>Mapel</b> <span>: ${escapeHtml(user.jabatan_fungsional || '-')}</span></p>`;
+  } else {
+    userPhoto.textContent = '🛡️';
+    userDetail.innerHTML = `
+      <p><b>Nama</b> <span>: ${escapeHtml(user.nama)}</span></p>
+      <p><b>Jabatan</b> <span>: ${escapeHtml(user.jabatan || 'Administrator')}</span></p>
+      <p><b>Akses</b> <span>: Penuh (Admin)</span></p>`;
+  }
+
+  applyRoleMenus(role);
+
+  // Set JWT ke Supabase client agar RLS aktif
+  if (supabaseClient && session.token) {
+    supabaseClient.realtime.setAuth(session.token);
+    // Untuk REST: header Authorization di-set per request bila perlu
+  }
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* ===== Login modal ===== */
+const loginOverlay = document.getElementById('loginOverlay');
+const inputIdentifier = document.getElementById('inputIdentifier');
+const loginError = document.getElementById('loginError');
+const btnDoLogin = document.getElementById('btnDoLogin');
+
+function openLogin() {
+  loginError.classList.remove('show');
+  inputIdentifier.value = '';
+  loginOverlay.classList.add('active');
+  setTimeout(() => inputIdentifier.focus(), 200);
+}
+function closeLogin() {
+  loginOverlay.classList.remove('active');
+}
+
+document.getElementById('btnOpenLogin').addEventListener('click', openLogin);
+document.getElementById('btnLoginMenu').addEventListener('click', (e) => { e.preventDefault(); openLogin(); });
+document.getElementById('btnCloseLogin').addEventListener('click', closeLogin);
+loginOverlay.addEventListener('click', (e) => {
+  if (e.target === loginOverlay) closeLogin();
+});
+
+inputIdentifier.addEventListener('input', () => {
+  inputIdentifier.value = inputIdentifier.value.replace(/\D/g, '').slice(0, 10);
+});
+inputIdentifier.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doLogin();
+});
+
+async function doLogin() {
+  const id = inputIdentifier.value.trim();
+  loginError.classList.remove('show');
+
+  if (!id) {
+    showLoginError('Masukkan NISN atau PIN');
+    return;
+  }
+  if (id.length !== 10 && id.length !== 6) {
+    showLoginError('Siswa: NISN 10 digit. Guru/Admin: PIN 6 digit.');
+    return;
+  }
+
+  btnDoLogin.disabled = true;
+  btnDoLogin.textContent = 'Memverifikasi…';
+
+  try {
+    // Panggil Edge Function
+    const res = await fetch(LOGIN_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ identifier: id }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      showLoginError(data.error || 'Login gagal');
+      return;
+    }
+
+    const session = {
+      token: data.token,
+      role: data.role,
+      user: data.user,
+      expires_at: data.expires_at,
+    };
+    saveSession(session);
+    renderUserUI(session);
+    closeLogin();
+  } catch (err) {
+    console.error(err);
+    // Fallback demo mode jika Supabase belum dikonfigurasi
+    if (SUPABASE_URL.includes('YOUR_PROJECT')) {
+      const demo = demoLogin(id);
+      if (demo) {
+        saveSession(demo);
+        renderUserUI(demo);
+        closeLogin();
+        return;
+      }
+    }
+    showLoginError('Tidak dapat terhubung ke server. Periksa koneksi / konfigurasi.');
+  } finally {
+    btnDoLogin.disabled = false;
+    btnDoLogin.textContent = 'Masuk';
+  }
+}
+
+btnDoLogin.addEventListener('click', doLogin);
+
+function showLoginError(msg) {
+  loginError.textContent = msg;
+  loginError.classList.add('show');
+}
+
+/* ===== Demo login (saat SUPABASE belum diisi) =====
+   Agar UI bisa diuji tanpa backend.
+   Siswa: 0051234567 | Guru: 111111 | Admin: 123456
+*/
+function demoLogin(id) {
+  const demos = {
+    '0051234567': {
+      role: 'siswa',
+      user: { id: 's1', nisn: '0051234567', nama: 'Ahmad Fauzi', kelas: 'XII IPA 1', alamat: 'Jl. Merdeka No. 10' },
+    },
+    '0051234568': {
+      role: 'siswa',
+      user: { id: 's2', nisn: '0051234568', nama: 'Bella Putri', kelas: 'XII IPA 1', alamat: 'Jl. Sudirman No. 5' },
+    },
+    '111111': {
+      role: 'guru',
+      user: { id: 'g1', nama: 'Drs. H. Sutrisno, M.Pd', nip: '-', jabatan_struktur: 'Kepala Sekolah', jabatan_fungsional: 'Kepala Sekolah' },
+    },
+    '222222': {
+      role: 'guru',
+      user: { id: 'g2', nama: 'Hj. Siti Aminah, S.Pd', nip: '-', jabatan_struktur: 'Wakil Kepala', jabatan_fungsional: 'Guru Matematika' },
+    },
+    '123456': {
+      role: 'admin',
+      user: { id: 'a1', nama: 'Administrator', jabatan: 'Administrator Sistem' },
+    },
+  };
+  const d = demos[id];
+  if (!d) return null;
+  return {
+    token: 'demo-token',
+    role: d.role,
+    user: d.user,
+    expires_at: Math.floor(Date.now() / 1000) + 3600 * 12,
+  };
+}
+
+/* ===== Logout ===== */
+document.getElementById('btnLogout').addEventListener('click', (e) => {
+  e.preventDefault();
+  clearSession();
+  renderUserUI(null);
+  tutupSidebar();
+});
+
+/* ===== Init ===== */
+(function init() {
+  const session = getSession();
+  renderUserUI(session);
+})();
+</script>
+</body>
+</html>
