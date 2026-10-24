@@ -1081,6 +1081,53 @@
 const SUPABASE_URL = 'https://suvpmkycfifulxizqyam.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1dnBta3ljZmlmdWx4aXpxeWFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3ODUxNjUsImV4cCI6MjEwODM2MTE2NX0.AR4dhBXEbm-kAeSWteeKp2wFmDuZmg0OIFpThQv0FLw';
 const LOGIN_FN_URL = SUPABASE_URL + '/functions/v1/login';
+const API_FN_URL = SUPABASE_URL + '/functions/v1/api';
+
+/** Panggil Edge Function api (database) */
+async function apiCall(action, payload = {}) {
+  const session = getSession();
+  const body = { action, ...payload, token: session?.token || null };
+  const res = await fetch(API_FN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      'apikey': SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+  let data;
+  try { data = await res.json(); } catch {
+    throw new Error('Respons server tidak valid (' + res.status + ')');
+  }
+  if (!res.ok || data.status === 'error') {
+    throw new Error(data.message || data.error || ('HTTP ' + res.status));
+  }
+  return data;
+}
+
+async function refreshStoreFromDb() {
+  try {
+    const res = await apiCall('bootstrap');
+    const d = res.data || {};
+    store.siswa = d.siswa || [];
+    store.guru = d.guru || [];
+    store.lulusan = d.lulusan || [];
+    store.periode = d.periode || [];
+    store.sesi = d.sesi || [];
+    store.hari_libur = d.hari_libur || [];
+    // absen hari ini → format log lokal untuk tabel
+    if (Array.isArray(d.absen_hari_ini)) {
+      saveAbsenLog(d.absen_hari_ini);
+    }
+    saveStore(store);
+    return true;
+  } catch (e) {
+    console.warn('bootstrap DB gagal, pakai cache lokal:', e.message);
+    return false;
+  }
+}
+
 
 // Client untuk query data (dengan JWT setelah login)
 let supabaseClient = null;
@@ -1331,19 +1378,20 @@ async function doLogin() {
     saveSession(session);
     renderUserUI(session);
     closeLogin();
+    btnDoLogin.textContent = 'Memuat data…';
+    await refreshStoreFromDb();
+    // refresh halaman aktif
+    const active = document.querySelector('.page.active');
+    if (active?.id === 'page-data-siswa') renderSiswa();
+    if (active?.id === 'page-data-guru') renderGuru();
+    if (active?.id === 'page-data-lulusan') renderLulusan();
+    if (active?.id === 'page-periode') renderPeriode();
+    if (active?.id === 'page-sesi-libur') initSesiLiburPage();
+    if (active?.id === 'page-scan-barcode') { initScanPage(); }
+    toast('Terhubung ke database', 'ok');
   } catch (err) {
     console.error(err);
-    // Fallback demo mode jika Supabase belum dikonfigurasi
-    if (SUPABASE_URL.includes('YOUR_PROJECT')) {
-      const demo = demoLogin(id);
-      if (demo) {
-        saveSession(demo);
-        renderUserUI(demo);
-        closeLogin();
-        return;
-      }
-    }
-    showLoginError('Tidak dapat terhubung ke server. Periksa koneksi / konfigurasi.');
+    showLoginError(err.message || 'Tidak dapat terhubung ke server. Pastikan Edge Function login & api sudah di-deploy.');
   } finally {
     btnDoLogin.disabled = false;
     btnDoLogin.textContent = 'Masuk';
@@ -1836,9 +1884,10 @@ function collectForm() {
   return data;
 }
 
-function saveForm() {
+async function saveForm() {
   const { entity, id } = crudState;
   if (!entity) return;
+  if (entity === 'sesi' || entity === 'hari_libur') return saveFormSesiLiburHook();
   const data = collectForm();
   const fields = FORM_FIELDS[entity];
   for (const f of fields) {
@@ -1855,56 +1904,75 @@ function saveForm() {
   }
 
   const aktif = getActivePeriode();
+  if (entity !== 'periode' && aktif) data.periode_id = data.periode_id || aktif.id;
+  if (id) data.id = id;
 
-  if (entity === 'periode' && data.status === 'Aktif') {
-    store.periode.forEach(p => { if (p.id !== id) p.status = 'Nonaktif'; });
-  }
+  const actionMap = {
+    siswa: 'save_siswa', guru: 'save_guru', lulusan: 'save_lulusan', periode: 'save_periode'
+  };
+  const action = actionMap[entity];
+  if (!action) { toast('Entity tidak didukung', 'err'); return; }
 
-  if (id) {
-    const idx = store[entity].findIndex(r => r.id === id);
-    if (idx >= 0) {
-      store[entity][idx] = { ...store[entity][idx], ...data };
-    }
-  } else {
-    const row = { id: uid(), ...data };
-    if (entity !== 'periode' && aktif) row.periode_id = aktif.id;
-    store[entity].push(row);
+  try {
+    document.getElementById('crudModalSave').disabled = true;
+    const res = await apiCall(action, { row: data });
+    // sync local cache
+    const row = res.data || data;
+    if (!store[entity]) store[entity] = [];
+    const keyFn = (r) => entity === 'siswa' ? r.nisn : entity === 'guru' ? r.pin : entity === 'lulusan' ? r.nisn : (r.tahun_ajaran + '|' + r.semester);
+    const idx = store[entity].findIndex(r => (r.id && row.id && r.id === row.id) || (keyFn(r) && keyFn(r) === keyFn(row)));
+    if (idx >= 0) store[entity][idx] = { ...store[entity][idx], ...row };
+    else store[entity].push(row);
+    saveStore(store);
+    closeForm();
+    toast('Data tersimpan ke database', 'ok');
+    if (entity === 'siswa') renderSiswa();
+    if (entity === 'guru') renderGuru();
+    if (entity === 'lulusan') renderLulusan();
+    if (entity === 'periode') { renderPeriode(); updatePeriodeBadges(); }
+  } catch (e) {
+    toast('Gagal simpan DB: ' + e.message, 'err');
+    showBigPopup('err', 'Gagal Simpan', e.message);
+  } finally {
+    document.getElementById('crudModalSave').disabled = false;
   }
-  saveStore(store);
-  closeForm();
-  toast('Data berhasil disimpan', 'ok');
-  if (entity === 'siswa') renderSiswa();
-  if (entity === 'guru') renderGuru();
-  if (entity === 'lulusan') renderLulusan();
-  if (entity === 'periode') { renderPeriode(); updatePeriodeBadges(); }
 }
 
-function deleteOne(entity, id) {
-  if (!confirm('Hapus data ini?')) return;
-  store[entity] = store[entity].filter(r => r.id !== id);
-  saveStore(store);
-  toast('Data dihapus', 'ok');
-  if (entity === 'siswa') renderSiswa();
-  if (entity === 'guru') renderGuru();
-  if (entity === 'lulusan') renderLulusan();
-  if (entity === 'periode') renderPeriode();
+async function deleteOne(entity, id) {
+  if (!confirm('Hapus data ini dari database?')) return;
+  try {
+    await apiCall('delete_rows', { entity, ids: [id] });
+    store[entity] = (store[entity] || []).filter(r => r.id !== id);
+    saveStore(store);
+    toast('Data dihapus dari database', 'ok');
+    if (entity === 'siswa') renderSiswa();
+    if (entity === 'guru') renderGuru();
+    if (entity === 'lulusan') renderLulusan();
+    if (entity === 'periode') renderPeriode();
+  } catch (e) {
+    toast('Gagal hapus: ' + e.message, 'err');
+  }
 }
 
-function bulkDelete(entity) {
-  const page = document.getElementById('page-data-' + (entity === 'periode' ? 'periode' : entity === 'siswa' ? 'siswa' : entity === 'guru' ? 'guru' : 'lulusan'));
-  // periode page id is page-periode
+async function bulkDelete(entity) {
   const root = document.getElementById(entity === 'periode' ? 'page-periode' : 'page-data-' + entity);
   const checks = root.querySelectorAll('.row-check:checked');
   if (!checks.length) { toast('Pilih minimal 1 baris', 'err'); return; }
-  if (!confirm(`Hapus ${checks.length} data terpilih?`)) return;
-  const ids = new Set([...checks].map(c => c.value));
-  store[entity] = store[entity].filter(r => !ids.has(r.id));
-  saveStore(store);
-  toast(`${checks.length} data dihapus`, 'ok');
-  if (entity === 'siswa') renderSiswa();
-  if (entity === 'guru') renderGuru();
-  if (entity === 'lulusan') renderLulusan();
-  if (entity === 'periode') renderPeriode();
+  if (!confirm('Hapus ' + checks.length + ' data dari database?')) return;
+  const ids = [...checks].map(c => c.value);
+  try {
+    await apiCall('delete_rows', { entity, ids });
+    const idset = new Set(ids);
+    store[entity] = (store[entity] || []).filter(r => !idset.has(r.id));
+    saveStore(store);
+    toast(ids.length + ' data dihapus dari database', 'ok');
+    if (entity === 'siswa') renderSiswa();
+    if (entity === 'guru') renderGuru();
+    if (entity === 'lulusan') renderLulusan();
+    if (entity === 'periode') renderPeriode();
+  } catch (e) {
+    toast('Gagal hapus massal: ' + e.message, 'err');
+  }
 }
 
 /* Toolbar buttons */
@@ -2185,55 +2253,32 @@ function setImportProgress(done, total, label) {
 document.getElementById('importModalGo').addEventListener('click', async () => {
   const { entity, rows } = importState;
   if (!rows.length) return;
-  const aktif = getActivePeriode();
-  let added = 0, updated = 0, skipped = 0;
-  const total = rows.length;
   document.getElementById('importModalGo').disabled = true;
-  setImportProgress(0, total, 'Memulai impor…');
-
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    // validasi ringan
-    if (entity === 'siswa' && r.nisn && !/^\d{10}$/.test(r.nisn)) { skipped++; setImportProgress(i+1, total); await sleep(10); continue; }
-    if (entity === 'guru' && r.pin && !/^\d{6}$/.test(r.pin)) { skipped++; setImportProgress(i+1, total); await sleep(10); continue; }
-    if (entity === 'siswa' && !r.nama) { skipped++; setImportProgress(i+1, total); await sleep(10); continue; }
-    if (entity === 'guru' && !r.nama) { skipped++; setImportProgress(i+1, total); await sleep(10); continue; }
-
-    const key = uniqueKey(entity, r);
-    const idx = store[entity].findIndex(x => uniqueKey(entity, x) === key && key && !key.endsWith(':'));
-    if (idx >= 0 && key && !key.endsWith(':')) {
-      store[entity][idx] = { ...store[entity][idx], ...r };
-      if (entity !== 'periode' && aktif && !store[entity][idx].periode_id) store[entity][idx].periode_id = aktif.id;
-      updated++;
-    } else {
-      const row = { id: uid(), ...r };
-      if (entity !== 'periode' && aktif) row.periode_id = aktif.id;
-      if (!row.status) row.status = entity === 'lulusan' ? 'Lulus' : 'Aktif';
-      store[entity].push(row);
-      added++;
-    }
-    setImportProgress(i + 1, total, `Memproses ${i + 1}/${total}…`);
-    if (i % 5 === 0) await sleep(15);
+  setImportProgress(0, rows.length, 'Mengirim ke database…');
+  try {
+    // progress simulasi sambil request
+    let prog = 0;
+    const timer = setInterval(() => {
+      prog = Math.min(prog + Math.ceil(rows.length / 20), rows.length - 1);
+      setImportProgress(prog, rows.length, 'Mengimpor ke database…');
+    }, 200);
+    const res = await apiCall('import_rows', { entity, rows });
+    clearInterval(timer);
+    setImportProgress(rows.length, rows.length, 'Selesai');
+    await refreshStoreFromDb();
+    await sleep(200);
+    closeImport();
+    showBigPopup('success', 'Impor ke Database Selesai',
+      `Ditambah: <b>${res.added || 0}</b><br>Diupdate: <b>${res.updated || 0}</b><br>Dilewati: <b>${res.skipped || 0}</b><br>Total: ${res.total || rows.length}`);
+    if (entity === 'siswa') renderSiswa();
+    if (entity === 'guru') renderGuru();
+    if (entity === 'lulusan') renderLulusan();
+    if (entity === 'periode') { renderPeriode(); updatePeriodeBadges(); }
+  } catch (e) {
+    showBigPopup('err', 'Impor Gagal', e.message);
+  } finally {
+    document.getElementById('importModalGo').disabled = false;
   }
-
-  if (entity === 'periode') {
-    // pastikan hanya satu Aktif jika ada yang Aktif di impor
-    const aktifRows = store.periode.filter(p => p.status === 'Aktif');
-    if (aktifRows.length > 1) {
-      aktifRows.slice(1).forEach(p => { p.status = 'Nonaktif'; });
-    }
-  }
-
-  saveStore(store);
-  setImportProgress(total, total, 'Selesai');
-  await sleep(300);
-  closeImport();
-  showBigPopup('success', 'Impor Selesai',
-    `Ditambah: <b>${added}</b><br>Diupdate: <b>${updated}</b><br>Dilewati: <b>${skipped}</b><br>Total baris: ${total}`);
-  if (entity === 'siswa') renderSiswa();
-  if (entity === 'guru') renderGuru();
-  if (entity === 'lulusan') renderLulusan();
-  if (entity === 'periode') { renderPeriode(); updatePeriodeBadges(); }
 });
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -2392,113 +2437,45 @@ function updateSesiBadges() {
  * Catat absensi (lokal + siap kirim Supabase Edge Function absen)
  * kode: NISN 10 digit → siswa, PIN 6 digit → guru
  */
-function prosesAbsen(kode, metode) {
+async function prosesAbsen(kode, metode) {
   const code = String(kode || '').replace(/\D/g, '');
-  if (!code) return { ok: false, type: 'err', msg: 'Kode kosong. Scan QR / ketik NISN (10 digit) atau PIN (6 digit).' };
+  if (!code) return { ok: false, type: 'err', msg: 'Kode kosong. Scan QR berisi NISN (10 digit) atau PIN (6 digit).' };
 
   const now = Date.now();
-  // Cooldown antispam kamera (bukan kegagalan absen) — jangan tampilkan sebagai error
   if (now - lastScanAt < 2500) {
     return { ok: false, type: 'cooldown', silent: true, msg: '' };
   }
   lastScanAt = now;
 
-  const sesi = getSesiAktif();
-  if (!sesi) {
-    return { ok: false, type: 'err', msg: 'Tidak ada sesi aktif. Atur sesi di menu <b>Sesi & Hari Libur</b>.' };
-  }
-
-  // Cek hari libur
-  const libur = (store.hari_libur || []).find(h => h.tanggal === todayStr());
-  if (libur) {
-    return {
-      ok: false,
-      type: 'warn',
-      msg: `Hari ini libur (${escapeHtml(libur.keterangan || libur.tanggal)}).<br>Absensi tidak diterima.`
-    };
-  }
-
-  let role = null, user = null;
-  if (code.length === 10) {
-    user = (store.siswa || []).find(s => String(s.nisn) === code);
-    role = 'siswa';
-    if (!user) {
-      return { ok: false, type: 'err', msg: `NISN <b>${escapeHtml(code)}</b> tidak ditemukan di Data Siswa.<br><small>Pastikan data sudah diimpor.</small>` };
+  try {
+    const res = await apiCall('absen', { kode: code, metode: metode || 'qr' });
+    if (res.status === 'reject' || res.status === 'warning') {
+      return {
+        ok: false,
+        type: res.status === 'reject' ? 'reject' : 'warn',
+        msg: res.message || 'Scan ditolak',
+      };
     }
-  } else if (code.length === 6) {
-    user = (store.guru || []).find(g => String(g.pin) === code);
-    role = 'guru';
-    if (!user && code === '123456') {
-      user = { id: 'admin', nama: 'Administrator', pin: code };
-      role = 'guru';
-    }
-    if (!user) {
-      return { ok: false, type: 'err', msg: `PIN <b>${escapeHtml(code)}</b> tidak ditemukan di Data Guru.<br><small>Pastikan data sudah diimpor.</small>` };
-    }
-  } else {
+    // refresh log dari DB
+    try {
+      const logRes = await apiCall('list_absen_hari_ini', {});
+      if (logRes.data) saveAbsenLog(logRes.data);
+    } catch (_) {}
+    const d = res.data || {};
+    const status = d.status || 'TW';
+    const arti = status === 'TW' ? 'Tepat Waktu' : status === 'TL' ? 'Terlambat' : status;
     return {
-      ok: false,
-      type: 'err',
-      msg: `Kode tidak valid (<b>${escapeHtml(code)}</b>).<br>Gunakan NISN 10 digit (siswa) atau PIN 6 digit (guru).`
+      ok: true,
+      type: 'ok',
+      msg: `<b>Absen berhasil (tersimpan di database)</b><br>
+        <b>${escapeHtml(d.nama || '')}</b><br>
+        Status: <span class="badge-status ${statusClass(status)}">${status}</span> (${arti})<br>
+        ${escapeHtml(d.sesi_nama || '')}<br>
+        <small style="color:#666">Metode: ${escapeHtml(metode || 'qr')} · ${escapeHtml(d.scanned_by || '')}</small>`,
     };
+  } catch (e) {
+    return { ok: false, type: 'err', msg: 'Gagal absen ke database:<br>' + escapeHtml(e.message) };
   }
-
-  // Sudah absen di sesi yang sama hari ini → TOLAK dengan pesan jelas
-  const log = loadAbsenLog();
-  const dup = log.find(r =>
-    r.tanggal === todayStr() &&
-    String(r.kode) === code &&
-    (String(r.sesi_id) === String(sesi.id) || r.sesi_nama === sesi.nama)
-  );
-  if (dup) {
-    return {
-      ok: false,
-      type: 'reject',
-      msg: `<b>Scan ditolak</b><br>
-        ${escapeHtml(user.nama)} sudah absen di <b>${escapeHtml(dup.sesi_nama || sesi.nama)}</b>.<br>
-        Status: <span class="badge-status ${statusClass(dup.status)}">${escapeHtml(dup.status)}</span>
-        · Jam ${escapeHtml(dup.jam || '-')}<br>
-        <small>Satu orang hanya boleh scan sekali per sesi.</small>`
-    };
-  }
-
-  const status = statusDariJam(sesi);
-  const aktif = getActivePeriode();
-  const sessOp = getSession();
-  const operatorName = sessOp?.user?.nama
-    ? (sessOp.user.nama + (sessOp.role ? ' (' + sessOp.role + ')' : ''))
-    : (metode === 'qr' ? 'Scanner QR' : metode === 'fingerprint' ? 'Sidik Jari' : 'Manual');
-  const entry = {
-    id: uid(),
-    tanggal: todayStr(),
-    jam: nowHM() + ':' + String(new Date().getSeconds()).padStart(2, '0'),
-    kode: code,
-    nama: user.nama,
-    role: role,
-    sesi_id: sesi.id,
-    sesi_nama: sesi.nama,
-    status,
-    metode: metode || 'manual',
-    periode_id: aktif ? aktif.id : null,
-    scanned_by: operatorName,
-  };
-  log.push(entry);
-  saveAbsenLog(log);
-
-  // Siap kirim Supabase Edge Function /absen (opsional)
-  // fetch(SUPABASE_URL + '/functions/v1/absen', { method:'POST', headers:{...}, body: JSON.stringify({ kode: code, metode, sesi_id: sesi.id, status }) })
-
-  const arti = status === 'TW' ? 'Tepat Waktu' : status === 'TL' ? 'Terlambat' : status;
-  return {
-    ok: true,
-    type: 'ok',
-    msg: `<b>Absen berhasil</b><br>
-      <b>${escapeHtml(user.nama)}</b><br>
-      Status: <span class="badge-status ${statusClass(status)}">${status}</span> (${arti})<br>
-      ${escapeHtml(sesi.nama)} · ${entry.jam}<br>
-      <small style="color:#666">Metode: ${escapeHtml(metode || 'manual')}</small>`,
-    entry,
-  };
 }
 
 function handleAbsenResult(elId, res) {
@@ -2640,7 +2617,7 @@ async function fpAbsen() {
       // lanjut tanpa biometrics di perangkat tanpa sensor
     }
   }
-  const res = prosesAbsen(id, 'fingerprint');
+  const res = await prosesAbsen(id, 'fingerprint');
   handleAbsenResult('fpResult', res);
   if (res.ok || res.type === 'reject') renderAbsenLog('fpLog', 'siswa');
 }
@@ -2662,11 +2639,10 @@ async function startQrScanner() {
     await qrScanner.start(
       { facingMode: 'environment' },
       { fps: 8, qrbox: { width: 220, height: 220 } },
-      (decoded) => {
+      async (decoded) => {
         const codeNow = String(decoded || '').replace(/\D/g, '');
-        // QR kamera memotret berulang — abaikan kode sama dalam 8 detik
         if (codeNow && codeNow === lastProcessedCode && (Date.now() - lastProcessedAt) < 8000) return;
-        const res = prosesAbsen(decoded, 'qr');
+        const res = await prosesAbsen(decoded, 'qr');
         if (!res.silent) {
           lastProcessedCode = codeNow;
           lastProcessedAt = Date.now();
@@ -2795,38 +2771,37 @@ function openLiburForm() {
   document.getElementById('crudModal').classList.add('active');
 }
 
-function saveFormSesiLiburHook() {
+async function saveFormSesiLiburHook() {
   const { entity, id } = crudState;
   const data = collectForm();
   if (entity === 'sesi') {
     if (!data.nama) { toast('Nama sesi wajib', 'err'); return; }
     data.urutan = Number(data.urutan) || 1;
     data.aktif = data.aktif !== 'false';
-    store.sesi = store.sesi || [];
-    if (id) {
-      const i = store.sesi.findIndex(s => s.id === id);
-      if (i >= 0) store.sesi[i] = { ...store.sesi[i], ...data };
-    } else {
-      store.sesi.push({ id: uid(), ...data });
+    if (id) data.id = id;
+    try {
+      const res = await apiCall('save_sesi', { row: data });
+      await refreshStoreFromDb();
+      closeForm();
+      toast('Sesi tersimpan di database', 'ok');
+      renderSesiTable();
+      fillHapusSesiSelect();
+    } catch (e) {
+      toast('Gagal: ' + e.message, 'err');
     }
-    saveStore(store);
-    closeForm();
-    toast('Sesi disimpan', 'ok');
-    renderSesiTable();
-    fillHapusSesiSelect();
     return;
   }
   if (entity === 'hari_libur') {
     if (!data.tanggal) { toast('Tanggal wajib', 'err'); return; }
-    store.hari_libur = store.hari_libur || [];
-    if (store.hari_libur.some(h => h.tanggal === data.tanggal)) {
-      toast('Tanggal libur sudah ada', 'err'); return;
+    try {
+      await apiCall('save_hari_libur', { row: data });
+      await refreshStoreFromDb();
+      closeForm();
+      toast('Hari libur tersimpan di database', 'ok');
+      renderLiburTable();
+    } catch (e) {
+      toast('Gagal: ' + e.message, 'err');
     }
-    store.hari_libur.push({ id: uid(), ...data });
-    saveStore(store);
-    closeForm();
-    toast('Hari libur ditambah', 'ok');
-    renderLiburTable();
   }
 }
 
@@ -2841,31 +2816,39 @@ document.getElementById('btnSesiEdit')?.addEventListener('click', () => {
   if (checks.length !== 1) { toast('Pilih tepat 1 sesi untuk diedit', 'err'); return; }
   openSesiForm(checks[0].value);
 });
-document.getElementById('btnSesiHapus')?.addEventListener('click', () => {
+document.getElementById('btnSesiHapus')?.addEventListener('click', async () => {
   const checks = [...document.querySelectorAll('.row-check-sesi:checked')];
   if (!checks.length) { toast('Pilih sesi yang akan dihapus', 'err'); return; }
-  if (!confirm('Hapus ' + checks.length + ' sesi?')) return;
-  const ids = new Set(checks.map(c => c.value));
-  store.sesi = (store.sesi || []).filter(s => !ids.has(s.id));
-  saveStore(store);
-  renderSesiTable();
-  fillHapusSesiSelect();
-  toast('Sesi dihapus', 'ok');
+  if (!confirm('Hapus ' + checks.length + ' sesi dari database?')) return;
+  const ids = checks.map(c => c.value);
+  try {
+    await apiCall('delete_rows', { entity: 'sesi', ids });
+    await refreshStoreFromDb();
+    renderSesiTable();
+    fillHapusSesiSelect();
+    toast('Sesi dihapus dari database', 'ok');
+  } catch (e) {
+    toast('Gagal: ' + e.message, 'err');
+  }
 });
 document.getElementById('checkAllSesi')?.addEventListener('change', (e) => {
   document.querySelectorAll('.row-check-sesi').forEach(c => { c.checked = e.target.checked; });
 });
 
 document.getElementById('btnLiburTambah')?.addEventListener('click', openLiburForm);
-document.getElementById('btnLiburHapus')?.addEventListener('click', () => {
+document.getElementById('btnLiburHapus')?.addEventListener('click', async () => {
   const checks = [...document.querySelectorAll('.row-check-libur:checked')];
   if (!checks.length) { toast('Pilih hari libur yang akan dihapus', 'err'); return; }
-  if (!confirm('Hapus ' + checks.length + ' hari libur?')) return;
-  const ids = new Set(checks.map(c => c.value));
-  store.hari_libur = (store.hari_libur || []).filter(h => !ids.has(h.id));
-  saveStore(store);
-  renderLiburTable();
-  toast('Hari libur dihapus', 'ok');
+  if (!confirm('Hapus ' + checks.length + ' hari libur dari database?')) return;
+  const ids = checks.map(c => c.value);
+  try {
+    await apiCall('delete_rows', { entity: 'hari_libur', ids });
+    await refreshStoreFromDb();
+    renderLiburTable();
+    toast('Hari libur dihapus dari database', 'ok');
+  } catch (e) {
+    toast('Gagal: ' + e.message, 'err');
+  }
 });
 document.getElementById('checkAllLibur')?.addEventListener('change', (e) => {
   document.querySelectorAll('.row-check-libur').forEach(c => { c.checked = e.target.checked; });
@@ -2901,23 +2884,32 @@ document.getElementById('btnCekJumlahAbsen')?.addEventListener('click', () => {
   info.innerHTML = `Ditemukan <b>${res.count}</b> data absensi pada rentang ${res.dari} s/d ${res.sampai}.`;
 });
 
-document.getElementById('btnHapusAbsenSesi')?.addEventListener('click', () => {
-  const res = countAbsenForFilter();
-  if (!res.ok) { toast(res.msg, 'err'); return; }
-  if (!res.count) { toast('Tidak ada data absensi yang cocok', 'err'); return; }
-  if (!confirm('Hapus ' + res.count + ' data absensi?\\nPengaturan sesi tidak akan dihapus.')) return;
-  const removeIds = new Set(res.rows.map(r => r.id));
-  const next = loadAbsenLog().filter(r => !removeIds.has(r.id));
-  saveAbsenLog(next);
-  document.getElementById('hapusAbsenInfo').innerHTML = 'Berhasil menghapus <b>' + res.count + '</b> data absensi.';
-  showBigPopup('success', 'Data Dihapus', res.count + ' data absensi berhasil dihapus.<br><small>Pengaturan sesi tetap aman.</small>');
+document.getElementById('btnHapusAbsenSesi')?.addEventListener('click', async () => {
+  const dari = document.getElementById('hapusAbsenDari')?.value;
+  const sampai = document.getElementById('hapusAbsenSampai')?.value;
+  const sesiId = document.getElementById('hapusAbsenSesi')?.value;
+  const tipe = document.getElementById('hapusAbsenTipe')?.value || 'semua';
+  if (!dari || !sampai || !sesiId) { toast('Lengkapi tanggal dan sesi', 'err'); return; }
+  if (!confirm('Hapus data absensi di database untuk filter ini? Pengaturan sesi tidak dihapus.')) return;
+  try {
+    const res = await apiCall('hapus_absen_filter', { dari, sampai, sesi_id: sesiId, tipe });
+    await refreshStoreFromDb();
+    document.getElementById('hapusAbsenInfo').innerHTML = 'Berhasil menghapus <b>' + (res.deleted || 0) + '</b> data absensi dari database.';
+    showBigPopup('success', 'Data Dihapus', (res.deleted || 0) + ' data absensi dihapus dari database.');
+    if (typeof renderScanLogTable === 'function') renderScanLogTable();
+  } catch (e) {
+    showBigPopup('err', 'Gagal Hapus', e.message);
+  }
 });
 
 
 /* ===== Init ===== */
-(function init() {
+(async function init() {
   const session = getSession();
   renderUserUI(session);
+  if (session?.token) {
+    await refreshStoreFromDb();
+  }
   updatePeriodeBadges();
   navigate('dashboard');
 })();
