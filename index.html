@@ -6,6 +6,7 @@
 <title>Sistem Informasi Sekolah</title>
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
   :root {
@@ -109,16 +110,17 @@
   .submenu a .ico { width:18px; text-align:center; flex-shrink:0; }
 
   /* ===== CONTENT ===== */
-  .content { max-width:1200px; margin:16px auto; padding:0 12px; }
-  .card { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.08);
-    padding:16px; margin-bottom:16px; }
+  .content { max-width:100%; margin:10px auto; padding:0 8px; }
+  @media(min-width:1100px){ .content { padding:0 14px; } }
+  .card { background:#fff; border-radius:4px; box-shadow:0 1px 6px rgba(0,0,0,.08);
+    padding:14px; margin-bottom:12px; }
   .card h3 { font-size:14px; color:var(--primary); margin-bottom:12px;
     padding-bottom:8px; border-bottom:2px solid #eef2f7; display:flex; align-items:center; gap:6px; }
 
   /* ===== DASH PANEL (layout seperti sketsa HP) ===== */
   .dash-panel {
-    background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.08);
-    padding:14px; margin-bottom:14px;
+    background:#fff; border-radius:4px; box-shadow:0 1px 6px rgba(0,0,0,.08);
+    padding:14px; margin-bottom:12px;
   }
   .dash-panel-head {
     display:flex; flex-direction:column; align-items:center; text-align:center;
@@ -243,7 +245,7 @@
   }
   .login-overlay.active { opacity:1; visibility:visible; }
   .login-box {
-    background:#fff; border-radius:16px; width:100%; max-width:380px;
+    background:#fff; border-radius:4px; width:100%; max-width:380px;
     box-shadow:0 20px 50px rgba(0,0,0,.3); overflow:hidden;
     transform:translateY(12px); transition:.25s;
   }
@@ -307,13 +309,14 @@
     padding:4px 10px; border-radius:20px;
   }
   .crud-toolbar {
-    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-    margin-bottom:12px;
+    display:flex; flex-wrap:nowrap; gap:6px; align-items:center;
+    margin-bottom:10px; overflow-x:auto; -webkit-overflow-scrolling:touch;
   }
-  .crud-toolbar .spacer { flex:1; }
+  .crud-toolbar .spacer { flex:1; min-width:4px; }
   .btn {
-    border:none; border-radius:8px; padding:8px 14px; font-size:12.5px; font-weight:600;
-    cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:.15s;
+    border:none; border-radius:3px; padding:6px 10px; font-size:11px; font-weight:600;
+    cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:.15s;
+    white-space:nowrap; flex-shrink:0;
   }
   .btn:hover { filter:brightness(1.06); }
   .btn:disabled { opacity:.55; cursor:not-allowed; }
@@ -321,38 +324,79 @@
   .btn-success { background:#2e7d32; color:#fff; }
   .btn-danger { background:#c62828; color:#fff; }
   .btn-outline {
-    background:#fff; color:var(--primary); border:1.5px solid #c5d0e0;
+    background:#fff; color:var(--primary); border:1px solid #c5d0e0;
   }
-  .btn-sm { padding:5px 10px; font-size:11.5px; }
-  .btn-icon { padding:6px 8px; }
+  .btn-sm { padding:4px 8px; font-size:10.5px; }
+  .btn-icon { padding:5px 7px; }
   .search-box {
-    padding:8px 12px; border:1.5px solid #d0d7e2; border-radius:8px;
-    font-size:13px; min-width:160px; outline:none;
+    padding:6px 10px; border:1px solid #d0d7e2; border-radius:3px;
+    font-size:11px; min-width:120px; flex:1; max-width:220px; outline:none;
   }
   .search-box:focus { border-color:var(--biru); }
 
   .data-card {
-    background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.08);
-    padding:0; overflow:hidden;
+    background:#fff; border-radius:4px; box-shadow:0 1px 6px rgba(0,0,0,.08);
+    padding:0; overflow:hidden; border:1px solid #e2e8f0;
   }
-  .data-table-wrap { overflow-x:auto; }
-  .data-table { width:100%; border-collapse:collapse; font-size:12px; min-width:900px; }
+  .data-table-wrap { overflow-x:auto; width:100%; }
+  .data-table { width:100%; border-collapse:collapse; font-size:11.5px; min-width:860px; }
   .data-table thead th {
-    background:#1565c0; color:#fff; padding:10px 8px; text-align:left;
-    font-size:11px; font-weight:600; white-space:nowrap; position:sticky; top:0;
+    background:#1565c0; color:#fff; padding:8px 6px; text-align:left;
+    font-size:10.5px; font-weight:600; white-space:nowrap; position:sticky; top:0;
+    border-radius:0;
   }
   .data-table tbody td {
-    padding:8px; border-bottom:1px solid #eef2f7; color:#333; white-space:nowrap;
+    padding:6px; border-bottom:1px solid #e8edf3; color:#333; white-space:nowrap;
   }
   .data-table tbody tr:hover { background:#f5f9ff; }
   .data-table tbody tr.selected { background:#e3f2fd; }
-  .data-table input[type=checkbox] { width:15px; height:15px; cursor:pointer; }
+  .data-table input[type=checkbox] { width:14px; height:14px; cursor:pointer; }
   .badge-status {
-    display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700;
+    display:inline-block; padding:2px 7px; border-radius:3px; font-size:10px; font-weight:700;
   }
   .badge-aktif { background:#e8f5e9; color:#2e7d32; }
   .badge-nonaktif { background:#fce4ec; color:#c62828; }
   .badge-lulus { background:#e3f2fd; color:#1565c0; }
+
+  /* Status absensi — warna legend dashboard */
+  .st-tw { background:#e3f2fd; color:#1565c0; }      /* TW biru */
+  .st-tl { background:#e8f5e9; color:#2e7d32; }      /* TL hijau */
+  .st-sakit { background:#fff3e0; color:#e65100; }   /* orange */
+  .st-izin { background:#fffde7; color:#f57f17; }    /* kuning */
+  .st-alpa { background:#fce4ec; color:#c2185b; }    /* pink */
+  .st-bolos { background:#ffebee; color:#c62828; }   /* merah */
+  .st-hadir { background:#e3f2fd; color:#1565c0; }
+
+  /* Absensi pages */
+  .absen-card {
+    background:#fff; border:1px solid #e2e8f0; border-radius:4px;
+    padding:16px; margin-bottom:12px; text-align:center;
+  }
+  .absen-card .absen-icon { font-size:42px; margin-bottom:8px; }
+  .absen-card h4 { color:var(--primary); font-size:14px; margin-bottom:6px; }
+  .absen-card p.hint { font-size:12px; color:#666; margin-bottom:12px; }
+  .absen-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  .sesi-aktif-box {
+    display:inline-block; background:#e3f2fd; color:#0d47a1;
+    padding:6px 12px; border-radius:3px; font-size:12px; font-weight:700; margin-bottom:10px;
+  }
+  .absen-log {
+    margin-top:12px; text-align:left; font-size:12px; max-height:220px; overflow-y:auto;
+    border:1px solid #e2e8f0; border-radius:3px;
+  }
+  .absen-log .log-item {
+    padding:8px 10px; border-bottom:1px solid #f0f3f7;
+    display:flex; justify-content:space-between; gap:8px; align-items:center;
+  }
+  .absen-log .log-item:last-child { border-bottom:none; }
+  #qr-reader { width:100%; max-width:360px; margin:12px auto 0; border:1px solid #d0d7e2; border-radius:3px; overflow:hidden; }
+  .absen-result {
+    margin-top:10px; padding:10px; border-radius:3px; font-size:13px; font-weight:600; display:none;
+  }
+  .absen-result.show { display:block; }
+  .absen-result.ok { background:#e8f5e9; color:#1b5e20; }
+  .absen-result.err { background:#ffebee; color:#b71c1c; }
+  .absen-result.warn { background:#fff8e1; color:#f57f17; }
   .empty-row td { text-align:center; color:#999; padding:28px !important; }
 
   /* Modal form */
@@ -363,7 +407,7 @@
   }
   .modal-overlay.active { opacity:1; visibility:visible; }
   .modal-box {
-    background:#fff; border-radius:14px; width:100%; max-width:560px;
+    background:#fff; border-radius:4px; width:100%; max-width:560px;
     box-shadow:0 20px 50px rgba(0,0,0,.25); margin:auto;
   }
   .modal-box.wide { max-width:720px; }
@@ -778,6 +822,64 @@
           <tbody id="tbodyPeriode"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: SIDIK JARI SISWA ========== -->
+  <div class="page" id="page-sidik-jari-siswa">
+    <div class="page-title">👆 Sidik Jari Siswa <span class="periode-badge" id="badgePeriodeFp">Periode: -</span></div>
+    <div class="absen-card">
+      <div class="absen-icon">🔐</div>
+      <h4>Absensi dengan Sidik Jari</h4>
+      <p class="hint">Gunakan sensor sidik jari perangkat (WebAuthn). Login sebagai siswa terlebih dahulu, atau masukkan NISN untuk absen cepat.</p>
+      <div class="sesi-aktif-box" id="fpSesiAktif">Sesi aktif: memuat…</div>
+      <div style="max-width:280px;margin:0 auto 12px;text-align:left">
+        <label style="font-size:11px;font-weight:600;color:#555">NISN (opsional jika sudah login siswa)</label>
+        <input type="text" id="fpNisnInput" class="search-box" style="width:100%;max-width:none;margin-top:4px" maxlength="10" placeholder="10 digit NISN" inputmode="numeric" />
+      </div>
+      <div class="absen-actions">
+        <button type="button" class="btn btn-primary" id="btnFpRegister">📝 Daftar Sidik Jari</button>
+        <button type="button" class="btn btn-success" id="btnFpAbsen">👆 Absen Sekarang</button>
+      </div>
+      <div class="absen-result" id="fpResult"></div>
+      <div class="absen-log" id="fpLog"><div class="log-item" style="color:#999">Belum ada riwayat absen hari ini</div></div>
+    </div>
+    <div class="card" style="margin-top:8px">
+      <h3>Legend Status</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:11px">
+        <span class="badge-status st-tw">TW</span>
+        <span class="badge-status st-tl">TL</span>
+        <span class="badge-status st-sakit">Sakit</span>
+        <span class="badge-status st-izin">Izin</span>
+        <span class="badge-status st-alpa">Alpa</span>
+        <span class="badge-status st-bolos">Bolos</span>
+      </div>
+      <p style="font-size:11px;color:#666;margin-top:8px">TW = Tepat Waktu (biru) · TL = Terlambat (hijau) · dihitung dari jam mulai sesi aktif.</p>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: SCAN BARCODE / QR ========== -->
+  <div class="page" id="page-scan-barcode">
+    <div class="page-title">📷 Scan Barcode / QR <span class="periode-badge" id="badgePeriodeScan">Periode: -</span></div>
+    <div class="absen-card">
+      <div class="absen-icon">📷</div>
+      <h4>Scanner QR Absensi</h4>
+      <p class="hint">Arahkan kamera ke QR/barcode yang berisi NISN (siswa) atau PIN 6 digit (guru). Hanya untuk peran Guru/Admin.</p>
+      <div class="sesi-aktif-box" id="scanSesiAktif">Sesi aktif: memuat…</div>
+      <div class="absen-actions">
+        <button type="button" class="btn btn-primary" id="btnCamToggle">Buka Kamera</button>
+        <button type="button" class="btn btn-outline" id="btnCamStop" style="display:none">Tutup Kamera</button>
+      </div>
+      <div id="qr-reader"></div>
+      <div style="margin-top:12px;text-align:left;max-width:320px;margin-left:auto;margin-right:auto">
+        <label style="font-size:11px;font-weight:600">Atau ketik kode manual</label>
+        <div style="display:flex;gap:6px;margin-top:4px">
+          <input type="text" id="scanManualCode" class="search-box" style="flex:1;max-width:none" placeholder="NISN / PIN" />
+          <button type="button" class="btn btn-success" id="btnScanManual">Absen</button>
+        </div>
+      </div>
+      <div class="absen-result" id="scanResult"></div>
+      <div class="absen-log" id="scanLog"><div class="log-item" style="color:#999">Belum ada scan hari ini</div></div>
     </div>
   </div>
 
@@ -1305,7 +1407,7 @@ function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode'];
   let target = known.includes(page) ? page : 'placeholder';
 
   const pageEl = document.getElementById('page-' + target);
@@ -1323,6 +1425,9 @@ function navigate(page) {
   if (target === 'data-guru') renderGuru();
   if (target === 'data-lulusan') renderLulusan();
   if (target === 'periode') renderPeriode();
+  if (target === 'sidik-jari-siswa') initSidikJariPage();
+  if (target === 'scan-barcode') initScanPage();
+  if (target !== 'scan-barcode') stopQrScanner();
 
   tutupSidebar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1816,6 +1921,316 @@ document.getElementById('importModalGo').addEventListener('click', () => {
   if (entity === 'guru') renderGuru();
   if (entity === 'lulusan') renderLulusan();
 });
+
+
+/* ============================================================
+   ABSENSI: Sidik Jari + QR (logika mirip index_v1)
+   Status: TW (tepat waktu) / TL (terlambat) berdasarkan sesi
+   Warna: TW biru, TL hijau, Sakit orange, Izin kuning, Alpa pink, Bolos merah
+   ============================================================ */
+const SESI_DEFAULT = [
+  { id: 1, nama: 'Sesi 1', mulai: '06:00', selesai: '07:30' },
+  { id: 2, nama: 'Sesi 2', mulai: '07:30', selesai: '09:00' },
+  { id: 3, nama: 'Sesi 3', mulai: '09:15', selesai: '10:45' },
+  { id: 4, nama: 'Sesi 4', mulai: '10:45', selesai: '12:15' },
+  { id: 5, nama: 'Sesi 5', mulai: '13:00', selesai: '14:30' },
+];
+const ABSEN_KEY = 'sis_absen_log_v1';
+const FP_KEY = 'sis_fp_cred_v1';
+let lastScanAt = 0;
+let qrScanner = null;
+let qrRunning = false;
+
+function loadAbsenLog() {
+  try { return JSON.parse(localStorage.getItem(ABSEN_KEY) || '[]'); } catch { return []; }
+}
+function saveAbsenLog(list) {
+  localStorage.setItem(ABSEN_KEY, JSON.stringify(list.slice(-200)));
+}
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function nowHM() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function hmToMin(hm) {
+  const [h,m] = String(hm).split(':').map(Number);
+  return h * 60 + m;
+}
+/** Sesi aktif berdasarkan jam sekarang (toleransi 5 menit sebelum mulai) */
+function getSesiAktif() {
+  const now = hmToMin(nowHM());
+  for (const s of SESI_DEFAULT) {
+    const a = hmToMin(s.mulai) - 5;
+    const b = hmToMin(s.selesai);
+    if (now >= a && now < b) return s;
+  }
+  // di luar jam: kembalikan sesi terdekat berikutnya atau terakhir
+  for (const s of SESI_DEFAULT) {
+    if (now < hmToMin(s.mulai)) return s;
+  }
+  return SESI_DEFAULT[SESI_DEFAULT.length - 1];
+}
+/** TW jika absen sebelum/tepat mulai+10 menit, selain itu TL (masih dalam sesi) */
+function statusDariJam(sesi) {
+  const now = hmToMin(nowHM());
+  const start = hmToMin(sesi.mulai);
+  if (now <= start + 10) return 'TW';
+  return 'TL';
+}
+function statusClass(st) {
+  const u = String(st || '').toUpperCase();
+  if (u === 'TW' || u === 'HADIR') return 'st-tw';
+  if (u === 'TL') return 'st-tl';
+  if (u === 'SAKIT') return 'st-sakit';
+  if (u === 'IZIN') return 'st-izin';
+  if (u === 'ALPA') return 'st-alpa';
+  if (u === 'BOLOS') return 'st-bolos';
+  return '';
+}
+function showAbsenResult(elId, type, msg) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.className = 'absen-result show ' + type;
+  el.innerHTML = msg;
+}
+function renderAbsenLog(elId, filterRole) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const today = todayStr();
+  let rows = loadAbsenLog().filter(r => r.tanggal === today);
+  if (filterRole) rows = rows.filter(r => r.role === filterRole);
+  rows = rows.slice().reverse().slice(0, 30);
+  if (!rows.length) {
+    el.innerHTML = '<div class="log-item" style="color:#999">Belum ada riwayat absen hari ini</div>';
+    return;
+  }
+  el.innerHTML = rows.map(r => `
+    <div class="log-item">
+      <div>
+        <b>${escapeHtml(r.nama || r.kode)}</b>
+        <span style="color:#888;font-size:11px"> · ${escapeHtml(r.sesi_nama || '')} · ${escapeHtml(r.jam || '')}</span>
+      </div>
+      <span class="badge-status ${statusClass(r.status)}">${escapeHtml(r.status)}</span>
+    </div>`).join('');
+}
+function updateSesiBadges() {
+  const s = getSesiAktif();
+  const txt = `Sesi aktif: ${s.nama} (${s.mulai} – ${s.selesai})`;
+  ['fpSesiAktif','scanSesiAktif'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
+  });
+  const label = 'Periode: ' + periodeLabel();
+  ['badgePeriodeFp','badgePeriodeScan'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
+}
+
+/**
+ * Catat absensi (lokal + siap kirim Supabase Edge Function absen)
+ * kode: NISN 10 digit → siswa, PIN 6 digit → guru
+ */
+function prosesAbsen(kode, metode) {
+  const code = String(kode || '').replace(/\D/g, '');
+  if (!code) return { ok: false, msg: 'Kode kosong' };
+  const now = Date.now();
+  if (now - lastScanAt < 2000) return { ok: false, msg: 'Tunggu sebentar sebelum absen lagi' };
+  lastScanAt = now;
+
+  const sesi = getSesiAktif();
+  const status = statusDariJam(sesi);
+  const aktif = getActivePeriode();
+  let role = null, user = null;
+
+  if (code.length === 10) {
+    user = store.siswa.find(s => s.nisn === code);
+    role = 'siswa';
+  } else if (code.length === 6) {
+    user = store.guru.find(g => g.pin === code) || (code === '123456' ? { id: 'admin', nama: 'Administrator', pin: code } : null);
+    role = user && user.pin === '123456' && !store.guru.find(g => g.pin === code) ? 'admin' : 'guru';
+  } else {
+    return { ok: false, msg: 'Format: NISN 10 digit atau PIN 6 digit' };
+  }
+  if (!user) return { ok: false, msg: (role === 'siswa' ? 'NISN' : 'PIN') + ' tidak ditemukan di data' };
+
+  // Cegah double absen sesi yang sama hari ini
+  const log = loadAbsenLog();
+  const dup = log.find(r => r.tanggal === todayStr() && r.kode === code && r.sesi_id === sesi.id);
+  if (dup) {
+    return { ok: false, warn: true, msg: `${user.nama} sudah absen ${dup.status} pada ${dup.sesi_nama} (${dup.jam})` };
+  }
+
+  const entry = {
+    id: uid(),
+    tanggal: todayStr(),
+    jam: nowHM() + ':' + String(new Date().getSeconds()).padStart(2,'0'),
+    kode: code,
+    nama: user.nama,
+    role: role === 'admin' ? 'guru' : role,
+    sesi_id: sesi.id,
+    sesi_nama: sesi.nama,
+    status,
+    metode: metode || 'manual',
+    periode_id: aktif ? aktif.id : null,
+  };
+  log.push(entry);
+  saveAbsenLog(log);
+
+  // TODO: kirim ke Edge Function /absen saat online
+  // fetch(SUPABASE_URL + '/functions/v1/absen', { method:'POST', ... body: entry })
+
+  return {
+    ok: true,
+    msg: `✅ ${escapeHtml(user.nama)} — <span class="badge-status ${statusClass(status)}">${status}</span> · ${sesi.nama} · ${entry.jam}`,
+    entry,
+  };
+}
+
+function initSidikJariPage() {
+  updateSesiBadges();
+  renderAbsenLog('fpLog', 'siswa');
+  const sess = getSession();
+  if (sess && sess.role === 'siswa' && sess.user?.nisn) {
+    const inp = document.getElementById('fpNisnInput');
+    if (inp) inp.value = sess.user.nisn;
+  }
+}
+
+function initScanPage() {
+  updateSesiBadges();
+  renderAbsenLog('scanLog');
+  const sess = getSession();
+  if (sess && sess.role === 'siswa') {
+    showAbsenResult('scanResult', 'warn', 'Scanner QR biasanya untuk Guru/Admin. Siswa gunakan menu Sidik Jari.');
+  }
+}
+
+/* WebAuthn sederhana — daftar & absen sidik jari (device-bound) */
+async function fpRegister() {
+  const nisn = (document.getElementById('fpNisnInput')?.value || '').replace(/\D/g,'');
+  const sess = getSession();
+  const id = nisn || (sess?.role === 'siswa' ? sess.user?.nisn : '');
+  if (!id || id.length !== 10) {
+    showAbsenResult('fpResult', 'err', 'Masukkan NISN 10 digit atau login sebagai siswa');
+    return;
+  }
+  if (!window.PublicKeyCredential) {
+    showAbsenResult('fpResult', 'err', 'Perangkat tidak mendukung WebAuthn / sidik jari browser');
+    return;
+  }
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const userId = new TextEncoder().encode(id);
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'SIS Absensi', id: location.hostname || 'localhost' },
+        user: { id: userId, name: id, displayName: id },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 60000,
+      }
+    });
+    if (!cred) throw new Error('Dibatalkan');
+    const map = JSON.parse(localStorage.getItem(FP_KEY) || '{}');
+    map[id] = true;
+    localStorage.setItem(FP_KEY, JSON.stringify(map));
+    showAbsenResult('fpResult', 'ok', 'Sidik jari berhasil didaftarkan untuk NISN ' + id);
+  } catch (e) {
+    showAbsenResult('fpResult', 'err', 'Gagal daftar: ' + (e.message || e));
+  }
+}
+
+async function fpAbsen() {
+  const nisn = (document.getElementById('fpNisnInput')?.value || '').replace(/\D/g,'');
+  const sess = getSession();
+  const id = nisn || (sess?.role === 'siswa' ? sess.user?.nisn : '');
+  if (!id || id.length !== 10) {
+    showAbsenResult('fpResult', 'err', 'Masukkan NISN 10 digit atau login sebagai siswa');
+    return;
+  }
+  const map = JSON.parse(localStorage.getItem(FP_KEY) || '{}');
+  // Coba verifikasi platform auth jika tersedia
+  if (window.PublicKeyCredential && map[id]) {
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      await navigator.credentials.get({
+        publicKey: { challenge, timeout: 60000, userVerification: 'required' }
+      });
+    } catch (e) {
+      showAbsenResult('fpResult', 'err', 'Verifikasi sidik jari gagal / dibatalkan');
+      return;
+    }
+  } else if (window.PublicKeyCredential) {
+    // Izinkan absen tanpa daftar formal (masih minta biometrics bila bisa)
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      await navigator.credentials.get({
+        publicKey: { challenge, timeout: 45000, userVerification: 'preferred' }
+      });
+    } catch (_) {
+      // lanjut tanpa biometrics di perangkat tanpa sensor
+    }
+  }
+  const res = prosesAbsen(id, 'fingerprint');
+  showAbsenResult('fpResult', res.ok ? 'ok' : (res.warn ? 'warn' : 'err'), res.msg);
+  if (res.ok || res.warn) renderAbsenLog('fpLog', 'siswa');
+}
+
+document.getElementById('btnFpRegister')?.addEventListener('click', fpRegister);
+document.getElementById('btnFpAbsen')?.addEventListener('click', fpAbsen);
+
+/* QR Scanner */
+async function startQrScanner() {
+  if (typeof Html5Qrcode === 'undefined') {
+    showAbsenResult('scanResult', 'err', 'Library kamera belum termuat. Refresh halaman.');
+    return;
+  }
+  if (qrRunning) return;
+  const box = document.getElementById('qr-reader');
+  if (!box) return;
+  qrScanner = new Html5Qrcode('qr-reader');
+  try {
+    await qrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 8, qrbox: { width: 220, height: 220 } },
+      (decoded) => {
+        const res = prosesAbsen(decoded, 'qr');
+        showAbsenResult('scanResult', res.ok ? 'ok' : (res.warn ? 'warn' : 'err'), res.msg);
+        if (res.ok || res.warn) renderAbsenLog('scanLog');
+      },
+      () => {}
+    );
+    qrRunning = true;
+    document.getElementById('btnCamToggle').style.display = 'none';
+    document.getElementById('btnCamStop').style.display = '';
+  } catch (e) {
+    showAbsenResult('scanResult', 'err', 'Kamera gagal: ' + (e.message || e));
+  }
+}
+async function stopQrScanner() {
+  if (!qrScanner || !qrRunning) return;
+  try { await qrScanner.stop(); qrScanner.clear(); } catch (_) {}
+  qrRunning = false;
+  qrScanner = null;
+  const t = document.getElementById('btnCamToggle');
+  const s = document.getElementById('btnCamStop');
+  if (t) t.style.display = '';
+  if (s) s.style.display = 'none';
+}
+document.getElementById('btnCamToggle')?.addEventListener('click', startQrScanner);
+document.getElementById('btnCamStop')?.addEventListener('click', stopQrScanner);
+document.getElementById('btnScanManual')?.addEventListener('click', () => {
+  const code = document.getElementById('scanManualCode')?.value || '';
+  const res = prosesAbsen(code, 'manual');
+  showAbsenResult('scanResult', res.ok ? 'ok' : (res.warn ? 'warn' : 'err'), res.msg);
+  if (res.ok || res.warn) renderAbsenLog('scanLog');
+});
+
 
 /* ===== Init ===== */
 (function init() {
