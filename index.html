@@ -875,20 +875,37 @@
         <button type="button" class="btn btn-outline" id="btnCamStop" style="display:none">Tutup Kamera</button>
       </div>
       <div id="qr-reader"></div>
-      <div style="margin-top:12px;text-align:left;max-width:320px;margin-left:auto;margin-right:auto">
-        <label style="font-size:11px;font-weight:600">Atau ketik kode manual</label>
-        <div style="display:flex;gap:6px;margin-top:4px">
-          <input type="text" id="scanManualCode" class="search-box" style="flex:1;max-width:none" placeholder="NISN / PIN" />
-          <button type="button" class="btn btn-success" id="btnScanManual">Absen</button>
-        </div>
-      </div>
       <div class="absen-result" id="scanResult"></div>
-      <div class="absen-log" id="scanLog"><div class="log-item" style="color:#999">Belum ada scan hari ini</div></div>
+    </div>
+
+    <div class="data-card" style="padding:0;margin-top:12px">
+      <div style="padding:10px 12px;border-bottom:1px solid #e8edf3;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <b style="font-size:13px;color:var(--primary)">📋 Riwayat Scan Hari Ini</b>
+        <span class="spacer"></span>
+        <span style="font-size:11px;color:#888" id="scanLogCount">0 data</span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table" id="tableScanLog" style="min-width:720px">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>NISN / NIP</th>
+              <th>Nama</th>
+              <th>Jam Scan</th>
+              <th>Sesi</th>
+              <th>Status</th>
+              <th>Di Scan Oleh</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyScanLog">
+            <tr class="empty-row"><td colspan="7">Belum ada scan hari ini</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-
-  <!-- ========== PAGE: SESI & HARI LIBUR ========== -->
+<!-- ========== PAGE: SESI & HARI LIBUR ========== -->
   <div class="page" id="page-sesi-libur">
     <div class="page-title" style="justify-content:center;width:100%">⏰ Sesi &amp; Hari Libur</div>
 
@@ -2269,6 +2286,8 @@ const SESI_DEFAULT = getSesiList(); // fallback awal; absen memakai getSesiList(
 const ABSEN_KEY = 'sis_absen_log_v1';
 const FP_KEY = 'sis_fp_cred_v1';
 let lastScanAt = 0;
+let lastProcessedCode = '';
+let lastProcessedAt = 0;
 let qrScanner = null;
 let qrRunning = false;
 
@@ -2375,63 +2394,133 @@ function updateSesiBadges() {
  */
 function prosesAbsen(kode, metode) {
   const code = String(kode || '').replace(/\D/g, '');
-  if (!code) return { ok: false, msg: 'Kode kosong' };
+  if (!code) return { ok: false, type: 'err', msg: 'Kode kosong. Scan QR / ketik NISN (10 digit) atau PIN (6 digit).' };
+
   const now = Date.now();
-  if (now - lastScanAt < 2000) return { ok: false, msg: 'Tunggu sebentar sebelum absen lagi' };
+  // Cooldown antispam kamera (bukan kegagalan absen) — jangan tampilkan sebagai error
+  if (now - lastScanAt < 2500) {
+    return { ok: false, type: 'cooldown', silent: true, msg: '' };
+  }
   lastScanAt = now;
 
   const sesi = getSesiAktif();
+  if (!sesi) {
+    return { ok: false, type: 'err', msg: 'Tidak ada sesi aktif. Atur sesi di menu <b>Sesi & Hari Libur</b>.' };
+  }
+
+  // Cek hari libur
+  const libur = (store.hari_libur || []).find(h => h.tanggal === todayStr());
+  if (libur) {
+    return {
+      ok: false,
+      type: 'warn',
+      msg: `Hari ini libur (${escapeHtml(libur.keterangan || libur.tanggal)}).<br>Absensi tidak diterima.`
+    };
+  }
+
+  let role = null, user = null;
+  if (code.length === 10) {
+    user = (store.siswa || []).find(s => String(s.nisn) === code);
+    role = 'siswa';
+    if (!user) {
+      return { ok: false, type: 'err', msg: `NISN <b>${escapeHtml(code)}</b> tidak ditemukan di Data Siswa.<br><small>Pastikan data sudah diimpor.</small>` };
+    }
+  } else if (code.length === 6) {
+    user = (store.guru || []).find(g => String(g.pin) === code);
+    role = 'guru';
+    if (!user && code === '123456') {
+      user = { id: 'admin', nama: 'Administrator', pin: code };
+      role = 'guru';
+    }
+    if (!user) {
+      return { ok: false, type: 'err', msg: `PIN <b>${escapeHtml(code)}</b> tidak ditemukan di Data Guru.<br><small>Pastikan data sudah diimpor.</small>` };
+    }
+  } else {
+    return {
+      ok: false,
+      type: 'err',
+      msg: `Kode tidak valid (<b>${escapeHtml(code)}</b>).<br>Gunakan NISN 10 digit (siswa) atau PIN 6 digit (guru).`
+    };
+  }
+
+  // Sudah absen di sesi yang sama hari ini → TOLAK dengan pesan jelas
+  const log = loadAbsenLog();
+  const dup = log.find(r =>
+    r.tanggal === todayStr() &&
+    String(r.kode) === code &&
+    (String(r.sesi_id) === String(sesi.id) || r.sesi_nama === sesi.nama)
+  );
+  if (dup) {
+    return {
+      ok: false,
+      type: 'reject',
+      msg: `<b>Scan ditolak</b><br>
+        ${escapeHtml(user.nama)} sudah absen di <b>${escapeHtml(dup.sesi_nama || sesi.nama)}</b>.<br>
+        Status: <span class="badge-status ${statusClass(dup.status)}">${escapeHtml(dup.status)}</span>
+        · Jam ${escapeHtml(dup.jam || '-')}<br>
+        <small>Satu orang hanya boleh scan sekali per sesi.</small>`
+    };
+  }
+
   const status = statusDariJam(sesi);
   const aktif = getActivePeriode();
-  let role = null, user = null;
-
-  if (code.length === 10) {
-    user = store.siswa.find(s => s.nisn === code);
-    role = 'siswa';
-  } else if (code.length === 6) {
-    user = store.guru.find(g => g.pin === code) || (code === '123456' ? { id: 'admin', nama: 'Administrator', pin: code } : null);
-    role = user && user.pin === '123456' && !store.guru.find(g => g.pin === code) ? 'admin' : 'guru';
-  } else {
-    return { ok: false, msg: 'Format: NISN 10 digit atau PIN 6 digit' };
-  }
-  if (!user) return { ok: false, msg: (role === 'siswa' ? 'NISN' : 'PIN') + ' tidak ditemukan di data' };
-
-  // Cegah double absen sesi yang sama hari ini
-  const log = loadAbsenLog();
-  const dup = log.find(r => r.tanggal === todayStr() && r.kode === code && r.sesi_id === sesi.id);
-  if (dup) {
-    return { ok: false, warn: true, msg: `<b>${escapeHtml(user.nama)}</b> sudah tercatat absen<br>Status: <b>${escapeHtml(dup.status)}</b> · ${escapeHtml(dup.sesi_nama)} · ${escapeHtml(dup.jam)}<br><small>Tidak dikirim ulang ke database</small>` };
-  }
-
+  const sessOp = getSession();
+  const operatorName = sessOp?.user?.nama
+    ? (sessOp.user.nama + (sessOp.role ? ' (' + sessOp.role + ')' : ''))
+    : (metode === 'qr' ? 'Scanner QR' : metode === 'fingerprint' ? 'Sidik Jari' : 'Manual');
   const entry = {
     id: uid(),
     tanggal: todayStr(),
-    jam: nowHM() + ':' + String(new Date().getSeconds()).padStart(2,'0'),
+    jam: nowHM() + ':' + String(new Date().getSeconds()).padStart(2, '0'),
     kode: code,
     nama: user.nama,
-    role: role === 'admin' ? 'guru' : role,
+    role: role,
     sesi_id: sesi.id,
     sesi_nama: sesi.nama,
     status,
     metode: metode || 'manual',
     periode_id: aktif ? aktif.id : null,
+    scanned_by: operatorName,
   };
   log.push(entry);
   saveAbsenLog(log);
 
-  // TODO: kirim ke Edge Function /absen saat online
-  // fetch(SUPABASE_URL + '/functions/v1/absen', { method:'POST', ... body: entry })
+  // Siap kirim Supabase Edge Function /absen (opsional)
+  // fetch(SUPABASE_URL + '/functions/v1/absen', { method:'POST', headers:{...}, body: JSON.stringify({ kode: code, metode, sesi_id: sesi.id, status }) })
 
+  const arti = status === 'TW' ? 'Tepat Waktu' : status === 'TL' ? 'Terlambat' : status;
   return {
     ok: true,
-    msg: `<b>${escapeHtml(user.nama)}</b><br>
-      Status: <span class="badge-status ${statusClass(status)}">${status}</span>
-      (${status === 'TW' ? 'Tepat Waktu' : status === 'TL' ? 'Terlambat' : status})<br>
+    type: 'ok',
+    msg: `<b>Absen berhasil</b><br>
+      <b>${escapeHtml(user.nama)}</b><br>
+      Status: <span class="badge-status ${statusClass(status)}">${status}</span> (${arti})<br>
       ${escapeHtml(sesi.nama)} · ${entry.jam}<br>
-      <small style="color:#666">Metode: ${escapeHtml(metode || 'manual')} · Data tersimpan</small>`,
+      <small style="color:#666">Metode: ${escapeHtml(metode || 'manual')}</small>`,
     entry,
   };
 }
+
+function handleAbsenResult(elId, res) {
+  if (!res || res.silent) return; // cooldown kamera: diam saja
+  const typeMap = { ok: 'ok', reject: 'warn', warn: 'warn', err: 'err', cooldown: 'warn' };
+  const type = typeMap[res.type] || (res.ok ? 'ok' : 'err');
+  const titles = {
+    ok: 'Absen Berhasil',
+    reject: 'Scan Ditolak',
+    warn: 'Peringatan',
+    err: 'Absen Gagal',
+  };
+  const el = document.getElementById(elId);
+  if (el) {
+    el.className = 'absen-result show ' + type;
+    el.innerHTML = res.msg;
+  }
+  if (typeof showBigPopup === 'function') {
+    showBigPopup(type, titles[res.type] || titles[type] || 'Info', res.msg, res.ok ? 2800 : (res.type === 'reject' ? 4000 : 0));
+  }
+}
+
 
 function initSidikJariPage() {
   updateSesiBadges();
@@ -2445,12 +2534,44 @@ function initSidikJariPage() {
 
 function initScanPage() {
   updateSesiBadges();
-  renderAbsenLog('scanLog');
+  renderScanLogTable();
   const sess = getSession();
   if (sess && sess.role === 'siswa') {
     showAbsenResult('scanResult', 'warn', 'Scanner QR biasanya untuk Guru/Admin. Siswa gunakan menu Sidik Jari.');
   }
 }
+
+function renderScanLogTable() {
+  const tb = document.getElementById('tbodyScanLog');
+  const cnt = document.getElementById('scanLogCount');
+  if (!tb) return;
+  const today = todayStr();
+  const rows = loadAbsenLog().filter(r => r.tanggal === today).slice().reverse();
+  if (cnt) cnt.textContent = rows.length + ' data';
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="7">Belum ada scan hari ini</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((r, i) => {
+    // NISN/NIP: kode for siswa is NISN; for guru try NIP from store else kode (PIN)
+    let idShow = r.kode || '-';
+    if (r.role === 'guru') {
+      const g = (store.guru || []).find(x => String(x.pin) === String(r.kode) || x.nama === r.nama);
+      if (g && g.nip) idShow = g.nip;
+    }
+    const scanner = r.scanned_by || r.operator || '-';
+    return `<tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(idShow)}</td>
+      <td>${escapeHtml(r.nama || '-')}</td>
+      <td>${escapeHtml(r.jam || '-')}</td>
+      <td>${escapeHtml(r.sesi_nama || '-')}</td>
+      <td><span class="badge-status ${statusClass(r.status)}">${escapeHtml(r.status || '-')}</span></td>
+      <td>${escapeHtml(scanner)}</td>
+    </tr>`;
+  }).join('');
+}
+
 
 /* WebAuthn sederhana — daftar & absen sidik jari (device-bound) */
 async function fpRegister() {
@@ -2520,8 +2641,8 @@ async function fpAbsen() {
     }
   }
   const res = prosesAbsen(id, 'fingerprint');
-  showAbsenResult('fpResult', res.ok ? 'ok' : (res.warn ? 'warn' : 'err'), res.msg);
-  if (res.ok || res.warn) renderAbsenLog('fpLog', 'siswa');
+  handleAbsenResult('fpResult', res);
+  if (res.ok || res.type === 'reject') renderAbsenLog('fpLog', 'siswa');
 }
 
 document.getElementById('btnFpRegister')?.addEventListener('click', fpRegister);
@@ -2542,9 +2663,16 @@ async function startQrScanner() {
       { facingMode: 'environment' },
       { fps: 8, qrbox: { width: 220, height: 220 } },
       (decoded) => {
+        const codeNow = String(decoded || '').replace(/\D/g, '');
+        // QR kamera memotret berulang — abaikan kode sama dalam 8 detik
+        if (codeNow && codeNow === lastProcessedCode && (Date.now() - lastProcessedAt) < 8000) return;
         const res = prosesAbsen(decoded, 'qr');
-        showAbsenResult('scanResult', res.ok ? 'ok' : (res.warn ? 'warn' : 'err'), res.msg);
-        if (res.ok || res.warn) renderAbsenLog('scanLog');
+        if (!res.silent) {
+          lastProcessedCode = codeNow;
+          lastProcessedAt = Date.now();
+        }
+        handleAbsenResult('scanResult', res);
+        if (res.ok || res.type === 'reject') renderScanLogTable();
       },
       () => {}
     );
@@ -2567,12 +2695,6 @@ async function stopQrScanner() {
 }
 document.getElementById('btnCamToggle')?.addEventListener('click', startQrScanner);
 document.getElementById('btnCamStop')?.addEventListener('click', stopQrScanner);
-document.getElementById('btnScanManual')?.addEventListener('click', () => {
-  const code = document.getElementById('scanManualCode')?.value || '';
-  const res = prosesAbsen(code, 'manual');
-  showAbsenResult('scanResult', res.ok ? 'ok' : (res.warn ? 'warn' : 'err'), res.msg);
-  if (res.ok || res.warn) renderAbsenLog('scanLog');
-});
 
 
 
