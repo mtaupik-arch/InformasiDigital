@@ -1134,6 +1134,40 @@
   </div>
 
   <!-- Placeholder pages -->
+  <!-- ========== PAGE: INPUT IZIN / SAKIT ========== -->
+  <div class="page" id="page-input-izin">
+    <div class="page-title">🤒 Input Izin / Sakit</div>
+    <div class="data-card" style="padding:16px">
+      <p style="font-size:12px;color:#666;margin-bottom:12px;line-height:1.45">
+        Status <b>Izin</b> atau <b>Sakit</b> diterapkan ke <b>semua sesi hari ini</b> sekaligus — tidak perlu input ulang tiap sesi.
+      </p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tipe</label>
+          <select id="izinRole">
+            <option value="siswa">Siswa</option>
+            <option value="guru">Guru</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="izinStatus">
+            <option value="Izin">Izin</option>
+            <option value="Sakit">Sakit</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label id="izinKodeLabel">NISN (10 digit)</label>
+          <input type="text" id="izinKode" class="search-box" style="width:100%;max-width:none" maxlength="20" placeholder="NISN atau PIN" inputmode="numeric" />
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-primary" id="btnSimpanIzin">💾 Simpan ke Semua Sesi</button>
+      </div>
+      <div id="izinResult" style="margin-top:12px;font-size:13px"></div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -2083,7 +2117,7 @@ function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin'];
   let target = known.includes(page) ? page : 'placeholder';
 
   const pageEl = document.getElementById('page-' + target);
@@ -3768,8 +3802,15 @@ async function fillHapusSesiSelect() {
 }
 
 function openSesiForm(id) {
-  const row = id ? (store.sesi || []).find(s => s.id === id) : null;
-  crudState = { entity: 'sesi', id: id || null };
+  // Bandingkan id sebagai string (value checkbox selalu string)
+  const row = id
+    ? (store.sesi || []).find(s => String(s.id) === String(id))
+    : null;
+  crudState = { entity: 'sesi', id: row ? row.id : null };
+  if (id && !row) {
+    toast('Data sesi tidak ditemukan di cache. Refresh halaman.', 'err');
+    return;
+  }
 
   // Nama & urutan yang sudah dipakai (kecuali baris yang sedang diedit)
   const usedNames = new Set(
@@ -3800,6 +3841,9 @@ function openSesiForm(id) {
   }).join('');
 
   document.getElementById('crudModalTitle').textContent = id ? 'Edit Sesi' : 'Tambah Sesi';
+  const t1 = String(row?.waktu1 || row?.mulai || '06:15').slice(0, 5);
+  const t2 = String(row?.waktu2 || '07:30').slice(0, 5);
+  const t3 = String(row?.waktu3 || row?.selesai || '08:00').slice(0, 5);
   document.getElementById('crudModalBody').innerHTML = `
     <div class="form-grid">
       <div class="form-group"><label>Nama *</label>
@@ -3808,15 +3852,16 @@ function openSesiForm(id) {
       <div class="form-group"><label>Urutan</label>
         <select name="urutan">${urutanOptions}</select>
       </div>
-      <div class="form-group"><label>Waktu 1 (mulai)</label><input type="time" name="waktu1" value="${row?.waktu1 || '06:15'}" /></div>
-      <div class="form-group"><label>Waktu 2 (batas TW)</label><input type="time" name="waktu2" value="${row?.waktu2 || '07:30'}" /></div>
-      <div class="form-group"><label>Waktu 3 (selesai)</label><input type="time" name="waktu3" value="${row?.waktu3 || '08:00'}" /></div>
+      <div class="form-group"><label>Waktu 1 (mulai)</label><input type="time" name="waktu1" value="${t1}" /></div>
+      <div class="form-group"><label>Waktu 2 (batas TW)</label><input type="time" name="waktu2" value="${t2}" /></div>
+      <div class="form-group"><label>Waktu 3 (selesai)</label><input type="time" name="waktu3" value="${t3}" /></div>
       <div class="form-group"><label>Aktif</label>
         <select name="aktif">
           <option value="true" ${row?.aktif !== false ? 'selected' : ''}>Aktif</option>
           <option value="false" ${row?.aktif === false ? 'selected' : ''}>Nonaktif</option>
         </select>
       </div>
+      ${row ? `<input type="hidden" name="id" value="${escapeHtml(String(row.id))}" />` : ''}
     </div>
     <p style="font-size:11px;color:#666;margin-top:8px">Waktu 1 = mulai absen · Waktu 2 = batas TW (setelahnya = TL) · Waktu 3 = tutup sesi. Nama &amp; urutan yang sudah dipakai tidak bisa dipilih lagi.</p>`;
   document.getElementById('crudModal').classList.add('active');
@@ -3840,16 +3885,20 @@ async function saveFormSesiLiburHook() {
     if (!data.nama) { toast('Nama sesi wajib', 'err'); return; }
     data.urutan = Number(data.urutan) || 1;
     data.aktif = data.aktif !== 'false';
+    // Pastikan id edit ikut terkirim (dari crudState atau hidden field)
     if (id) data.id = id;
+    if (data.id === '' || data.id === 'undefined') delete data.id;
     try {
       const res = await apiCall('save_sesi', { row: data });
       await refreshStoreFromDb();
       closeForm();
-      toast('Sesi tersimpan di database', 'ok');
+      toast(res.op === 'update' ? 'Sesi berhasil diubah' : 'Sesi baru tersimpan', 'ok');
       renderSesiTable();
       fillHapusSesiSelect();
+      updateSesiBadges();
+      if (typeof renderDashboard === 'function') renderDashboard();
     } catch (e) {
-      toast('Gagal: ' + e.message, 'err');
+      toast('Gagal: ' + errToText(e), 'err');
     }
     return;
   }
@@ -4003,14 +4052,81 @@ document.getElementById('btnHapusAbsenSesi')?.addEventListener('click', async ()
 });
 
 
+/* ===== Input Izin / Sakit ===== */
+document.getElementById('izinRole')?.addEventListener('change', () => {
+  const role = document.getElementById('izinRole')?.value;
+  const lab = document.getElementById('izinKodeLabel');
+  const inp = document.getElementById('izinKode');
+  if (role === 'guru') {
+    if (lab) lab.textContent = 'PIN (6 digit) / NIP';
+    if (inp) { inp.placeholder = 'PIN atau NIP'; inp.maxLength = 20; }
+  } else {
+    if (lab) lab.textContent = 'NISN (10 digit)';
+    if (inp) { inp.placeholder = '10 digit NISN'; inp.maxLength = 10; }
+  }
+});
+document.getElementById('btnSimpanIzin')?.addEventListener('click', async () => {
+  const role = document.getElementById('izinRole')?.value || 'siswa';
+  const status = document.getElementById('izinStatus')?.value || 'Izin';
+  const kode = (document.getElementById('izinKode')?.value || '').replace(/\D/g, '');
+  const out = document.getElementById('izinResult');
+  if (!kode) { toast('Isi NISN / PIN', 'err'); return; }
+  if (role === 'siswa' && kode.length !== 10) { toast('NISN harus 10 digit', 'err'); return; }
+  try {
+    const sess = getSession();
+    const res = await apiCall('input_izin_sakit', {
+      role, status, kode,
+      scanned_by: sess?.user?.nama ? (sess.user.nama + ' (' + sess.role + ')') : 'Petugas',
+    });
+    if (out) out.innerHTML = `<span style="color:#2e7d32">${escapeHtml(res.message || 'Berhasil')}</span>`;
+    showBigPopup('ok', status + ' Tersimpan', res.message || (status + ' diterapkan ke semua sesi'), 2800);
+    if (typeof renderDashboard === 'function') renderDashboard();
+  } catch (e) {
+    if (out) out.innerHTML = `<span style="color:#c62828">${escapeHtml(errToText(e))}</span>`;
+    showBigPopup('err', 'Gagal', errToText(e), 0);
+  }
+});
+
+/* ===== Auto-refresh status sesi (tanpa reload penuh) ===== */
+let _lastSesiKey = '';
+function sesiStateKey() {
+  const a = getSesiAktif();
+  const st = getSesiStatusText();
+  return (a ? 'on:' + a.id : 'off') + '|' + (st.text || '');
+}
+function autoRefreshSesiUI() {
+  const key = sesiStateKey();
+  const changed = key !== _lastSesiKey;
+  _lastSesiKey = key;
+  // Selalu update teks sesi & tombol kamera
+  updateSesiBadges();
+  const chipWrap = document.getElementById('dashSesiChips');
+  if (chipWrap && document.getElementById('page-dashboard')?.classList.contains('active')) {
+    chipWrap.innerHTML = buildDashSesiInfoHtml(getSesiList());
+  }
+  // Jika pergantian sesi → refresh rekap & terapkan A/B di server
+  if (changed && getSession()?.token) {
+    apiCall('apply_ab_status', {}).catch(() => {});
+    if (document.getElementById('page-dashboard')?.classList.contains('active')) {
+      renderDashboard();
+    }
+    if (document.getElementById('page-scan-barcode')?.classList.contains('active')) {
+      if (typeof renderScanLogTable === 'function') renderScanLogTable();
+    }
+  }
+}
+setInterval(autoRefreshSesiUI, 10000);
+
 /* ===== Init ===== */
 (async function init() {
   const session = getSession();
   renderUserUI(session);
   if (session?.token) {
     await refreshStoreFromDb();
+    try { await apiCall('apply_ab_status', {}); } catch (_) {}
   }
   updatePeriodeBadges();
+  _lastSesiKey = sesiStateKey();
   const fromHash = (location.hash || '').replace(/^#/, '');
   const fromStore = sessionStorage.getItem('sis_last_page') || '';
   const startPage = fromHash || fromStore || 'dashboard';
