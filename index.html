@@ -887,6 +887,97 @@
     </div>
   </div>
 
+
+  <!-- ========== PAGE: SESI & HARI LIBUR ========== -->
+  <div class="page" id="page-sesi-libur">
+    <div class="page-title" style="justify-content:center;width:100%">⏰ Sesi &amp; Hari Libur</div>
+
+    <!-- Setting Sesi -->
+    <div class="data-card" style="margin-bottom:14px;padding:12px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <b style="font-size:13px;color:var(--primary)">Setting Sesi</b>
+        <button type="button" class="btn btn-primary btn-sm" id="btnSesiTambah">+ Tambah</button>
+        <button type="button" class="btn btn-success btn-sm" id="btnSesiEdit">✎ Edit</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btnSesiHapus" style="color:#c62828;border-color:#ef9a9a">🗑</button>
+        <span class="spacer"></span>
+        <span style="font-size:11px;color:#888" id="sesiCountLabel">0 data</span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table" id="tableSesi" style="min-width:640px">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="checkAllSesi" /></th>
+              <th>No</th><th>Nama</th><th>Urutan</th>
+              <th>Waktu 1</th><th>Waktu 2</th><th>Waktu 3</th><th>Aktif</th>
+            </tr>
+          </thead>
+          <tbody id="tbodySesi"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Hapus Data Absensi per Sesi -->
+    <div class="data-card" style="margin-bottom:14px;padding:14px;border:1px solid #ffcdd2;background:#fff8f8">
+      <div style="font-size:13px;font-weight:700;color:#c62828;margin-bottom:6px">🗑 Hapus Data Absensi per Sesi</div>
+      <p style="font-size:11.5px;color:#666;margin-bottom:12px;line-height:1.45">
+        Menghapus <b>semua data absensi</b> (semua user) pada sesi &amp; rentang tanggal yang dipilih.
+        Dipakai jika sesi gagal (listrik padam, sinyal hilang, error aplikasi) agar bisa diulang.
+        <b>Pengaturan sesi (jam) tidak dihapus</b> — hanya data scan di tabel absensi.
+      </p>
+      <div class="form-grid" style="margin-bottom:10px">
+        <div class="form-group">
+          <label>Dari Tanggal</label>
+          <input type="date" id="hapusAbsenDari" />
+        </div>
+        <div class="form-group">
+          <label>Sampai Tanggal</label>
+          <input type="date" id="hapusAbsenSampai" />
+        </div>
+        <div class="form-group">
+          <label>Sesi</label>
+          <select id="hapusAbsenSesi"><option value="">- Pilih Sesi -</option></select>
+        </div>
+        <div class="form-group">
+          <label>Tipe</label>
+          <select id="hapusAbsenTipe">
+            <option value="semua">Semua (Siswa + Guru)</option>
+            <option value="siswa">Siswa saja</option>
+            <option value="guru">Guru saja</option>
+          </select>
+        </div>
+      </div>
+      <div id="hapusAbsenInfo" style="font-size:12px;color:#666;background:#f5f7fa;padding:8px 10px;border-radius:3px;margin-bottom:10px">
+        Pilih rentang tanggal &amp; sesi, lalu cek jumlah data.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-outline" id="btnCekJumlahAbsen" style="flex:1">🔍 Cek Jumlah Data</button>
+        <button type="button" class="btn btn-danger" id="btnHapusAbsenSesi" style="flex:1">🗑 Hapus Data</button>
+      </div>
+    </div>
+
+    <!-- Hari Libur -->
+    <div class="data-card" style="padding:12px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <b style="font-size:13px;color:var(--primary)">Hari Libur</b>
+        <button type="button" class="btn btn-primary btn-sm" id="btnLiburTambah">+ Tambah</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btnLiburHapus" style="color:#c62828;border-color:#ef9a9a">🗑</button>
+        <span class="spacer"></span>
+        <span style="font-size:11px;color:#888" id="liburCountLabel">0 data</span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table" id="tableLibur" style="min-width:420px">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="checkAllLibur" /></th>
+              <th>No</th><th>Tanggal</th><th>Keterangan</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyLibur"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- Placeholder pages -->
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
@@ -1304,7 +1395,12 @@ const STORE_KEY = 'sis_master_v1';
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (!s.sesi) s.sesi = seedStore().sesi;
+      if (!s.hari_libur) s.hari_libur = seedStore().hari_libur;
+      return s;
+    }
   } catch (_) {}
   return seedStore();
 }
@@ -1383,6 +1479,15 @@ function seedStore() {
       pin: '111111',
     }],
     lulusan: [],
+    sesi: [
+      { id: 'sesi-1', nama: 'Sesi 1', urutan: 1, waktu1: '06:15', waktu2: '07:30', waktu3: '08:00', aktif: true },
+      { id: 'sesi-2', nama: 'Sesi 2', urutan: 2, waktu1: '09:45', waktu2: '12:45', waktu3: '13:00', aktif: true },
+    ],
+    hari_libur: [
+      { id: 'lib-1', tanggal: '2026-10-17', keterangan: 'Libur Hari Sabtu' },
+      { id: 'lib-2', tanggal: '2026-10-18', keterangan: 'Libur Hari Minggu' },
+      { id: 'lib-3', tanggal: '2026-10-24', keterangan: 'Libur Hari Sabtu' },
+    ],
   };
   saveStore(store);
   return store;
@@ -1441,7 +1546,7 @@ function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur'];
   let target = known.includes(page) ? page : 'placeholder';
 
   const pageEl = document.getElementById('page-' + target);
@@ -1461,6 +1566,7 @@ function navigate(page) {
   if (target === 'periode') renderPeriode();
   if (target === 'sidik-jari-siswa') initSidikJariPage();
   if (target === 'scan-barcode') initScanPage();
+  if (target === 'sesi-libur') initSesiLiburPage();
   if (target !== 'scan-barcode') stopQrScanner();
 
   tutupSidebar();
@@ -2143,13 +2249,23 @@ document.getElementById('bigPopup')?.addEventListener('click', e => {
    Status: TW (tepat waktu) / TL (terlambat) berdasarkan sesi
    Warna: TW biru, TL hijau, Sakit orange, Izin kuning, Alpa pink, Bolos merah
    ============================================================ */
-const SESI_DEFAULT = [
-  { id: 1, nama: 'Sesi 1', mulai: '06:00', selesai: '07:30' },
-  { id: 2, nama: 'Sesi 2', mulai: '07:30', selesai: '09:00' },
-  { id: 3, nama: 'Sesi 3', mulai: '09:15', selesai: '10:45' },
-  { id: 4, nama: 'Sesi 4', mulai: '10:45', selesai: '12:15' },
-  { id: 5, nama: 'Sesi 5', mulai: '13:00', selesai: '14:30' },
-];
+function getSesiList() {
+  const list = (store.sesi || []).filter(s => s.aktif !== false).slice().sort((a,b) => (a.urutan||0) - (b.urutan||0));
+  if (list.length) {
+    return list.map(s => ({
+      id: s.id,
+      nama: s.nama,
+      mulai: s.waktu1 || '06:00',
+      selesai: s.waktu3 || s.waktu2 || '07:30',
+      waktu1: s.waktu1, waktu2: s.waktu2, waktu3: s.waktu3, urutan: s.urutan
+    }));
+  }
+  return [
+    { id: 1, nama: 'Sesi 1', mulai: '06:15', selesai: '08:00' },
+    { id: 2, nama: 'Sesi 2', mulai: '09:45', selesai: '13:00' },
+  ];
+}
+const SESI_DEFAULT = getSesiList(); // fallback awal; absen memakai getSesiList() dinamis
 const ABSEN_KEY = 'sis_absen_log_v1';
 const FP_KEY = 'sis_fp_cred_v1';
 let lastScanAt = 0;
@@ -2177,22 +2293,24 @@ function hmToMin(hm) {
 /** Sesi aktif berdasarkan jam sekarang (toleransi 5 menit sebelum mulai) */
 function getSesiAktif() {
   const now = hmToMin(nowHM());
-  for (const s of SESI_DEFAULT) {
+  const list = getSesiList();
+  for (const s of list) {
     const a = hmToMin(s.mulai) - 5;
     const b = hmToMin(s.selesai);
     if (now >= a && now < b) return s;
   }
-  // di luar jam: kembalikan sesi terdekat berikutnya atau terakhir
-  for (const s of SESI_DEFAULT) {
+  for (const s of list) {
     if (now < hmToMin(s.mulai)) return s;
   }
-  return SESI_DEFAULT[SESI_DEFAULT.length - 1];
+  return list[list.length - 1];
 }
 /** TW jika absen sebelum/tepat mulai+10 menit, selain itu TL (masih dalam sesi) */
 function statusDariJam(sesi) {
   const now = hmToMin(nowHM());
-  const start = hmToMin(sesi.mulai);
-  if (now <= start + 10) return 'TW';
+  const start = hmToMin(sesi.mulai || sesi.waktu1 || '06:00');
+  // Waktu 2 = batas TW; jika tidak ada, +10 menit dari mulai
+  const batasTw = sesi.waktu2 ? hmToMin(sesi.waktu2) : start + 10;
+  if (now <= batasTw) return 'TW';
   return 'TL';
 }
 function statusClass(st) {
@@ -2454,6 +2572,223 @@ document.getElementById('btnScanManual')?.addEventListener('click', () => {
   const res = prosesAbsen(code, 'manual');
   showAbsenResult('scanResult', res.ok ? 'ok' : (res.warn ? 'warn' : 'err'), res.msg);
   if (res.ok || res.warn) renderAbsenLog('scanLog');
+});
+
+
+
+/* ===== Sesi & Hari Libur ===== */
+function initSesiLiburPage() {
+  renderSesiTable();
+  renderLiburTable();
+  fillHapusSesiSelect();
+  const today = todayStr();
+  const d1 = document.getElementById('hapusAbsenDari');
+  const d2 = document.getElementById('hapusAbsenSampai');
+  if (d1 && !d1.value) d1.value = today;
+  if (d2 && !d2.value) d2.value = today;
+}
+
+function renderSesiTable() {
+  const rows = (store.sesi || []).slice().sort((a,b) => (a.urutan||0)-(b.urutan||0));
+  const tb = document.getElementById('tbodySesi');
+  const lab = document.getElementById('sesiCountLabel');
+  if (lab) lab.textContent = rows.length + ' data';
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="8">Belum ada sesi</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((s, i) => `
+    <tr data-id="${s.id}">
+      <td><input type="checkbox" class="row-check-sesi" value="${s.id}" /></td>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(s.nama)}</td>
+      <td>${s.urutan ?? i + 1}</td>
+      <td>${escapeHtml(s.waktu1 || '-')}</td>
+      <td>${escapeHtml(s.waktu2 || '-')}</td>
+      <td>${escapeHtml(s.waktu3 || '-')}</td>
+      <td>${s.aktif !== false ? '<span class="badge-status badge-aktif">Aktif</span>' : '<span class="badge-status badge-nonaktif">Nonaktif</span>'}</td>
+    </tr>`).join('');
+}
+
+function renderLiburTable() {
+  const rows = (store.hari_libur || []).slice().sort((a,b) => String(a.tanggal).localeCompare(String(b.tanggal)));
+  const tb = document.getElementById('tbodyLibur');
+  const lab = document.getElementById('liburCountLabel');
+  if (lab) lab.textContent = rows.length + ' data';
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada hari libur</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((r, i) => `
+    <tr data-id="${r.id}">
+      <td><input type="checkbox" class="row-check-libur" value="${r.id}" /></td>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(r.tanggal)}</td>
+      <td>${escapeHtml(r.keterangan || '-')}</td>
+    </tr>`).join('');
+}
+
+function fillHapusSesiSelect() {
+  const sel = document.getElementById('hapusAbsenSesi');
+  if (!sel) return;
+  const cur = sel.value;
+  const rows = (store.sesi || []).slice().sort((a,b)=>(a.urutan||0)-(b.urutan||0));
+  sel.innerHTML = '<option value="">- Pilih Sesi -</option>' +
+    rows.map(s => `<option value="${s.id}">${escapeHtml(s.nama)}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+function openSesiForm(id) {
+  const row = id ? (store.sesi || []).find(s => s.id === id) : null;
+  crudState = { entity: 'sesi', id: id || null };
+  document.getElementById('crudModalTitle').textContent = id ? 'Edit Sesi' : 'Tambah Sesi';
+  document.getElementById('crudModalBody').innerHTML = `
+    <div class="form-grid">
+      <div class="form-group"><label>Nama *</label><input name="nama" value="${escapeHtml(row?.nama || '')}" required /></div>
+      <div class="form-group"><label>Urutan</label><input type="number" name="urutan" value="${row?.urutan ?? ((store.sesi||[]).length+1)}" /></div>
+      <div class="form-group"><label>Waktu 1 (mulai)</label><input type="time" name="waktu1" value="${row?.waktu1 || '06:15'}" /></div>
+      <div class="form-group"><label>Waktu 2 (batas TW)</label><input type="time" name="waktu2" value="${row?.waktu2 || '07:30'}" /></div>
+      <div class="form-group"><label>Waktu 3 (selesai)</label><input type="time" name="waktu3" value="${row?.waktu3 || '08:00'}" /></div>
+      <div class="form-group"><label>Aktif</label>
+        <select name="aktif">
+          <option value="true" ${row?.aktif !== false ? 'selected' : ''}>Aktif</option>
+          <option value="false" ${row?.aktif === false ? 'selected' : ''}>Nonaktif</option>
+        </select>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#666;margin-top:8px">Waktu 1 = mulai absen · Waktu 2 = batas TW (setelahnya = TL) · Waktu 3 = tutup sesi</p>`;
+  document.getElementById('crudModal').classList.add('active');
+}
+
+function openLiburForm() {
+  crudState = { entity: 'hari_libur', id: null };
+  document.getElementById('crudModalTitle').textContent = 'Tambah Hari Libur';
+  document.getElementById('crudModalBody').innerHTML = `
+    <div class="form-grid">
+      <div class="form-group"><label>Tanggal *</label><input type="date" name="tanggal" value="${todayStr()}" required /></div>
+      <div class="form-group full"><label>Keterangan</label><input name="keterangan" placeholder="Libur Hari Sabtu" /></div>
+    </div>`;
+  document.getElementById('crudModal').classList.add('active');
+}
+
+function saveFormSesiLiburHook() {
+  const { entity, id } = crudState;
+  const data = collectForm();
+  if (entity === 'sesi') {
+    if (!data.nama) { toast('Nama sesi wajib', 'err'); return; }
+    data.urutan = Number(data.urutan) || 1;
+    data.aktif = data.aktif !== 'false';
+    store.sesi = store.sesi || [];
+    if (id) {
+      const i = store.sesi.findIndex(s => s.id === id);
+      if (i >= 0) store.sesi[i] = { ...store.sesi[i], ...data };
+    } else {
+      store.sesi.push({ id: uid(), ...data });
+    }
+    saveStore(store);
+    closeForm();
+    toast('Sesi disimpan', 'ok');
+    renderSesiTable();
+    fillHapusSesiSelect();
+    return;
+  }
+  if (entity === 'hari_libur') {
+    if (!data.tanggal) { toast('Tanggal wajib', 'err'); return; }
+    store.hari_libur = store.hari_libur || [];
+    if (store.hari_libur.some(h => h.tanggal === data.tanggal)) {
+      toast('Tanggal libur sudah ada', 'err'); return;
+    }
+    store.hari_libur.push({ id: uid(), ...data });
+    saveStore(store);
+    closeForm();
+    toast('Hari libur ditambah', 'ok');
+    renderLiburTable();
+  }
+}
+
+document.getElementById('crudModalSave').onclick = function () {
+  if (crudState.entity === 'sesi' || crudState.entity === 'hari_libur') saveFormSesiLiburHook();
+  else saveForm();
+};
+
+document.getElementById('btnSesiTambah')?.addEventListener('click', () => openSesiForm());
+document.getElementById('btnSesiEdit')?.addEventListener('click', () => {
+  const checks = document.querySelectorAll('.row-check-sesi:checked');
+  if (checks.length !== 1) { toast('Pilih tepat 1 sesi untuk diedit', 'err'); return; }
+  openSesiForm(checks[0].value);
+});
+document.getElementById('btnSesiHapus')?.addEventListener('click', () => {
+  const checks = [...document.querySelectorAll('.row-check-sesi:checked')];
+  if (!checks.length) { toast('Pilih sesi yang akan dihapus', 'err'); return; }
+  if (!confirm('Hapus ' + checks.length + ' sesi?')) return;
+  const ids = new Set(checks.map(c => c.value));
+  store.sesi = (store.sesi || []).filter(s => !ids.has(s.id));
+  saveStore(store);
+  renderSesiTable();
+  fillHapusSesiSelect();
+  toast('Sesi dihapus', 'ok');
+});
+document.getElementById('checkAllSesi')?.addEventListener('change', (e) => {
+  document.querySelectorAll('.row-check-sesi').forEach(c => { c.checked = e.target.checked; });
+});
+
+document.getElementById('btnLiburTambah')?.addEventListener('click', openLiburForm);
+document.getElementById('btnLiburHapus')?.addEventListener('click', () => {
+  const checks = [...document.querySelectorAll('.row-check-libur:checked')];
+  if (!checks.length) { toast('Pilih hari libur yang akan dihapus', 'err'); return; }
+  if (!confirm('Hapus ' + checks.length + ' hari libur?')) return;
+  const ids = new Set(checks.map(c => c.value));
+  store.hari_libur = (store.hari_libur || []).filter(h => !ids.has(h.id));
+  saveStore(store);
+  renderLiburTable();
+  toast('Hari libur dihapus', 'ok');
+});
+document.getElementById('checkAllLibur')?.addEventListener('change', (e) => {
+  document.querySelectorAll('.row-check-libur').forEach(c => { c.checked = e.target.checked; });
+});
+
+function countAbsenForFilter() {
+  const dari = document.getElementById('hapusAbsenDari')?.value;
+  const sampai = document.getElementById('hapusAbsenSampai')?.value;
+  const sesiId = document.getElementById('hapusAbsenSesi')?.value;
+  const tipe = document.getElementById('hapusAbsenTipe')?.value || 'semua';
+  if (!dari || !sampai || !sesiId) return { ok: false, msg: 'Lengkapi tanggal dan sesi.' };
+  const log = loadAbsenLog();
+  const sesi = (store.sesi || []).find(s => s.id === sesiId);
+  const rows = log.filter(r => {
+    if (r.tanggal < dari || r.tanggal > sampai) return false;
+    if (String(r.sesi_id) !== String(sesiId) && (!sesi || r.sesi_nama !== sesi.nama)) return false;
+    if (tipe === 'siswa' && r.role !== 'siswa') return false;
+    if (tipe === 'guru' && r.role !== 'guru') return false;
+    return true;
+  });
+  return { ok: true, count: rows.length, rows, dari, sampai, sesiId, tipe };
+}
+
+document.getElementById('btnCekJumlahAbsen')?.addEventListener('click', () => {
+  const res = countAbsenForFilter();
+  const info = document.getElementById('hapusAbsenInfo');
+  if (!res.ok) {
+    info.textContent = res.msg;
+    info.style.color = '#c62828';
+    return;
+  }
+  info.style.color = '#1565c0';
+  info.innerHTML = `Ditemukan <b>${res.count}</b> data absensi pada rentang ${res.dari} s/d ${res.sampai}.`;
+});
+
+document.getElementById('btnHapusAbsenSesi')?.addEventListener('click', () => {
+  const res = countAbsenForFilter();
+  if (!res.ok) { toast(res.msg, 'err'); return; }
+  if (!res.count) { toast('Tidak ada data absensi yang cocok', 'err'); return; }
+  if (!confirm('Hapus ' + res.count + ' data absensi?\\nPengaturan sesi tidak akan dihapus.')) return;
+  const removeIds = new Set(res.rows.map(r => r.id));
+  const next = loadAbsenLog().filter(r => !removeIds.has(r.id));
+  saveAbsenLog(next);
+  document.getElementById('hapusAbsenInfo').innerHTML = 'Berhasil menghapus <b>' + res.count + '</b> data absensi.';
+  showBigPopup('success', 'Data Dihapus', res.count + ' data absensi berhasil dihapus.<br><small>Pengaturan sesi tetap aman.</small>');
 });
 
 
