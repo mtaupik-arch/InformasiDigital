@@ -3196,6 +3196,47 @@ function fpIsRegistered(identity) {
   const m = fpLoadMap();
   return !!(m[identity] && (m[identity] === true || m[identity].credId));
 }
+/** Cache status terdaftar dari DB (owner_key → true/false) */
+const fpDbCache = {};
+
+async function fpCheckRegisteredDb(identity, role) {
+  if (!identity) return false;
+  const key = role + ':' + identity;
+  try {
+    if (!getSession()?.token) return fpIsRegistered(identity);
+    const res = await apiCall('check_fingerprint', {
+      owner_key: identity,
+      role: role === 'admin' ? 'guru' : role,
+    });
+    const ok = !!res.registered;
+    fpDbCache[key] = ok;
+    // sinkron localStorage jika DB punya credential_id
+    if (ok && res.data?.credential_id) {
+      const map = fpLoadMap();
+      map[identity] = {
+        credId: res.data.credential_id,
+        at: Date.now(),
+        host: location.hostname,
+        fromDb: true,
+      };
+      fpSaveMap(map);
+    }
+    return ok || fpIsRegistered(identity);
+  } catch (e) {
+    console.warn('check_fingerprint gagal', e);
+    return fpIsRegistered(identity);
+  }
+}
+
+async function fpSaveToDatabase(identity, credId, role) {
+  const res = await apiCall('save_fingerprint', {
+    owner_key: identity,
+    credential_id: credId,
+    role: role === 'admin' ? 'guru' : role,
+  });
+  fpDbCache[(role === 'admin' ? 'guru' : role) + ':' + identity] = true;
+  return res;
+}
 function bufferToBase64(buf) {
   const bytes = new Uint8Array(buf);
   let s = '';
@@ -3237,16 +3278,13 @@ function resolveFpIdentity(role) {
   return { ok: true, identity: pin, role: 'guru', display: sess?.user?.nama || 'Guru' };
 }
 
-function updateFpMainButton(role) {
+function applyFpButtonState(role, registered) {
   const isSiswa = role === 'siswa';
   const btn = document.getElementById(isSiswa ? 'btnFpMain' : 'btnGuruFpMain');
   const hint = document.getElementById(isSiswa ? 'fpBtnHint' : 'guruFpBtnHint');
   if (!btn) return;
-  const info = resolveFpIdentity(isSiswa ? 'siswa' : 'guru');
-  const registered = info.ok && fpIsRegistered(info.identity);
 
   if (!isSiswa) {
-    // Tombol di bar scan (desain bersih)
     const label = document.getElementById('btnGuruFpLabel');
     if (registered) {
       btn.classList.remove('is-red');
@@ -3263,7 +3301,6 @@ function updateFpMainButton(role) {
     return;
   }
 
-  // Halaman siswa (tombol tunggal lama)
   if (registered) {
     btn.textContent = 'Absen Sidik Jari';
     btn.className = 'btn btn-primary';
@@ -3271,14 +3308,28 @@ function updateFpMainButton(role) {
     btn.style.padding = '12px 18px';
     btn.style.fontSize = '14px';
     btn.style.background = '';
-    if (hint) hint.textContent = 'Terdaftar di perangkat ini · ketuk untuk absen';
+    if (hint) hint.textContent = 'Terdaftar · ketuk untuk absen';
   } else {
     btn.textContent = 'Daftarkan Sidik Jari';
     btn.className = 'btn btn-danger';
     btn.style.minWidth = '220px';
     btn.style.padding = '12px 18px';
     btn.style.fontSize = '14px';
-    if (hint) hint.textContent = 'Belum terdaftar di perangkat ini';
+    if (hint) hint.textContent = 'Belum terdaftar';
+  }
+}
+
+function updateFpMainButton(role) {
+  const isSiswa = role === 'siswa';
+  const info = resolveFpIdentity(isSiswa ? 'siswa' : 'guru');
+  // tampilkan dulu dari cache lokal
+  const localReg = info.ok && fpIsRegistered(info.identity);
+  applyFpButtonState(role, localReg);
+  // lalu cek database (async)
+  if (info.ok && getSession()?.token) {
+    fpCheckRegisteredDb(info.identity, isSiswa ? 'siswa' : 'guru').then(reg => {
+      applyFpButtonState(role, reg);
+    });
   }
 }
 
@@ -3336,16 +3387,40 @@ async function fpRegisterIdentity(identity, displayName) {
   const map = fpLoadMap();
   map[identity] = { credId, at: Date.now(), host: location.hostname };
   fpSaveMap(map);
+
+  // Simpan ke tabel fingerprint_cred (Supabase) — wajib login
+  const sess = getSession();
+  const fpRole = sess?.role === 'siswa' ? 'siswa' : (sess?.role === 'guru' ? 'guru' : 'guru');
+  try {
+    if (sess?.token) {
+      await fpSaveToDatabase(identity, credId, fpRole);
+    } else {
+      console.warn('Sidik jari hanya di perangkat (belum login — tidak tersimpan di DB)');
+    }
+  } catch (dbErr) {
+    // tetap sukses di perangkat; beri tahu jika DB gagal
+    console.error('save_fingerprint gagal', dbErr);
+    throw new Error('Sidik jari di HP berhasil, tetapi gagal simpan ke database: ' + (dbErr.message || dbErr));
+  }
   return credId;
 }
 
-async function fpVerifyIdentity(identity) {
+async function fpVerifyIdentity(identity, roleHint) {
   if (!window.PublicKeyCredential) {
     throw new Error('Perangkat tidak mendukung WebAuthn / sidik jari browser');
   }
-  const map = fpLoadMap();
-  const entry = map[identity];
-  if (!entry || !entry.credId) throw new Error('Sidik jari belum terdaftar di perangkat ini');
+  let map = fpLoadMap();
+  let entry = map[identity];
+  // Jika tidak ada di perangkat, coba ambil credential_id dari database
+  if (!entry?.credId && getSession()?.token) {
+    try {
+      const r = roleHint || (getSession()?.role === 'siswa' ? 'siswa' : 'guru');
+      await fpCheckRegisteredDb(identity, r);
+      map = fpLoadMap();
+      entry = map[identity];
+    } catch (_) {}
+  }
+  if (!entry || !entry.credId) throw new Error('Sidik jari belum terdaftar. Daftar dulu di perangkat ini.');
   const challenge = crypto.getRandomValues(new Uint8Array(32));
   let credIdBuf;
   try {
