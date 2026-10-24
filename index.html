@@ -1358,14 +1358,21 @@ async function doLogin() {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({ identifier: id }),
     });
 
-    const data = await res.json();
+    let data = {};
+    try { data = await res.json(); } catch (_) {
+      showLoginError('Server tidak mengembalikan JSON. Cek Edge Function login sudah deploy?');
+      return;
+    }
 
     if (!res.ok || !data.success) {
-      showLoginError(data.error || 'Login gagal');
+      const detail = data.error || data.message || ('HTTP ' + res.status);
+      showLoginError(detail);
+      console.error('Login response:', res.status, data);
       return;
     }
 
