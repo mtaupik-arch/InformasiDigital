@@ -469,6 +469,40 @@
     background:#fff; border:1px solid #e2e8f0; border-radius:4px;
     padding:16px; margin-bottom:12px; text-align:center;
   }
+
+  /* Scan page — desain bersih 2 tombol */
+  .scan-clean-wrap {
+    background:#fff; border-radius:4px; box-shadow:0 1px 6px rgba(0,0,0,.08);
+    padding:18px 12px 14px; margin-bottom:12px; text-align:center;
+  }
+  .scan-sesi-line {
+    font-size:13px; font-weight:700; color:#1a237e;
+    margin-bottom:14px; letter-spacing:.2px; line-height:1.35;
+  }
+  .scan-sesi-line.off { color:#c62828; }
+  .scan-action-bar {
+    display:flex; width:100%; max-width:420px; margin:0 auto;
+    border-radius:6px; overflow:hidden;
+    box-shadow:0 2px 6px rgba(25,118,210,.25);
+  }
+  .scan-act-btn {
+    flex:1; border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    padding:14px 10px; font-size:13px; font-weight:700;
+    color:#fff; transition:filter .15s, background .15s;
+    min-height:48px;
+  }
+  .scan-act-btn + .scan-act-btn { border-left:2px solid rgba(255,255,255,.85); }
+  .scan-act-btn.is-blue { background:#1565c0; }
+  .scan-act-btn.is-red { background:#c62828; }
+  .scan-act-btn:disabled { opacity:.55; cursor:not-allowed; }
+  .scan-act-btn:not(:disabled):active { filter:brightness(.92); }
+  .scan-act-ico { font-size:18px; line-height:1; }
+  .scan-act-label { white-space:nowrap; }
+  #page-scan-barcode #qr-reader {
+    margin-top:14px; border-radius:6px; overflow:hidden;
+    max-width:360px; margin-left:auto; margin-right:auto;
+  }
   .absen-card .absen-icon { font-size:42px; margin-bottom:8px; }
   .absen-card h4 { color:var(--primary); font-size:14px; margin-bottom:6px; }
   .absen-card p.hint { font-size:12px; color:#666; margin-bottom:12px; }
@@ -935,33 +969,31 @@
   <div class="page" id="page-scan-barcode">
     <div class="page-title">📷 Scan Barcode / QR <span class="periode-badge" id="badgePeriodeScan">Periode: -</span></div>
 
-    <!-- Sidik jari guru/admin — di atas kamera -->
-    <div class="absen-card" id="guruFpCard" style="margin-bottom:12px;border:1px solid #bbdefb;background:#f7fbff">
-      <div class="absen-icon" style="font-size:32px">👆</div>
-      <h4>Absensi Sidik Jari (Guru)</h4>
-      <p class="hint">Daftarkan sidik jari HP Anda sekali, lalu absen mandiri tanpa scan QR. Logika sama dengan barcode.</p>
-      <div class="sesi-aktif-box" id="guruFpSesiAktif">Sesi aktif: memuat…</div>
-      <div class="absen-actions" style="flex-direction:column;align-items:center">
-        <button type="button" class="btn btn-danger" id="btnGuruFpMain" style="min-width:220px;padding:12px 18px;font-size:14px">Daftarkan Sidik Jari</button>
-        <p id="guruFpBtnHint" style="font-size:11px;color:#888;margin-top:8px;text-align:center">Belum terdaftar di perangkat ini</p>
+    <div class="scan-clean-wrap" id="scanCleanWrap">
+      <div class="scan-sesi-line" id="scanSesiLine">—</div>
+      <div class="scan-action-bar" id="scanActionBar">
+        <button type="button" class="scan-act-btn is-blue" id="btnGuruFpMain">
+          <span class="scan-act-label" id="btnGuruFpLabel">Absen Sidik Jari</span>
+          <span class="scan-act-ico" aria-hidden="true">👆</span>
+        </button>
+        <button type="button" class="scan-act-btn is-blue" id="btnCamToggle">
+          <span class="scan-act-label" id="btnCamLabel">Buka Kamera</span>
+          <span class="scan-act-ico" aria-hidden="true">📷</span>
+        </button>
       </div>
-      <div class="absen-result" id="guruFpResult"></div>
-    </div>
-
-    <div class="absen-card">
-      <div class="absen-icon">📷</div>
-      <h4>Scanner QR Absensi</h4>
-      <p class="hint">Arahkan kamera ke QR/barcode yang berisi NISN (siswa) atau PIN 6 digit (guru). Hanya untuk peran Guru/Admin.</p>
-      <div class="sesi-aktif-box" id="scanSesiAktif">Sesi aktif: memuat…</div>
-      <div class="absen-actions">
-        <button type="button" class="btn btn-success" id="btnScanMode" title="Ganti mode scan">👤 Siswa</button>
-        <button type="button" class="btn btn-primary" id="btnCamToggle">Buka Kamera</button>
-        <button type="button" class="btn btn-outline" id="btnCamStop" style="display:none">Tutup Kamera</button>
-      </div>
-      <p id="scanModeHint" style="font-size:11px;color:#666;margin-top:6px">Mode: <b>Siswa</b> — arahkan ke QR/barcode NISN 10 digit</p>
+      <!-- mode admin (tersembunyi, tetap ada untuk logika) -->
+      <button type="button" id="btnScanMode" style="display:none" title="Ganti mode scan">👤 Siswa</button>
+      <button type="button" id="btnCamStop" style="display:none">Tutup Kamera</button>
       <div id="qr-reader"></div>
       <div class="absen-result" id="scanResult"></div>
+      <div class="absen-result" id="guruFpResult"></div>
     </div>
+    <!-- kompatibilitas id lama (disembunyikan) -->
+    <div id="scanSesiAktif" style="display:none"></div>
+    <div id="guruFpSesiAktif" style="display:none"></div>
+    <div id="guruFpCard" style="display:none"></div>
+    <span id="scanModeHint" style="display:none"></span>
+    <span id="guruFpBtnHint" style="display:none"></span>
 
     <div class="data-card" style="padding:0;margin-top:12px">
       <div style="padding:10px 12px;border-bottom:1px solid #e8edf3;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -2830,21 +2862,63 @@ function getSesiStatusText() {
   return { ok: false, text: 'Belum ada sesi. Atur di menu Sesi & Hari Libur.', sesi: null };
 }
 
+/** Teks sesi ringkas: Sesi 1 : 06:00 - 07:00 - 08:00 */
+function formatSesiLineText() {
+  const aktif = getSesiAktif();
+  if (aktif) {
+    const w1 = String(aktif.waktu1 || aktif.mulai || '').slice(0, 5);
+    const w2 = String(aktif.waktu2 || '').slice(0, 5);
+    const w3 = String(aktif.waktu3 || aktif.selesai || '').slice(0, 5);
+    const parts = [w1, w2, w3].filter(Boolean);
+    return { ok: true, text: `${aktif.nama || 'Sesi'} : ${parts.join(' - ')}` };
+  }
+  const st = getSesiStatusText();
+  return { ok: false, text: st.text || 'Di luar jam sesi' };
+}
+
 function updateScanCameraLock() {
   const st = getSesiStatusText();
+  const lineInfo = formatSesiLineText();
+  const line = document.getElementById('scanSesiLine');
   const box = document.getElementById('scanSesiAktif');
   const btn = document.getElementById('btnCamToggle');
+  const camLabel = document.getElementById('btnCamLabel');
+
+  if (line) {
+    line.textContent = lineInfo.text;
+    line.classList.toggle('off', !lineInfo.ok);
+  }
   if (box) {
     box.textContent = st.text;
     box.style.background = st.ok ? '#e3f2fd' : '#ffebee';
     box.style.color = st.ok ? '#0d47a1' : '#b71c1c';
   }
+
   if (btn) {
-    btn.disabled = !st.ok;
-    btn.style.opacity = st.ok ? '1' : '0.5';
-    btn.style.cursor = st.ok ? 'pointer' : 'not-allowed';
-    btn.title = st.ok ? 'Buka kamera scanner' : st.text;
+    const running = typeof qrRunning !== 'undefined' && qrRunning;
+    if (!st.ok) {
+      // Merah jika tertutup / tidak ada sesi
+      btn.disabled = true;
+      btn.classList.remove('is-blue');
+      btn.classList.add('is-red');
+      if (camLabel) camLabel.textContent = 'Buka Kamera';
+      else btn.innerHTML = '<span class="scan-act-label">Buka Kamera</span><span class="scan-act-ico">📷</span>';
+    } else if (running) {
+      btn.disabled = false;
+      btn.classList.remove('is-red');
+      btn.classList.add('is-blue');
+      if (camLabel) camLabel.textContent = 'Tutup Kamera';
+      else btn.innerHTML = '<span class="scan-act-label">Tutup Kamera</span><span class="scan-act-ico">📷</span>';
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('is-red');
+      btn.classList.add('is-blue');
+      if (camLabel) camLabel.textContent = 'Buka Kamera';
+      else btn.innerHTML = '<span class="scan-act-label">Buka Kamera</span><span class="scan-act-ico">📷</span>';
+    }
+    btn.title = st.ok ? (running ? 'Tutup kamera' : 'Buka kamera') : st.text;
   }
+
   // jika di luar sesi dan kamera masih nyala → tutup
   if (!st.ok && typeof qrRunning !== 'undefined' && qrRunning) {
     stopQrScanner();
@@ -3028,31 +3102,26 @@ function initScanPage() {
   renderScanLogTable();
   const sess = getSession();
   const modeBtn = document.getElementById('btnScanMode');
-  const modeHint = document.getElementById('scanModeHint');
-  const guruFpCard = document.getElementById('guruFpCard');
+  const fpBtn = document.getElementById('btnGuruFpMain');
 
-  // Sidik jari guru: tampil untuk guru & admin
-  if (guruFpCard) {
-    const showFp = sess && (sess.role === 'guru' || sess.role === 'admin');
-    guruFpCard.style.display = showFp ? '' : 'none';
-    if (showFp) {
-      updateGuruFpSesiBadge();
-      updateFpMainButton('guru');
-    }
-  }
-
+  // Guru default scan siswa; admin bisa ganti mode (tombol mode disembunyikan di UI bersih)
   if (sess && sess.role === 'admin') {
-    if (modeBtn) modeBtn.style.display = '';
-    if (modeHint) modeHint.style.display = '';
+    // tetap default siswa; mode tersembunyi
+    if (modeBtn) modeBtn.style.display = 'none';
   } else {
-    // Guru: hanya scan siswa, tanpa saklar
     scanTargetRole = 'siswa';
     if (modeBtn) modeBtn.style.display = 'none';
-    if (modeHint) {
-      modeHint.style.display = '';
-      modeHint.innerHTML = 'Mode: <b>Siswa</b> — scan NISN 10 digit (guru hanya absen siswa)';
-    }
   }
+
+  // Tombol sidik jari: hanya guru/admin
+  if (fpBtn) {
+    const showFp = sess && (sess.role === 'guru' || sess.role === 'admin');
+    fpBtn.style.display = showFp ? '' : 'none';
+    if (showFp) updateFpMainButton('guru');
+  }
+
+  updateScanCameraLock();
+
   if (sess && sess.role === 'siswa') {
     showBigPopup('warn', 'Akses', 'Scanner QR untuk Guru/Admin. Siswa gunakan menu Sidik Jari.', 3000);
   }
@@ -3060,19 +3129,14 @@ function initScanPage() {
   _sesiLockTimer = setInterval(() => {
     if (document.getElementById('page-scan-barcode')?.classList.contains('active')) {
       updateScanCameraLock();
-      updateGuruFpSesiBadge();
+      const s = getSession();
+      if (s && (s.role === 'guru' || s.role === 'admin')) updateFpMainButton('guru');
     }
   }, 15000);
 }
 
 function updateGuruFpSesiBadge() {
-  const st = getSesiStatusText();
-  const box = document.getElementById('guruFpSesiAktif');
-  if (box) {
-    box.textContent = st.text;
-    box.style.background = st.ok ? '#e3f2fd' : '#ffebee';
-    box.style.color = st.ok ? '#0d47a1' : '#b71c1c';
-  }
+  updateScanCameraLock();
 }
 
 async function renderScanLogTable() {
@@ -3180,6 +3244,26 @@ function updateFpMainButton(role) {
   if (!btn) return;
   const info = resolveFpIdentity(isSiswa ? 'siswa' : 'guru');
   const registered = info.ok && fpIsRegistered(info.identity);
+
+  if (!isSiswa) {
+    // Tombol di bar scan (desain bersih)
+    const label = document.getElementById('btnGuruFpLabel');
+    if (registered) {
+      btn.classList.remove('is-red');
+      btn.classList.add('is-blue', 'scan-act-btn');
+      if (label) label.textContent = 'Absen Sidik Jari';
+      else btn.innerHTML = '<span class="scan-act-label">Absen Sidik Jari</span><span class="scan-act-ico">👆</span>';
+    } else {
+      btn.classList.remove('is-blue');
+      btn.classList.add('is-red', 'scan-act-btn');
+      if (label) label.textContent = 'Daftarkan Sidik Jari';
+      else btn.innerHTML = '<span class="scan-act-label">Daftarkan Sidik Jari</span><span class="scan-act-ico">👆</span>';
+    }
+    if (hint) hint.textContent = '';
+    return;
+  }
+
+  // Halaman siswa (tombol tunggal lama)
   if (registered) {
     btn.textContent = 'Absen Sidik Jari';
     btn.className = 'btn btn-primary';
@@ -3371,16 +3455,20 @@ document.getElementById('fpNisnInput')?.addEventListener('input', () => updateFp
 
 /* QR Scanner */
 async function startQrScanner() {
+  // Jika kamera sudah jalan → tutup (toggle)
+  if (typeof qrRunning !== 'undefined' && qrRunning) {
+    await stopQrScanner();
+    return;
+  }
   const st = updateScanCameraLock();
   if (!st.ok) {
-    showBigPopup('warn', 'Di Luar Jam Sesi', st.text + '<br><small>Kamera hanya bisa dibuka saat jam sesi aktif.</small>', 0);
+    showBigPopup('warn', 'Di Luar Jam Sesi', st.text, 0);
     return;
   }
   if (typeof Html5Qrcode === 'undefined') {
     showAbsenResult('scanResult', 'err', 'Library kamera belum termuat. Refresh halaman.');
     return;
   }
-  if (qrRunning) return;
   const box = document.getElementById('qr-reader');
   if (!box) return;
   qrScanner = new Html5Qrcode('qr-reader');
@@ -3402,8 +3490,7 @@ async function startQrScanner() {
       () => {}
     );
     qrRunning = true;
-    document.getElementById('btnCamToggle').style.display = 'none';
-    document.getElementById('btnCamStop').style.display = '';
+    updateScanCameraLock();
   } catch (e) {
     showAbsenResult('scanResult', 'err', 'Kamera gagal: ' + (e.message || e));
   }
@@ -3413,10 +3500,7 @@ async function stopQrScanner() {
   try { await qrScanner.stop(); qrScanner.clear(); } catch (_) {}
   qrRunning = false;
   qrScanner = null;
-  const t = document.getElementById('btnCamToggle');
-  const s = document.getElementById('btnCamStop');
-  if (t) t.style.display = '';
-  if (s) s.style.display = 'none';
+  updateScanCameraLock();
 }
 document.getElementById('btnCamToggle')?.addEventListener('click', startQrScanner);
 document.getElementById('btnCamStop')?.addEventListener('click', stopQrScanner);
