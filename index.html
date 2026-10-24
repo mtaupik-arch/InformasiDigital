@@ -7,6 +7,7 @@
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
   :root {
@@ -722,6 +723,7 @@
     <div class="crud-toolbar">
       <button type="button" class="btn btn-success" data-crud="siswa" data-act="tambah">➕ Tambah</button>
       <button type="button" class="btn btn-primary" data-crud="siswa" data-act="impor">📥 Impor</button>
+      <button type="button" class="btn btn-outline" data-crud="siswa" data-act="template">📄 Template</button>
       <button type="button" class="btn btn-danger" data-crud="siswa" data-act="hapus-massal">🗑️ Hapus Massal</button>
       <div class="spacer"></div>
       <input type="search" class="search-box" id="searchSiswa" placeholder="Cari nama / NISN / kelas…" />
@@ -749,6 +751,7 @@
     <div class="crud-toolbar">
       <button type="button" class="btn btn-success" data-crud="guru" data-act="tambah">➕ Tambah</button>
       <button type="button" class="btn btn-primary" data-crud="guru" data-act="impor">📥 Impor</button>
+      <button type="button" class="btn btn-outline" data-crud="guru" data-act="template">📄 Template</button>
       <button type="button" class="btn btn-danger" data-crud="guru" data-act="hapus-massal">🗑️ Hapus Massal</button>
       <div class="spacer"></div>
       <input type="search" class="search-box" id="searchGuru" placeholder="Cari nama / NIP…" />
@@ -776,6 +779,7 @@
     <div class="crud-toolbar">
       <button type="button" class="btn btn-success" data-crud="lulusan" data-act="tambah">➕ Tambah</button>
       <button type="button" class="btn btn-primary" data-crud="lulusan" data-act="impor">📥 Impor</button>
+      <button type="button" class="btn btn-outline" data-crud="lulusan" data-act="template">📄 Template</button>
       <button type="button" class="btn btn-danger" data-crud="lulusan" data-act="hapus-massal">🗑️ Hapus Massal</button>
       <div class="spacer"></div>
       <input type="search" class="search-box" id="searchLulusan" placeholder="Cari nama / NISN…" />
@@ -905,21 +909,51 @@
   </div>
 </div>
 
-<!-- Modal Impor CSV -->
+<!-- Modal Impor Excel/CSV -->
 <div class="modal-overlay" id="importModal">
-  <div class="modal-box">
+  <div class="modal-box wide">
     <div class="modal-head">
       <h3 id="importModalTitle">Impor Data</h3>
       <button type="button" class="modal-close" id="importModalClose">✕</button>
     </div>
     <div class="modal-body">
-      <p style="font-size:12.5px;color:#555;margin-bottom:10px">Upload file CSV (header di baris pertama). Kolom disesuaikan otomatis.</p>
-      <input type="file" id="importFile" accept=".csv,text/csv" style="font-size:13px;width:100%" />
-      <pre id="importPreview" style="margin-top:12px;font-size:11px;background:#f5f7fa;padding:10px;border-radius:8px;max-height:160px;overflow:auto;display:none"></pre>
+      <p style="font-size:12px;color:#555;margin-bottom:10px">
+        Unduh template Excel, isi data, lalu unggah kembali.
+        Data dengan <b>kunci sama</b> (NISN / NIP+PIN / Tahun+Semester) akan <b>di-update</b>; data baru ditambahkan.
+      </p>
+      <button type="button" class="btn btn-outline" id="btnDownloadTemplate" style="margin-bottom:12px">📄 Unduh Template Excel</button>
+      <div class="form-group full">
+        <label style="font-size:11.5px;font-weight:600">File Excel / CSV</label>
+        <input type="file" id="importFile" accept=".xlsx,.xls,.csv,text/csv" style="font-size:13px;width:100%;margin-top:4px" />
+      </div>
+      <pre id="importPreview" style="margin-top:12px;font-size:11px;background:#f5f7fa;padding:10px;border-radius:4px;max-height:140px;overflow:auto;display:none"></pre>
+      <div id="importProgressWrap" style="display:none;margin-top:12px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+          <span id="importProgressLabel">Mengimpor…</span>
+          <span id="importProgressPct">0%</span>
+        </div>
+        <div style="height:10px;background:#e8edf3;border-radius:3px;overflow:hidden">
+          <div id="importProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#1565c0,#42a5f5);transition:width .15s"></div>
+        </div>
+      </div>
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" id="importModalCancel">Batal</button>
       <button type="button" class="btn btn-primary" id="importModalGo" disabled>Impor</button>
+    </div>
+  </div>
+</div>
+
+<!-- Popup hasil absen / sistem -->
+<div class="modal-overlay" id="bigPopup">
+  <div class="modal-box" style="max-width:380px;text-align:center" id="bigPopupBox">
+    <div class="modal-body" style="padding:22px 18px">
+      <div id="bigPopupIcon" style="font-size:42px;margin-bottom:8px">ℹ️</div>
+      <h3 id="bigPopupTitle" style="font-size:15px;color:var(--primary);margin-bottom:8px">Info</h3>
+      <div id="bigPopupMessage" style="font-size:13px;color:#444;line-height:1.45"></div>
+    </div>
+    <div class="modal-foot" style="justify-content:center">
+      <button type="button" class="btn btn-primary" id="bigPopupOk">OK</button>
     </div>
   </div>
 </div>
@@ -1759,6 +1793,7 @@ document.addEventListener('click', (e) => {
     if (act === 'tambah') openForm(entity);
     if (act === 'hapus-massal') bulkDelete(entity);
     if (act === 'impor') openImport(entity);
+    if (act === 'template') downloadTemplate(entity);
     return;
   }
   const edit = e.target.closest('[data-edit]');
@@ -1790,14 +1825,95 @@ document.getElementById('searchGuru')?.addEventListener('input', e => renderGuru
 document.getElementById('searchLulusan')?.addEventListener('input', e => renderLulusan(e.target.value));
 document.getElementById('searchPeriode')?.addEventListener('input', e => renderPeriode(e.target.value));
 
-/* ----- Import CSV ----- */
+/* ----- Import Excel / CSV (template + upsert + progress) ----- */
 let importState = { entity: null, rows: [] };
+
+const TEMPLATE_HEADERS = {
+  siswa: [
+    'NISN','Nama','L/P','Kelas','Tmp Lahir','Tgl Lahir','Status Awal','Status','Mulai Sekolah','Asal Sekolah','Alamat'
+  ],
+  guru: [
+    'PIN','Nama','L/P','NIP','Jabatan Struktural','Jabatan Fungsional','Pangkat/Gol','Status','No HP'
+  ],
+  lulusan: [
+    'NISN','Nama','L/P','Status','Predikat','Tmp Lahir','Tgl Lahir','Mulai Sekolah','Tgl Lulus','Tahun Lulus','Lama Belajar','Status Awal','Asal Sekolah'
+  ],
+  periode: [
+    'Tahun Ajaran','Semester','Tgl Mulai','Tgl Akhir','Tgl Kelulusan','Tgl Naik Kelas','SK Kelulusan','SK Naik Kelas','Status'
+  ],
+};
+
+const TEMPLATE_SAMPLE = {
+  siswa: [{
+    NISN: '0123764559', Nama: 'Abi Mahmudin', 'L/P': 'L', Kelas: '7A',
+    'Tmp Lahir': 'Lebak', 'Tgl Lahir': '2011-09-07', 'Status Awal': 'Siswa Baru',
+    Status: 'Aktif', 'Mulai Sekolah': '2024-07-13', 'Asal Sekolah': 'SDN 1 Majasari', Alamat: 'Kp. Ciparasi'
+  }],
+  guru: [{
+    PIN: '555555', Nama: 'Budi Santoso', 'L/P': 'L', NIP: '197602031995021001',
+    'Jabatan Struktural': 'Kepala Sekolah', 'Jabatan Fungsional': 'Kepala Sekolah',
+    'Pangkat/Gol': 'Pembina / Iva', Status: 'Aktif', 'No HP': '08123456789'
+  }],
+  lulusan: [{
+    NISN: '0012345678', Nama: 'Contoh Lulusan', 'L/P': 'L', Status: 'Lulus', Predikat: 'Baik',
+    'Tmp Lahir': 'Lebak', 'Tgl Lahir': '2010-05-15', 'Mulai Sekolah': '2023-07-17',
+    'Tgl Lulus': '2026-06-15', 'Tahun Lulus': '2026', 'Lama Belajar': '3 Tahun',
+    'Status Awal': 'Siswa Baru', 'Asal Sekolah': 'SDN Contoh'
+  }],
+  periode: [{
+    'Tahun Ajaran': '2026/2027', Semester: 'Ganjil', 'Tgl Mulai': '2026-07-13',
+    'Tgl Akhir': '2026-12-20', 'Tgl Kelulusan': '', 'Tgl Naik Kelas': '',
+    'SK Kelulusan': '', 'SK Naik Kelas': '', Status: 'Aktif'
+  }],
+};
+
+const FIELD_FROM_HEADER = {
+  siswa: {
+    nisn: ['nisn'], nama: ['nama','name'], jenis_kelamin: ['l/p','lp','jk','jenis_kelamin','gender'],
+    kelas: ['kelas'], tmp_lahir: ['tmp lahir','tempat lahir','tmp_lahir'],
+    tgl_lahir: ['tgl lahir','tanggal lahir','tgl_lahir'],
+    status_awal: ['status awal','status_awal'], status: ['status'],
+    mulai_sekolah: ['mulai sekolah','mulai_sekolah'],
+    asal_sekolah: ['asal sekolah','asal_sekolah'], alamat: ['alamat'],
+  },
+  guru: {
+    pin: ['pin'], nama: ['nama'], jenis_kelamin: ['l/p','lp','jk','jenis_kelamin'],
+    nip: ['nip'], jabatan_struktur: ['jabatan struktural','jabatan_struktur'],
+    jabatan_fungsional: ['jabatan fungsional','jabatan_fungsional'],
+    pangkat_gol: ['pangkat/gol','pangkat','pangkat_gol'], status: ['status'],
+    no_hp: ['no hp','no_hp','hp'],
+  },
+  lulusan: {
+    nisn: ['nisn'], nama: ['nama'], jenis_kelamin: ['l/p','lp','jk'],
+    status: ['status'], predikat: ['predikat'],
+    tmp_lahir: ['tmp lahir','tempat lahir'], tgl_lahir: ['tgl lahir','tanggal lahir'],
+    mulai_sekolah: ['mulai sekolah'], tgl_lulus: ['tgl lulus','tanggal lulus'],
+    tahun_lulus: ['tahun lulus'], lama_belajar: ['lama belajar'],
+    status_awal: ['status awal'], asal_sekolah: ['asal sekolah'],
+  },
+  periode: {
+    tahun_ajaran: ['tahun ajaran','tahun_ajaran'], semester: ['semester'],
+    tgl_mulai: ['tgl mulai','tanggal mulai'], tgl_akhir: ['tgl akhir','tanggal akhir'],
+    tgl_kelulusan: ['tgl kelulusan'], tgl_naik_kelas: ['tgl naik kelas'],
+    sk_kelulusan: ['sk kelulusan'], sk_naik_kelas: ['sk naik kelas'], status: ['status'],
+  },
+};
+
+function uniqueKey(entity, row) {
+  if (entity === 'siswa') return 'nisn:' + String(row.nisn || '').trim();
+  if (entity === 'guru') return 'pin:' + String(row.pin || '').trim() || ('nip:' + String(row.nip || '').trim());
+  if (entity === 'lulusan') return 'nisn:' + String(row.nisn || '').trim();
+  if (entity === 'periode') return String(row.tahun_ajaran || '').trim() + '|' + String(row.semester || '').trim();
+  return row.id || '';
+}
 
 function openImport(entity) {
   importState = { entity, rows: [] };
-  document.getElementById('importModalTitle').textContent = 'Impor Data ' + entity;
+  const titles = { siswa: 'Siswa', guru: 'Guru', lulusan: 'Lulusan', periode: 'Periode' };
+  document.getElementById('importModalTitle').textContent = 'Impor Data ' + (titles[entity] || entity);
   document.getElementById('importFile').value = '';
   document.getElementById('importPreview').style.display = 'none';
+  document.getElementById('importProgressWrap').style.display = 'none';
   document.getElementById('importModalGo').disabled = true;
   document.getElementById('importModal').classList.add('active');
 }
@@ -1811,35 +1927,60 @@ document.getElementById('importModal').addEventListener('click', e => {
   if (e.target.id === 'importModal') closeImport();
 });
 
-document.getElementById('importFile').addEventListener('change', (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const text = String(reader.result || '');
-    const lines = text.split(/\r?\n/).filter(l => l.trim());
-    if (lines.length < 2) { toast('CSV kosong / tidak valid', 'err'); return; }
-    const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase());
-    const map = headerMap(importState.entity, headers);
-    const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cols = parseCsvLine(lines[i]);
-      if (!cols.some(c => c.trim())) continue;
-      const obj = {};
-      Object.keys(map).forEach(field => {
-        const idx = map[field];
-        if (idx >= 0) obj[field] = cols[idx]?.trim() || '';
-      });
-      rows.push(obj);
-    }
-    importState.rows = rows;
-    document.getElementById('importPreview').style.display = 'block';
-    document.getElementById('importPreview').textContent =
-      `Siap impor ${rows.length} baris\n` + JSON.stringify(rows.slice(0, 3), null, 2) + (rows.length > 3 ? '\n…' : '');
-    document.getElementById('importModalGo').disabled = rows.length === 0;
-  };
-  reader.readAsText(file);
+document.getElementById('btnDownloadTemplate')?.addEventListener('click', () => {
+  downloadTemplate(importState.entity);
 });
+
+function downloadTemplate(entity) {
+  if (!entity || !TEMPLATE_HEADERS[entity]) {
+    toast('Entity tidak valid', 'err'); return;
+  }
+  if (typeof XLSX === 'undefined') {
+    toast('Library Excel belum termuat. Refresh halaman.', 'err'); return;
+  }
+  const headers = TEMPLATE_HEADERS[entity];
+  const sample = TEMPLATE_SAMPLE[entity] || [];
+  const ws = XLSX.utils.json_to_sheet(sample.length ? sample : [Object.fromEntries(headers.map(h => [h, '']))], { header: headers });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Template');
+  // baris petunjuk di sheet 2
+  const tip = [
+    { Kolom: 'Catatan', Keterangan: 'Jangan ubah nama header. Data kunci sama = UPDATE.' },
+    { Kolom: 'Tanggal', Keterangan: 'Format YYYY-MM-DD (contoh 2026-07-13)' },
+    { Kolom: 'L/P', Keterangan: 'Isi L atau P' },
+  ];
+  if (entity === 'siswa') tip.push({ Kolom: 'NISN', Keterangan: 'Wajib 10 digit. Kunci unik.' });
+  if (entity === 'guru') tip.push({ Kolom: 'PIN', Keterangan: 'Wajib 6 digit. Kunci unik.' });
+  if (entity === 'periode') tip.push({ Kolom: 'Status', Keterangan: 'Aktif / Nonaktif / Arsip. Hanya satu Aktif disarankan.' });
+  const ws2 = XLSX.utils.json_to_sheet(tip);
+  XLSX.utils.book_append_sheet(wb, ws2, 'Petunjuk');
+  const names = { siswa: 'Template_Data_Siswa', guru: 'Template_Data_Guru', lulusan: 'Template_Data_Lulusan', periode: 'Template_Periode' };
+  XLSX.writeFile(wb, (names[entity] || 'Template') + '.xlsx');
+  toast('Template diunduh', 'ok');
+}
+
+function normalizeHeader(h) {
+  return String(h || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function mapRowFromHeaders(entity, headers, cols) {
+  const conf = FIELD_FROM_HEADER[entity] || {};
+  const obj = {};
+  Object.keys(conf).forEach(field => {
+    const idx = headers.findIndex(h => conf[field].includes(h));
+    if (idx >= 0) obj[field] = String(cols[idx] ?? '').trim();
+  });
+  // Excel date serial → string
+  ['tgl_lahir','mulai_sekolah','tgl_lulus','tgl_mulai','tgl_akhir','tgl_kelulusan','tgl_naik_kelas'].forEach(k => {
+    if (obj[k] && /^\d+(\.\d+)?$/.test(obj[k]) && Number(obj[k]) > 20000) {
+      try {
+        const d = XLSX.SSF.parse_date_code(Number(obj[k]));
+        if (d) obj[k] = `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+      } catch (_) {}
+    }
+  });
+  return obj;
+}
 
 function parseCsvLine(line) {
   const out = []; let cur = ''; let q = false;
@@ -1853,75 +1994,149 @@ function parseCsvLine(line) {
   return out;
 }
 
-function headerMap(entity, headers) {
-  const aliases = {
-    siswa: {
-      nama: ['nama','name'],
-      jenis_kelamin: ['l/p','lp','jk','jenis_kelamin','gender'],
-      nisn: ['nisn'],
-      kelas: ['kelas'],
-      tmp_lahir: ['tmp lahir','tempat lahir','tmp_lahir'],
-      tgl_lahir: ['tgl lahir','tanggal lahir','tgl_lahir'],
-      status_awal: ['status awal','status_awal'],
-      status: ['status'],
-      mulai_sekolah: ['mulai sekolah','mulai_sekolah'],
-      asal_sekolah: ['asal sekolah','asal_sekolah'],
-      alamat: ['alamat'],
-    },
-    guru: {
-      nama: ['nama'],
-      jenis_kelamin: ['l/p','lp','jk','jenis_kelamin'],
-      nip: ['nip'],
-      jabatan_struktur: ['jabatan struktural','jabatan_struktur','an struktural'],
-      jabatan_fungsional: ['jabatan fungsional','jabatan_fungsional'],
-      pangkat_gol: ['pangkat/gol','pangkat','pangkat_gol'],
-      status: ['status'],
-      no_hp: ['no hp','no_hp','hp'],
-      pin: ['pin'],
-    },
-    lulusan: {
-      nama: ['nama'],
-      jenis_kelamin: ['l/p','lp','jk'],
-      nisn: ['nisn'],
-      status: ['status'],
-      predikat: ['predikat'],
-      tmp_lahir: ['tmp lahir','tempat lahir'],
-      tgl_lahir: ['tgl lahir','tanggal lahir'],
-      mulai_sekolah: ['mulai sekolah'],
-      tgl_lulus: ['tgl lulus','tanggal lulus'],
-      tahun_lulus: ['tahun lulus'],
-      lama_belajar: ['lama belajar'],
-      status_awal: ['status awal'],
-      asal_sekolah: ['asal sekolah'],
-    },
-  };
-  const map = {};
-  const conf = aliases[entity] || {};
-  Object.keys(conf).forEach(field => {
-    const idx = headers.findIndex(h => conf[field].includes(h));
-    map[field] = idx;
-  });
-  return map;
+document.getElementById('importFile').addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const name = (file.name || '').toLowerCase();
+  if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        if (typeof XLSX === 'undefined') throw new Error('Library Excel belum termuat');
+        const data = new Uint8Array(reader.result);
+        const wb = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+        if (!json.length) { toast('File kosong', 'err'); return; }
+        const headers = Object.keys(json[0]).map(normalizeHeader);
+        const rows = json.map(r => {
+          const cols = Object.keys(r).map(k => r[k]);
+          const hdrs = Object.keys(r).map(normalizeHeader);
+          return mapRowFromHeaders(importState.entity, hdrs, cols);
+        }).filter(r => Object.values(r).some(v => v));
+        importState.rows = rows;
+        document.getElementById('importPreview').style.display = 'block';
+        document.getElementById('importPreview').textContent =
+          `Siap impor ${rows.length} baris (Excel)\n` + JSON.stringify(rows.slice(0, 2), null, 2) + (rows.length > 2 ? '\n…' : '');
+        document.getElementById('importModalGo').disabled = rows.length === 0;
+      } catch (err) {
+        toast('Gagal baca Excel: ' + (err.message || err), 'err');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { toast('CSV kosong / tidak valid', 'err'); return; }
+      const headers = parseCsvLine(lines[0]).map(normalizeHeader);
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCsvLine(lines[i]);
+        if (!cols.some(c => String(c).trim())) continue;
+        rows.push(mapRowFromHeaders(importState.entity, headers, cols));
+      }
+      importState.rows = rows;
+      document.getElementById('importPreview').style.display = 'block';
+      document.getElementById('importPreview').textContent =
+        `Siap impor ${rows.length} baris (CSV)\n` + JSON.stringify(rows.slice(0, 2), null, 2) + (rows.length > 2 ? '\n…' : '');
+      document.getElementById('importModalGo').disabled = rows.length === 0;
+    };
+    reader.readAsText(file);
+  }
+});
+
+function setImportProgress(done, total, label) {
+  const wrap = document.getElementById('importProgressWrap');
+  const bar = document.getElementById('importProgressBar');
+  const pct = document.getElementById('importProgressPct');
+  const lab = document.getElementById('importProgressLabel');
+  wrap.style.display = 'block';
+  const p = total ? Math.round((done / total) * 100) : 0;
+  bar.style.width = p + '%';
+  pct.textContent = p + '%';
+  lab.textContent = label || `Mengimpor ${done}/${total}…`;
 }
 
-document.getElementById('importModalGo').addEventListener('click', () => {
+document.getElementById('importModalGo').addEventListener('click', async () => {
   const { entity, rows } = importState;
   if (!rows.length) return;
   const aktif = getActivePeriode();
-  rows.forEach(r => {
-    const row = { id: uid(), ...r };
-    if (aktif) row.periode_id = aktif.id;
-    if (!row.status) row.status = entity === 'lulusan' ? 'Lulus' : 'Aktif';
-    store[entity].push(row);
-  });
+  let added = 0, updated = 0, skipped = 0;
+  const total = rows.length;
+  document.getElementById('importModalGo').disabled = true;
+  setImportProgress(0, total, 'Memulai impor…');
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    // validasi ringan
+    if (entity === 'siswa' && r.nisn && !/^\d{10}$/.test(r.nisn)) { skipped++; setImportProgress(i+1, total); await sleep(10); continue; }
+    if (entity === 'guru' && r.pin && !/^\d{6}$/.test(r.pin)) { skipped++; setImportProgress(i+1, total); await sleep(10); continue; }
+    if (entity === 'siswa' && !r.nama) { skipped++; setImportProgress(i+1, total); await sleep(10); continue; }
+    if (entity === 'guru' && !r.nama) { skipped++; setImportProgress(i+1, total); await sleep(10); continue; }
+
+    const key = uniqueKey(entity, r);
+    const idx = store[entity].findIndex(x => uniqueKey(entity, x) === key && key && !key.endsWith(':'));
+    if (idx >= 0 && key && !key.endsWith(':')) {
+      store[entity][idx] = { ...store[entity][idx], ...r };
+      if (entity !== 'periode' && aktif && !store[entity][idx].periode_id) store[entity][idx].periode_id = aktif.id;
+      updated++;
+    } else {
+      const row = { id: uid(), ...r };
+      if (entity !== 'periode' && aktif) row.periode_id = aktif.id;
+      if (!row.status) row.status = entity === 'lulusan' ? 'Lulus' : 'Aktif';
+      store[entity].push(row);
+      added++;
+    }
+    setImportProgress(i + 1, total, `Memproses ${i + 1}/${total}…`);
+    if (i % 5 === 0) await sleep(15);
+  }
+
+  if (entity === 'periode') {
+    // pastikan hanya satu Aktif jika ada yang Aktif di impor
+    const aktifRows = store.periode.filter(p => p.status === 'Aktif');
+    if (aktifRows.length > 1) {
+      aktifRows.slice(1).forEach(p => { p.status = 'Nonaktif'; });
+    }
+  }
+
   saveStore(store);
+  setImportProgress(total, total, 'Selesai');
+  await sleep(300);
   closeImport();
-  toast(`${rows.length} data berhasil diimpor`, 'ok');
+  showBigPopup('success', 'Impor Selesai',
+    `Ditambah: <b>${added}</b><br>Diupdate: <b>${updated}</b><br>Dilewati: <b>${skipped}</b><br>Total baris: ${total}`);
   if (entity === 'siswa') renderSiswa();
   if (entity === 'guru') renderGuru();
   if (entity === 'lulusan') renderLulusan();
+  if (entity === 'periode') { renderPeriode(); updatePeriodeBadges(); }
 });
 
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* Popup besar (hasil absen / impor) */
+let bigPopupTimer = null;
+function showBigPopup(type, title, message, autoCloseMs) {
+  const box = document.getElementById('bigPopupBox');
+  const icons = { success: '✅', danger: '❌', warning: '⚠️', info: 'ℹ️', ok: '✅', err: '❌', warn: '⚠️' };
+  document.getElementById('bigPopupIcon').textContent = icons[type] || 'ℹ️';
+  document.getElementById('bigPopupTitle').textContent = title;
+  document.getElementById('bigPopupMessage').innerHTML = message;
+  const border = type === 'success' || type === 'ok' ? '#2e7d32' : type === 'danger' || type === 'err' ? '#c62828' : type === 'warning' || type === 'warn' ? '#f57f17' : '#1565c0';
+  box.style.borderTop = '4px solid ' + border;
+  document.getElementById('bigPopup').classList.add('active');
+  if (bigPopupTimer) clearTimeout(bigPopupTimer);
+  if (autoCloseMs === undefined) autoCloseMs = (type === 'success' || type === 'ok' || type === 'info') ? 2200 : 0;
+  if (autoCloseMs > 0) bigPopupTimer = setTimeout(closeBigPopup, autoCloseMs);
+}
+function closeBigPopup() {
+  document.getElementById('bigPopup').classList.remove('active');
+}
+document.getElementById('bigPopupOk')?.addEventListener('click', closeBigPopup);
+document.getElementById('bigPopup')?.addEventListener('click', e => {
+  if (e.target.id === 'bigPopup') closeBigPopup();
+});
 
 /* ============================================================
    ABSENSI: Sidik Jari + QR (logika mirip index_v1)
@@ -1992,9 +2207,15 @@ function statusClass(st) {
 }
 function showAbsenResult(elId, type, msg) {
   const el = document.getElementById(elId);
-  if (!el) return;
-  el.className = 'absen-result show ' + type;
-  el.innerHTML = msg;
+  if (el) {
+    el.className = 'absen-result show ' + type;
+    el.innerHTML = msg;
+  }
+  // Popup jelas untuk hasil kamera / absen
+  const titles = { ok: 'Absen Berhasil', success: 'Absen Berhasil', err: 'Absen Gagal', danger: 'Absen Gagal', warn: 'Peringatan', warning: 'Peringatan', info: 'Info' };
+  if (typeof showBigPopup === 'function') {
+    showBigPopup(type, titles[type] || 'Info', msg, type === 'ok' || type === 'success' ? 2500 : type === 'warn' || type === 'warning' ? 3200 : 0);
+  }
 }
 function renderAbsenLog(elId, filterRole) {
   const el = document.getElementById(elId);
@@ -2061,7 +2282,7 @@ function prosesAbsen(kode, metode) {
   const log = loadAbsenLog();
   const dup = log.find(r => r.tanggal === todayStr() && r.kode === code && r.sesi_id === sesi.id);
   if (dup) {
-    return { ok: false, warn: true, msg: `${user.nama} sudah absen ${dup.status} pada ${dup.sesi_nama} (${dup.jam})` };
+    return { ok: false, warn: true, msg: `<b>${escapeHtml(user.nama)}</b> sudah tercatat absen<br>Status: <b>${escapeHtml(dup.status)}</b> · ${escapeHtml(dup.sesi_nama)} · ${escapeHtml(dup.jam)}<br><small>Tidak dikirim ulang ke database</small>` };
   }
 
   const entry = {
@@ -2085,7 +2306,11 @@ function prosesAbsen(kode, metode) {
 
   return {
     ok: true,
-    msg: `✅ ${escapeHtml(user.nama)} — <span class="badge-status ${statusClass(status)}">${status}</span> · ${sesi.nama} · ${entry.jam}`,
+    msg: `<b>${escapeHtml(user.nama)}</b><br>
+      Status: <span class="badge-status ${statusClass(status)}">${status}</span>
+      (${status === 'TW' ? 'Tepat Waktu' : status === 'TL' ? 'Terlambat' : status})<br>
+      ${escapeHtml(sesi.nama)} · ${entry.jam}<br>
+      <small style="color:#666">Metode: ${escapeHtml(metode || 'manual')} · Data tersimpan</small>`,
     entry,
   };
 }
