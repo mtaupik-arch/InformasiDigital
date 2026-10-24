@@ -262,30 +262,40 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .rekap-table tbody td {
-    padding:5px 3px; border-bottom:1px solid #f0f3f7; vertical-align:middle;
-    word-break:break-word; overflow-wrap:anywhere;
+    padding:4px 2px; border-bottom:1px solid #f0f3f7; vertical-align:middle;
   }
-  .rekap-table .col-no { width:28px; text-align:center; }
-  .rekap-table .col-nama { width:28%; min-width:0; }
-  .rekap-table .col-kelas { width:14%; min-width:0; }
-  .rekap-table .col-sesi { width:auto; text-align:center; }
+  .rekap-table .col-no {
+    width:34px; max-width:38px; text-align:center;
+    white-space:nowrap; font-variant-numeric:tabular-nums;
+    font-size:10px; color:#555; padding-left:2px; padding-right:2px;
+  }
+  .rekap-table .col-nama { width:30%; min-width:0; padding-left:4px; padding-right:4px; }
+  .rekap-table .col-kelas { width:11%; min-width:0; padding-left:2px; padding-right:2px; }
+  .rekap-table .col-sesi { width:auto; text-align:center; padding:3px 1px; }
   .rekap-table .nama-cell {
-    font-size:11px; font-weight:600; color:#333; line-height:1.25;
+    font-size:11px; font-weight:400; color:#333; line-height:1.25;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-    overflow:hidden;
+    overflow:hidden; word-break:break-word;
   }
-  .rekap-table .kelas-cell { font-size:10px; color:#555; }
+  .rekap-table .kelas-cell { font-size:10px; color:#555; white-space:nowrap; }
   .absen-cell {
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:1px; line-height:1.2; min-height:42px; padding:2px 0;
+    gap:0; line-height:1.15; min-height:38px; padding:1px 0; margin:0 auto;
+    max-width:72px;
   }
-  .absen-cell .ac-status { font-size:12px; font-weight:800; letter-spacing:.3px; }
-  .absen-cell .ac-jam { font-size:10px; font-weight:600; }
+  .absen-cell .ac-status { font-size:11px; font-weight:800; letter-spacing:.2px; }
+  .absen-cell .ac-jam { font-size:9.5px; font-weight:600; }
   .absen-cell .ac-by {
-    font-size:9px; font-weight:500; max-width:100%;
+    font-size:8.5px; font-weight:500; max-width:70px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
-  .absen-cell.empty { color:#bbb; font-size:12px; font-weight:600; }
+  .absen-cell.empty { color:#bbb; font-size:12px; font-weight:500; min-height:auto; }
+  .absen-cell.st-tw { background:rgba(25,118,210,.08); border-radius:4px; }
+  .absen-cell.st-tl { background:rgba(67,160,71,.1); border-radius:4px; }
+  .absen-cell.st-sakit { background:rgba(251,140,0,.1); border-radius:4px; }
+  .absen-cell.st-izin { background:rgba(253,216,53,.15); border-radius:4px; }
+  .absen-cell.st-alpa,
+  .absen-cell.st-bolos { background:rgba(229,57,53,.08); border-radius:4px; }
   .absen-cell.st-tw .ac-status { color:#1565c0; }
   .absen-cell.st-tw .ac-jam { color:#1976d2; }
   .absen-cell.st-tw .ac-by { color:#42a5f5; }
@@ -306,12 +316,14 @@
   .absen-cell.st-bolos .ac-by { color:#ef5350; }
   @media(max-width:480px){
     .rekap-table { font-size:10px; }
-    .rekap-table .col-no { width:22px; }
-    .rekap-table .col-nama { width:26%; }
-    .rekap-table .col-kelas { width:12%; }
-    .absen-cell .ac-status { font-size:11px; }
+    .rekap-table thead th { padding:5px 2px; font-size:9.5px; }
+    .rekap-table .col-no { width:32px; max-width:36px; font-size:9.5px; }
+    .rekap-table .col-nama { width:28%; }
+    .rekap-table .col-kelas { width:10%; }
+    .absen-cell { max-width:64px; min-height:36px; }
+    .absen-cell .ac-status { font-size:10.5px; }
     .absen-cell .ac-jam { font-size:9px; }
-    .absen-cell .ac-by { font-size:8px; }
+    .absen-cell .ac-by { font-size:8px; max-width:60px; }
   }
 
   .footer {
