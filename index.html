@@ -91,7 +91,7 @@
     display:flex; align-items:center; gap:10px; }
   .sidebar-header .logo-sekolah { width:38px; height:38px; font-size:14px; }
   .sidebar-header .brand { font-size:14px; font-weight:700; color:#fff; line-height:1.2; }
-  .sidebar-header .brand SMPll { display:block; font-weight:400; font-size:11px; color:#90a4ae; }
+  .sidebar-header .brand small { display:block; font-weight:400; font-size:11px; color:#90a4ae; }
   .sidebar-menu { flex:1; padding:8px 0; }
   .menu-group { margin-bottom:2px; display:none; }
   .menu-group.visible { display:block; }
@@ -247,6 +247,14 @@
   .sesi-chip { background:linear-gradient(135deg,#e3f2fd,#bbdefb); color:#0d47a1;
     padding:6px 12px; border-radius:20px; font-size:11px; font-weight:600;
     border:1px solid #90caf9; }
+  .sesi-chip.sesi-chip-on {
+    background:linear-gradient(135deg,#e3f2fd,#bbdefb); color:#0d47a1;
+    border-color:#90caf9;
+  }
+  .sesi-chip.sesi-chip-off {
+    background:linear-gradient(135deg,#ffebee,#ffcdd2); color:#b71c1c;
+    border-color:#ef9a9a;
+  }
 
   .table-scroll { overflow-x:auto; }
   .table-scroll table { min-width:600px; }
@@ -603,7 +611,7 @@
   </div>
 
   <div class="topbar-center">
-    <div class="nama-sekolah">SMP NEGERI 1 SOBANG</div>
+    <div class="nama-sekolah">SMA NEGERI 1 NUSANTARA</div>
     <div class="datetime" id="datetime">Kamis, 02 Okt 2026 • 00:00:00</div>
     <div class="user-name" id="topUserName">👤 Tamu (belum login)</div>
   </div>
@@ -630,7 +638,7 @@
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <div class="logo-sekolah">S</div>
-    <div class="brand">SMP N 1 SOBANG<SMPll>Sistem Informasi Sekolah</SMPll></div>
+    <div class="brand">SMA N 1 NUSANTARA<small>Sistem Informasi Sekolah</small></div>
   </div>
   <nav class="sidebar-menu">
 
@@ -709,7 +717,7 @@
     <div class="login-header">
       <div class="logo-circle">S</div>
       <h2>Login Sistem Informasi</h2>
-      <p>SMP Negeri 1 SOBANG</p>
+      <p>SMA Negeri 1 Nusantara</p>
     </div>
     <div class="login-body">
       <label for="inputIdentifier">NISN / PIN</label>
@@ -744,7 +752,7 @@
     <div class="dash-body">
       <div class="dash-left">
         <div class="dash-avatar" id="schoolAvatar">S</div>
-        <div class="dash-name" id="schoolName">SMP NEGERI 1 SOBANG</div>
+        <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
         <div class="dash-detail" id="schoolDetail">
           <p><b>NSS</b> <span>: -</span></p>
           <p><b>NPSN</b> <span>: -</span></p>
@@ -802,7 +810,7 @@
 
   <!-- REKAP KEHADIRAN GURU -->
   <div class="card">
-    <h3>📋 Rekap Kehadiran Guru <SMPll style="font-weight:500;color:#666;font-size:11px" id="labelRekapGuruHari"></SMPll></h3>
+    <h3>📋 Rekap Kehadiran Guru <small style="font-weight:500;color:#666;font-size:11px" id="labelRekapGuruHari"></small></h3>
     <div class="table-scroll rekap-scroll">
       <table id="tableRekapGuru" class="rekap-table">
         <thead id="theadRekapGuru">
@@ -817,7 +825,7 @@
 
   <!-- REKAP KEHADIRAN SISWA -->
   <div class="card">
-    <h3>📋 Rekap Kehadiran Siswa <SMPll style="font-weight:500;color:#666;font-size:11px" id="labelRekapSiswaHari"></SMPll></h3>
+    <h3>📋 Rekap Kehadiran Siswa <small style="font-weight:500;color:#666;font-size:11px" id="labelRekapSiswaHari"></small></h3>
     <div class="table-scroll rekap-scroll">
       <table id="tableRekapSiswa" class="rekap-table">
         <thead id="theadRekapSiswa">
@@ -1200,7 +1208,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
-  &copy; 2025 <b>SMP Negeri 1 SOBANG</b> — Sistem Informasi Sekolah
+  &copy; 2025 <b>SMA Negeri 1 Nusantara</b> — Sistem Informasi Sekolah
 </footer>
 
 <script>
@@ -1426,7 +1434,7 @@ function renderUserUI(session) {
 
   topName.textContent = `👤 ${nama} (${roleLabel})`;
   avatar.textContent = initial;
-  pmHeader.innerHTML = `Masuk sebagai <b>${nama}</b><br><SMPll style="color:#888">${roleLabel}</SMPll>`;
+  pmHeader.innerHTML = `Masuk sebagai <b>${nama}</b><br><small style="color:#888">${roleLabel}</small>`;
   btnLogin.style.display = 'none';
   btnLogout.style.display = '';
   btnEdit.style.display = '';
@@ -1676,12 +1684,12 @@ function seedStore() {
       jenis_kelamin: 'L',
       nisn: '0051234567',
       kelas: 'XII IPA 1',
-      tmp_lahir: 'SOBANG',
+      tmp_lahir: 'Nusantara',
       tgl_lahir: '2008-01-15',
       status_awal: 'Siswa Baru',
       status: 'Aktif',
       mulai_sekolah: '2022-07-15',
-      asal_sekolah: 'SMPN 1 SOBANG',
+      asal_sekolah: 'SMPN 1 Nusantara',
       alamat: 'Jl. Merdeka No. 10',
     }],
     guru: [{
@@ -2057,16 +2065,10 @@ async function renderDashboard() {
   if (statsGuru) statsGuru.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'guru');
   if (statsSiswa) statsSiswa.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'siswa');
 
-  // info sesi chips
+  // info sesi: hanya sesi aktif (biru) ATAU "Sesi X selesai · berikutnya Sesi Y" (merah)
   const chipWrap = document.getElementById('dashSesiChips') || document.querySelector('#page-dashboard .sesi-span');
   if (chipWrap) {
-    if (sesiList.length) {
-      chipWrap.innerHTML = sesiList.map(s =>
-        `<span class="sesi-chip">${escapeHtml(s.nama)} : ${escapeHtml((s.waktu1||s.mulai||'').toString().slice(0,5))} – ${escapeHtml((s.waktu3||s.selesai||'').toString().slice(0,5))}</span>`
-      ).join('');
-    } else {
-      chipWrap.innerHTML = '<span class="sesi-chip">Belum ada sesi</span>';
-    }
+    chipWrap.innerHTML = buildDashSesiInfoHtml(sesiList);
   }
 
   // Struktur Organisasi dari data guru
@@ -2868,35 +2870,76 @@ function getSesiAktif() {
   return null;
 }
 
+/** Format jam sesi: 06:15 - 07:30 - 08:00 */
+function formatSesiJam(s) {
+  if (!s) return '';
+  const w1 = String(s.waktu1 || s.mulai || '').slice(0, 5);
+  const w2 = String(s.waktu2 || '').slice(0, 5);
+  const w3 = String(s.waktu3 || s.selesai || '').slice(0, 5);
+  return [w1, w2, w3].filter(Boolean).join(' - ');
+}
+
 /** Info teks untuk UI: sesi aktif atau jadwal berikutnya */
 function getSesiStatusText() {
   const aktif = getSesiAktif();
   if (aktif) {
     return {
       ok: true,
-      text: `Sesi aktif: ${aktif.nama} (${aktif.mulai || aktif.waktu1} – ${aktif.selesai || aktif.waktu3})`,
+      text: `Sesi aktif: ${aktif.nama} (${formatSesiJam(aktif)})`,
       sesi: aktif,
     };
   }
   const now = hmToMin(nowHM());
   const list = getSesiList().slice().sort((a, b) => hmToMin(a.mulai || a.waktu1) - hmToMin(b.mulai || b.waktu1));
+  // sesi yang baru selesai (waktu3 <= now)
+  const selesai = list.filter(s => hmToMin(s.waktu3 || s.selesai || '00:00') <= now);
+  const lastDone = selesai.length ? selesai[selesai.length - 1] : null;
   const next = list.find(s => hmToMin(s.mulai || s.waktu1) > now);
+  if (lastDone && next) {
+    return {
+      ok: false,
+      text: `${lastDone.nama} selesai · sesi berikutnya ${next.nama} : ${formatSesiJam(next)}`,
+      sesi: null,
+      next,
+      lastDone,
+    };
+  }
   if (next) {
     return {
       ok: false,
-      text: `Di luar jam sesi. Berikutnya: ${next.nama} pukul ${next.mulai || next.waktu1}`,
+      text: `Di luar jam sesi. Berikutnya: ${next.nama} : ${formatSesiJam(next)}`,
       sesi: null,
+      next,
     };
   }
   if (list.length) {
     const last = list[list.length - 1];
     return {
       ok: false,
-      text: `Semua sesi hari ini sudah selesai (terakhir ${last.nama} ${last.selesai || last.waktu3})`,
+      text: `Semua sesi hari ini sudah selesai (terakhir ${last.nama} ${formatSesiJam(last)})`,
       sesi: null,
     };
   }
   return { ok: false, text: 'Belum ada sesi. Atur di menu Sesi & Hari Libur.', sesi: null };
+}
+
+/** HTML Informasi Sesi di dashboard */
+function buildDashSesiInfoHtml(sesiList) {
+  const list = (sesiList || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  if (!list.length) {
+    return '<span class="sesi-chip sesi-chip-off">Belum ada sesi</span>';
+  }
+  const st = getSesiStatusText();
+  if (st.ok && st.sesi) {
+    return `<span class="sesi-chip sesi-chip-on">${escapeHtml(st.sesi.nama)} : ${escapeHtml(formatSesiJam(st.sesi))}</span>`;
+  }
+  if (st.lastDone && st.next) {
+    return `<span class="sesi-chip sesi-chip-off">${escapeHtml(st.lastDone.nama)} selesai · sesi berikutnya ${escapeHtml(st.next.nama)} : ${escapeHtml(formatSesiJam(st.next))}</span>`;
+  }
+  if (st.next) {
+    return `<span class="sesi-chip sesi-chip-off">Sesi berikutnya ${escapeHtml(st.next.nama)} : ${escapeHtml(formatSesiJam(st.next))}</span>`;
+  }
+  return `<span class="sesi-chip sesi-chip-off">${escapeHtml(st.text)}</span>`;
 }
 
 /** Teks sesi ringkas: Sesi 1 : 06:00 - 07:00 - 08:00 */
@@ -3091,7 +3134,7 @@ async function prosesAbsen(kode, metode) {
         <b>${escapeHtml(d.nama || '')}</b><br>
         Status: <span class="badge-status ${statusClass(status)}">${status}</span> (${arti})<br>
         ${escapeHtml(d.sesi_nama || '')}<br>
-        <SMPll style="color:#666">Metode: ${escapeHtml(metode || 'qr')} · ${escapeHtml(d.scanned_by || '')}</SMPll>`,
+        <small style="color:#666">Metode: ${escapeHtml(metode || 'qr')} · ${escapeHtml(d.scanned_by || '')}</small>`,
     };
   } catch (e) {
     return { ok: false, type: 'err', msg: 'Gagal absen ke database:<br>' + escapeHtml(errToText(e)) };
@@ -3696,24 +3739,75 @@ function renderLiburTable() {
     </tr>`).join('');
 }
 
-function fillHapusSesiSelect() {
+async function fillHapusSesiSelect() {
   const sel = document.getElementById('hapusAbsenSesi');
   if (!sel) return;
   const cur = sel.value;
-  const rows = (store.sesi || []).slice().sort((a,b)=>(a.urutan||0)-(b.urutan||0));
+  // Ambil nama sesi real dari tabel absensi di database
+  let opts = [];
+  try {
+    if (getSession()?.token) {
+      const res = await apiCall('list_sesi_absensi', {});
+      opts = Array.isArray(res.data) ? res.data : [];
+    }
+  } catch (e) {
+    console.warn('list_sesi_absensi', e);
+  }
+  // Fallback ke master sesi jika absensi masih kosong
+  if (!opts.length) {
+    opts = (store.sesi || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
+      .map(s => ({ sesi_id: s.id, sesi_nama: s.nama }));
+  }
   sel.innerHTML = '<option value="">- Pilih Sesi -</option>' +
-    rows.map(s => `<option value="${s.id}">${escapeHtml(s.nama)}</option>`).join('');
+    opts.map(s => {
+      const val = s.sesi_id != null ? String(s.sesi_id) : ('nama:' + s.sesi_nama);
+      const label = s.sesi_nama || ('Sesi ' + s.sesi_id);
+      return `<option value="${escapeHtml(val)}" data-nama="${escapeHtml(s.sesi_nama || '')}">${escapeHtml(label)}</option>`;
+    }).join('');
   if (cur) sel.value = cur;
 }
 
 function openSesiForm(id) {
   const row = id ? (store.sesi || []).find(s => s.id === id) : null;
   crudState = { entity: 'sesi', id: id || null };
+
+  // Nama & urutan yang sudah dipakai (kecuali baris yang sedang diedit)
+  const usedNames = new Set(
+    (store.sesi || [])
+      .filter(s => !row || String(s.id) !== String(row.id))
+      .map(s => String(s.nama || '').trim().toLowerCase())
+  );
+  const usedUrutan = new Set(
+    (store.sesi || [])
+      .filter(s => !row || String(s.id) !== String(row.id))
+      .map(s => Number(s.urutan))
+      .filter(n => !isNaN(n) && n >= 1 && n <= 8)
+  );
+
+  const NAMA_OPTS = ['Sesi 1', 'Sesi 2', 'Sesi 3', 'Sesi 4', 'Sesi 5', 'Sesi 6', 'Sesi 7', 'Sesi 8'];
+  const namaOptions = NAMA_OPTS.map(n => {
+    const taken = usedNames.has(n.toLowerCase());
+    const selected = row && String(row.nama).trim() === n ? 'selected' : '';
+    return `<option value="${n}" ${selected} ${taken && !selected ? 'disabled' : ''}>${n}${taken && !selected ? ' (sudah dipakai)' : ''}</option>`;
+  }).join('');
+
+  const curUrutan = row?.urutan != null ? Number(row.urutan) : null;
+  const defaultUrutan = curUrutan || [1, 2, 3, 4, 5, 6, 7, 8].find(x => !usedUrutan.has(x)) || 1;
+  const urutanOptions = [1, 2, 3, 4, 5, 6, 7, 8].map(u => {
+    const taken = usedUrutan.has(u);
+    const selected = u === defaultUrutan ? 'selected' : '';
+    return `<option value="${u}" ${selected} ${taken && curUrutan !== u ? 'disabled' : ''}>${u}${taken && curUrutan !== u ? ' (sudah dipakai)' : ''}</option>`;
+  }).join('');
+
   document.getElementById('crudModalTitle').textContent = id ? 'Edit Sesi' : 'Tambah Sesi';
   document.getElementById('crudModalBody').innerHTML = `
     <div class="form-grid">
-      <div class="form-group"><label>Nama *</label><input name="nama" value="${escapeHtml(row?.nama || '')}" required /></div>
-      <div class="form-group"><label>Urutan</label><input type="number" name="urutan" value="${row?.urutan ?? ((store.sesi||[]).length+1)}" /></div>
+      <div class="form-group"><label>Nama *</label>
+        <select name="nama" required>${namaOptions}</select>
+      </div>
+      <div class="form-group"><label>Urutan</label>
+        <select name="urutan">${urutanOptions}</select>
+      </div>
       <div class="form-group"><label>Waktu 1 (mulai)</label><input type="time" name="waktu1" value="${row?.waktu1 || '06:15'}" /></div>
       <div class="form-group"><label>Waktu 2 (batas TW)</label><input type="time" name="waktu2" value="${row?.waktu2 || '07:30'}" /></div>
       <div class="form-group"><label>Waktu 3 (selesai)</label><input type="time" name="waktu3" value="${row?.waktu3 || '08:00'}" /></div>
@@ -3724,7 +3818,7 @@ function openSesiForm(id) {
         </select>
       </div>
     </div>
-    <p style="font-size:11px;color:#666;margin-top:8px">Waktu 1 = mulai absen · Waktu 2 = batas TW (setelahnya = TL) · Waktu 3 = tutup sesi</p>`;
+    <p style="font-size:11px;color:#666;margin-top:8px">Waktu 1 = mulai absen · Waktu 2 = batas TW (setelahnya = TL) · Waktu 3 = tutup sesi. Nama &amp; urutan yang sudah dipakai tidak bisa dipilih lagi.</p>`;
   document.getElementById('crudModal').classList.add('active');
 }
 
@@ -3840,33 +3934,71 @@ function countAbsenForFilter() {
   return { ok: true, count: rows.length, rows, dari, sampai, sesiId, tipe };
 }
 
-document.getElementById('btnCekJumlahAbsen')?.addEventListener('click', () => {
-  const res = countAbsenForFilter();
+function parseHapusSesiValue() {
+  const sel = document.getElementById('hapusAbsenSesi');
+  const val = sel?.value || '';
+  if (!val) return { sesi_id: null, sesi_nama: null };
+  const opt = sel.options[sel.selectedIndex];
+  const nama = opt?.getAttribute('data-nama') || opt?.textContent || '';
+  if (val.startsWith('nama:')) {
+    return { sesi_id: null, sesi_nama: val.slice(5) || nama };
+  }
+  return { sesi_id: val, sesi_nama: nama || null };
+}
+
+document.getElementById('btnCekJumlahAbsen')?.addEventListener('click', async () => {
+  const dari = document.getElementById('hapusAbsenDari')?.value;
+  const sampai = document.getElementById('hapusAbsenSampai')?.value;
+  const tipe = document.getElementById('hapusAbsenTipe')?.value || 'semua';
+  const { sesi_id, sesi_nama } = parseHapusSesiValue();
   const info = document.getElementById('hapusAbsenInfo');
-  if (!res.ok) {
-    info.textContent = res.msg;
+  if (!dari || !sampai || (!sesi_id && !sesi_nama)) {
+    info.textContent = 'Lengkapi tanggal dan sesi.';
     info.style.color = '#c62828';
     return;
   }
-  info.style.color = '#1565c0';
-  info.innerHTML = `Ditemukan <b>${res.count}</b> data absensi pada rentang ${res.dari} s/d ${res.sampai}.`;
+  try {
+    const res = await apiCall('count_absen_filter', { dari, sampai, sesi_id, sesi_nama, tipe });
+    info.style.color = '#1565c0';
+    info.innerHTML = `Ditemukan <b>${res.count || 0}</b> data absensi (semua status) di database · ${dari} s/d ${sampai} · ${escapeHtml(sesi_nama || sesi_id)}.`;
+  } catch (e) {
+    // fallback lokal
+    const res = countAbsenForFilter();
+    info.style.color = res.ok ? '#1565c0' : '#c62828';
+    info.innerHTML = res.ok
+      ? `Ditemukan <b>${res.count}</b> data (cache lokal).`
+      : (res.msg || errToText(e));
+  }
 });
 
 document.getElementById('btnHapusAbsenSesi')?.addEventListener('click', async () => {
   const dari = document.getElementById('hapusAbsenDari')?.value;
   const sampai = document.getElementById('hapusAbsenSampai')?.value;
-  const sesiId = document.getElementById('hapusAbsenSesi')?.value;
   const tipe = document.getElementById('hapusAbsenTipe')?.value || 'semua';
-  if (!dari || !sampai || !sesiId) { toast('Lengkapi tanggal dan sesi', 'err'); return; }
-  if (!confirm('Hapus data absensi di database untuk filter ini? Pengaturan sesi tidak dihapus.')) return;
+  const { sesi_id, sesi_nama } = parseHapusSesiValue();
+  if (!dari || !sampai || (!sesi_id && !sesi_nama)) { toast('Lengkapi tanggal dan sesi', 'err'); return; }
+  if (!confirm('Hapus SEMUA data absensi (semua status) di database untuk filter ini?\nPengaturan sesi (jam) tidak dihapus.')) return;
   try {
-    const res = await apiCall('hapus_absen_filter', { dari, sampai, sesi_id: sesiId, tipe });
+    const res = await apiCall('hapus_absen_filter', { dari, sampai, sesi_id, sesi_nama, tipe });
+    // bersihkan cache lokal yang cocok
+    try {
+      const log = loadAbsenLog().filter(r => {
+        if (r.tanggal < dari || r.tanggal > sampai) return true;
+        if (sesi_id && String(r.sesi_id) === String(sesi_id)) return false;
+        if (sesi_nama && r.sesi_nama === sesi_nama) return false;
+        return true;
+      });
+      saveAbsenLog(log);
+    } catch (_) {}
     await refreshStoreFromDb();
-    document.getElementById('hapusAbsenInfo').innerHTML = 'Berhasil menghapus <b>' + (res.deleted || 0) + '</b> data absensi dari database.';
+    await fillHapusSesiSelect();
+    document.getElementById('hapusAbsenInfo').innerHTML =
+      'Berhasil menghapus <b>' + (res.deleted || 0) + '</b> data absensi (semua status) dari database.';
     showBigPopup('success', 'Data Dihapus', (res.deleted || 0) + ' data absensi dihapus dari database.');
     if (typeof renderScanLogTable === 'function') renderScanLogTable();
+    if (typeof renderDashboard === 'function') renderDashboard();
   } catch (e) {
-    showBigPopup('err', 'Gagal Hapus', e.message);
+    showBigPopup('err', 'Gagal Hapus', errToText(e));
   }
 });
 
