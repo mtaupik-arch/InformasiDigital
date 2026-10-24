@@ -294,6 +294,115 @@
     background:var(--primary); color:#fff; border:none; padding:6px 14px; border-radius:8px;
     font-size:12px; font-weight:600; cursor:pointer;
   }
+
+  /* ===== PAGE CRUD ===== */
+  .page { display:none; }
+  .page.active { display:block; }
+  .page-title {
+    font-size:16px; font-weight:700; color:var(--primary); margin-bottom:12px;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .page-title .periode-badge {
+    font-size:11px; font-weight:600; background:#e3f2fd; color:#1565c0;
+    padding:4px 10px; border-radius:20px;
+  }
+  .crud-toolbar {
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    margin-bottom:12px;
+  }
+  .crud-toolbar .spacer { flex:1; }
+  .btn {
+    border:none; border-radius:8px; padding:8px 14px; font-size:12.5px; font-weight:600;
+    cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:.15s;
+  }
+  .btn:hover { filter:brightness(1.06); }
+  .btn:disabled { opacity:.55; cursor:not-allowed; }
+  .btn-primary { background:var(--primary); color:#fff; }
+  .btn-success { background:#2e7d32; color:#fff; }
+  .btn-danger { background:#c62828; color:#fff; }
+  .btn-outline {
+    background:#fff; color:var(--primary); border:1.5px solid #c5d0e0;
+  }
+  .btn-sm { padding:5px 10px; font-size:11.5px; }
+  .btn-icon { padding:6px 8px; }
+  .search-box {
+    padding:8px 12px; border:1.5px solid #d0d7e2; border-radius:8px;
+    font-size:13px; min-width:160px; outline:none;
+  }
+  .search-box:focus { border-color:var(--biru); }
+
+  .data-card {
+    background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.08);
+    padding:0; overflow:hidden;
+  }
+  .data-table-wrap { overflow-x:auto; }
+  .data-table { width:100%; border-collapse:collapse; font-size:12px; min-width:900px; }
+  .data-table thead th {
+    background:#1565c0; color:#fff; padding:10px 8px; text-align:left;
+    font-size:11px; font-weight:600; white-space:nowrap; position:sticky; top:0;
+  }
+  .data-table tbody td {
+    padding:8px; border-bottom:1px solid #eef2f7; color:#333; white-space:nowrap;
+  }
+  .data-table tbody tr:hover { background:#f5f9ff; }
+  .data-table tbody tr.selected { background:#e3f2fd; }
+  .data-table input[type=checkbox] { width:15px; height:15px; cursor:pointer; }
+  .badge-status {
+    display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700;
+  }
+  .badge-aktif { background:#e8f5e9; color:#2e7d32; }
+  .badge-nonaktif { background:#fce4ec; color:#c62828; }
+  .badge-lulus { background:#e3f2fd; color:#1565c0; }
+  .empty-row td { text-align:center; color:#999; padding:28px !important; }
+
+  /* Modal form */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:2100;
+    display:flex; align-items:flex-start; justify-content:center; padding:20px 12px;
+    opacity:0; visibility:hidden; transition:.2s; overflow-y:auto;
+  }
+  .modal-overlay.active { opacity:1; visibility:visible; }
+  .modal-box {
+    background:#fff; border-radius:14px; width:100%; max-width:560px;
+    box-shadow:0 20px 50px rgba(0,0,0,.25); margin:auto;
+  }
+  .modal-box.wide { max-width:720px; }
+  .modal-head {
+    padding:14px 18px; border-bottom:1px solid #eee;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .modal-head h3 { font-size:15px; color:var(--primary); }
+  .modal-close {
+    border:none; background:#f0f2f5; width:32px; height:32px; border-radius:50%;
+    cursor:pointer; font-size:16px;
+  }
+  .modal-body { padding:16px 18px; }
+  .form-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:12px;
+  }
+  @media(max-width:520px){ .form-grid { grid-template-columns:1fr; } }
+  .form-group { display:flex; flex-direction:column; gap:4px; }
+  .form-group.full { grid-column:1 / -1; }
+  .form-group label { font-size:11.5px; font-weight:600; color:#555; }
+  .form-group input, .form-group select, .form-group textarea {
+    padding:9px 11px; border:1.5px solid #d0d7e2; border-radius:8px;
+    font-size:13px; outline:none;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    border-color:var(--biru); box-shadow:0 0 0 3px rgba(33,150,243,.12);
+  }
+  .modal-foot {
+    padding:12px 18px; border-top:1px solid #eee;
+    display:flex; justify-content:flex-end; gap:8px;
+  }
+  .toast {
+    position:fixed; bottom:56px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:#1e3a5f; color:#fff; padding:10px 18px; border-radius:10px;
+    font-size:13px; z-index:3000; opacity:0; transition:.25s; pointer-events:none;
+  }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast.err { background:#c62828; }
+  .toast.ok { background:#2e7d32; }
 </style>
 </head>
 <body>
@@ -441,6 +550,9 @@
     <button type="button" id="btnOpenLogin">Login</button>
   </div>
 
+  <!-- ========== PAGE: DASHBOARD ========== -->
+  <div class="page active" id="page-dashboard">
+
   <!-- ROW 1 : Profil Sekolah + Statistik Guru (layout HP seperti sketsa) -->
   <div class="dash-panel" id="panelSekolah">
     <div class="dash-panel-head">
@@ -558,8 +670,159 @@
       </table>
     </div>
   </div>
+  </div><!-- /page-dashboard -->
+
+  <!-- ========== PAGE: DATA SISWA ========== -->
+  <div class="page" id="page-data-siswa">
+    <div class="page-title">👨‍🎓 Data Siswa <span class="periode-badge" id="badgePeriodeSiswa">Periode: -</span></div>
+    <div class="crud-toolbar">
+      <button type="button" class="btn btn-success" data-crud="siswa" data-act="tambah">➕ Tambah</button>
+      <button type="button" class="btn btn-primary" data-crud="siswa" data-act="impor">📥 Impor</button>
+      <button type="button" class="btn btn-danger" data-crud="siswa" data-act="hapus-massal">🗑️ Hapus Massal</button>
+      <div class="spacer"></div>
+      <input type="search" class="search-box" id="searchSiswa" placeholder="Cari nama / NISN / kelas…" />
+    </div>
+    <div class="data-card">
+      <div class="data-table-wrap">
+        <table class="data-table" id="tableSiswa">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="checkAllSiswa" /></th>
+              <th>No</th><th>Nama</th><th>L/P</th><th>NISN</th><th>Kelas</th>
+              <th>Tmp Lahir</th><th>Tgl Lahir</th><th>Status Awal</th><th>Status</th>
+              <th>Mulai Sekolah</th><th>Asal Sekolah</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodySiswa"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: DATA GURU ========== -->
+  <div class="page" id="page-data-guru">
+    <div class="page-title">👨‍🏫 Data Guru <span class="periode-badge" id="badgePeriodeGuru">Periode: -</span></div>
+    <div class="crud-toolbar">
+      <button type="button" class="btn btn-success" data-crud="guru" data-act="tambah">➕ Tambah</button>
+      <button type="button" class="btn btn-primary" data-crud="guru" data-act="impor">📥 Impor</button>
+      <button type="button" class="btn btn-danger" data-crud="guru" data-act="hapus-massal">🗑️ Hapus Massal</button>
+      <div class="spacer"></div>
+      <input type="search" class="search-box" id="searchGuru" placeholder="Cari nama / NIP…" />
+    </div>
+    <div class="data-card">
+      <div class="data-table-wrap">
+        <table class="data-table" id="tableGuru">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="checkAllGuru" /></th>
+              <th>No</th><th>Nama</th><th>L/P</th><th>NIP</th>
+              <th>Jabatan Struktural</th><th>Jabatan Fungsional</th>
+              <th>Pangkat/Gol</th><th>Status</th><th>No HP</th><th>PIN</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyGuru"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: DATA LULUSAN ========== -->
+  <div class="page" id="page-data-lulusan">
+    <div class="page-title">🎓 Data Lulusan <span class="periode-badge" id="badgePeriodeLulusan">Periode: -</span></div>
+    <div class="crud-toolbar">
+      <button type="button" class="btn btn-success" data-crud="lulusan" data-act="tambah">➕ Tambah</button>
+      <button type="button" class="btn btn-primary" data-crud="lulusan" data-act="impor">📥 Impor</button>
+      <button type="button" class="btn btn-danger" data-crud="lulusan" data-act="hapus-massal">🗑️ Hapus Massal</button>
+      <div class="spacer"></div>
+      <input type="search" class="search-box" id="searchLulusan" placeholder="Cari nama / NISN…" />
+    </div>
+    <div class="data-card">
+      <div class="data-table-wrap">
+        <table class="data-table" id="tableLulusan">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="checkAllLulusan" /></th>
+              <th>No</th><th>Nama</th><th>L/P</th><th>NISN</th><th>Status</th><th>Predikat</th>
+              <th>Tmp Lahir</th><th>Tgl Lahir</th><th>Mulai Sekolah</th>
+              <th>Tgl Lulus</th><th>Tahun Lulus</th><th>Lama Belajar</th>
+              <th>Status Awal</th><th>Asal Sekolah</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyLulusan"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: PERIODE ========== -->
+  <div class="page" id="page-periode">
+    <div class="page-title">🗓️ Periode / Tahun Ajaran</div>
+    <div class="crud-toolbar">
+      <button type="button" class="btn btn-success" data-crud="periode" data-act="tambah">➕ Tambah</button>
+      <button type="button" class="btn btn-danger" data-crud="periode" data-act="hapus-massal">🗑️ Hapus Massal</button>
+      <div class="spacer"></div>
+      <input type="search" class="search-box" id="searchPeriode" placeholder="Cari tahun ajaran…" />
+    </div>
+    <div class="data-card">
+      <div class="data-table-wrap">
+        <table class="data-table" id="tablePeriode">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="checkAllPeriode" /></th>
+              <th>No</th><th>Tahun Ajaran</th><th>Semester</th>
+              <th>Tgl Mulai</th><th>Tgl Akhir</th><th>Tgl Kelulusan</th>
+              <th>Tgl Naik Kelas</th><th>SK Kelulusan</th><th>SK Naik Kelas</th>
+              <th>Status</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyPeriode"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Placeholder pages -->
+  <div class="page" id="page-placeholder">
+    <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
+  </div>
 
 </main>
+
+<!-- Modal Form generik -->
+<div class="modal-overlay" id="crudModal">
+  <div class="modal-box wide" id="crudModalBox">
+    <div class="modal-head">
+      <h3 id="crudModalTitle">Form</h3>
+      <button type="button" class="modal-close" id="crudModalClose">✕</button>
+    </div>
+    <div class="modal-body" id="crudModalBody"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" id="crudModalCancel">Batal</button>
+      <button type="button" class="btn btn-primary" id="crudModalSave">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Impor CSV -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="importModalTitle">Impor Data</h3>
+      <button type="button" class="modal-close" id="importModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12.5px;color:#555;margin-bottom:10px">Upload file CSV (header di baris pertama). Kolom disesuaikan otomatis.</p>
+      <input type="file" id="importFile" accept=".csv,text/csv" style="font-size:13px;width:100%" />
+      <pre id="importPreview" style="margin-top:12px;font-size:11px;background:#f5f7fa;padding:10px;border-radius:8px;max-height:160px;overflow:auto;display:none"></pre>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" id="importModalCancel">Batal</button>
+      <button type="button" class="btn btn-primary" id="importModalGo" disabled>Impor</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
@@ -892,13 +1155,674 @@ document.getElementById('btnLogout').addEventListener('click', (e) => {
   e.preventDefault();
   clearSession();
   renderUserUI(null);
+  navigate('dashboard');
   tutupSidebar();
+});
+
+/* ============================================================
+   ROUTING + CRUD (Data Siswa, Guru, Lulusan, Periode)
+   Data demo disimpan di localStorage; siap dihubungkan Supabase.
+   ============================================================ */
+const STORE_KEY = 'sis_master_v1';
+
+function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return seedStore();
+}
+
+function saveStore(store) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+}
+
+function seedStore() {
+  const periodeId = 'p1';
+  const store = {
+    periode: [{
+      id: periodeId,
+      tahun_ajaran: '2026/2027',
+      semester: 'Ganjil',
+      tgl_mulai: '2026-07-13',
+      tgl_akhir: '2026-12-20',
+      tgl_kelulusan: '',
+      tgl_naik_kelas: '',
+      sk_kelulusan: '',
+      sk_naik_kelas: '',
+      status: 'Aktif',
+    }],
+    siswa: [{
+      id: 's-abi',
+      periode_id: periodeId,
+      nama: 'Abi Mahmudin',
+      jenis_kelamin: 'L',
+      nisn: '0123764559',
+      kelas: '7A',
+      tmp_lahir: 'Lebak',
+      tgl_lahir: '2011-09-07',
+      status_awal: 'Siswa Baru',
+      status: 'Aktif',
+      mulai_sekolah: '2024-07-13',
+      asal_sekolah: 'SDN 1 Majasari',
+      alamat: 'Kp. Ciparasi',
+    }, {
+      id: 's-ahmad',
+      periode_id: periodeId,
+      nama: 'Ahmad Fauzi',
+      jenis_kelamin: 'L',
+      nisn: '0051234567',
+      kelas: 'XII IPA 1',
+      tmp_lahir: 'Nusantara',
+      tgl_lahir: '2008-01-15',
+      status_awal: 'Siswa Baru',
+      status: 'Aktif',
+      mulai_sekolah: '2022-07-15',
+      asal_sekolah: 'SMPN 1 Nusantara',
+      alamat: 'Jl. Merdeka No. 10',
+    }],
+    guru: [{
+      id: 'g-budi',
+      periode_id: periodeId,
+      nama: 'Budi Santoso',
+      jenis_kelamin: 'L',
+      nip: '197602031995021001',
+      jabatan_struktur: 'Kepala Sekolah',
+      jabatan_fungsional: 'Kepala Sekolah',
+      pangkat_gol: 'Pembina / Iva',
+      status: 'Aktif',
+      no_hp: '',
+      pin: '123456',
+    }, {
+      id: 'g-sutrisno',
+      periode_id: periodeId,
+      nama: 'Drs. H. Sutrisno, M.Pd',
+      jenis_kelamin: 'L',
+      nip: '',
+      jabatan_struktur: 'Kepala Sekolah',
+      jabatan_fungsional: 'Kepala Sekolah',
+      pangkat_gol: '',
+      status: 'Aktif',
+      no_hp: '',
+      pin: '111111',
+    }],
+    lulusan: [],
+  };
+  saveStore(store);
+  return store;
+}
+
+let store = loadStore();
+
+function uid() {
+  return 'id-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+function getActivePeriode() {
+  return store.periode.find(p => p.status === 'Aktif') || store.periode[0] || null;
+}
+
+function periodeLabel() {
+  const p = getActivePeriode();
+  return p ? `${p.tahun_ajaran} ${p.semester}` : '-';
+}
+
+function updatePeriodeBadges() {
+  const label = 'Periode: ' + periodeLabel();
+  ['badgePeriodeSiswa','badgePeriodeGuru','badgePeriodeLulusan'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
+}
+
+function fmtDate(d) {
+  if (!d) return '-';
+  // YYYY-MM-DD -> DD/MM/YYYY
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  return d;
+}
+
+function statusBadge(s) {
+  const v = (s || '').toLowerCase();
+  let cls = 'badge-status';
+  if (v === 'aktif') cls += ' badge-aktif';
+  else if (v === 'lulus') cls += ' badge-lulus';
+  else cls += ' badge-nonaktif';
+  return `<span class="${cls}">${escapeHtml(s || '-')}</span>`;
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (type === 'err' ? 'err' : 'ok');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.className = 'toast'; }, 2800);
+}
+
+/* ----- Navigation ----- */
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
+
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode'];
+  let target = known.includes(page) ? page : 'placeholder';
+
+  const pageEl = document.getElementById('page-' + target);
+  if (pageEl) pageEl.classList.add('active');
+
+  const link = document.querySelector(`.submenu a[data-page="${page}"]`);
+  if (link) link.classList.add('active');
+
+  if (target === 'placeholder') {
+    const t = document.getElementById('placeholderTitle');
+    if (t) t.textContent = page.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  if (target === 'data-siswa') renderSiswa();
+  if (target === 'data-guru') renderGuru();
+  if (target === 'data-lulusan') renderLulusan();
+  if (target === 'periode') renderPeriode();
+
+  tutupSidebar();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.querySelectorAll('.submenu a[data-page]').forEach(a => {
+  a.addEventListener('click', (e) => {
+    e.preventDefault();
+    navigate(a.dataset.page);
+  });
+});
+
+/* ----- Render tables ----- */
+function renderSiswa(filter) {
+  updatePeriodeBadges();
+  const q = (filter || document.getElementById('searchSiswa')?.value || '').toLowerCase();
+  const aktif = getActivePeriode();
+  let rows = store.siswa.filter(s => !aktif || s.periode_id === aktif.id || !s.periode_id);
+  if (q) {
+    rows = rows.filter(s =>
+      (s.nama||'').toLowerCase().includes(q) ||
+      (s.nisn||'').includes(q) ||
+      (s.kelas||'').toLowerCase().includes(q)
+    );
+  }
+  const tb = document.getElementById('tbodySiswa');
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="13">Belum ada data siswa</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((s, i) => `
+    <tr data-id="${s.id}">
+      <td><input type="checkbox" class="row-check" value="${s.id}" /></td>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(s.nama)}</td>
+      <td>${escapeHtml(s.jenis_kelamin || '-')}</td>
+      <td>${escapeHtml(s.nisn || '-')}</td>
+      <td>${escapeHtml(s.kelas || '-')}</td>
+      <td>${escapeHtml(s.tmp_lahir || '-')}</td>
+      <td>${fmtDate(s.tgl_lahir)}</td>
+      <td>${escapeHtml(s.status_awal || '-')}</td>
+      <td>${statusBadge(s.status)}</td>
+      <td>${fmtDate(s.mulai_sekolah)}</td>
+      <td>${escapeHtml(s.asal_sekolah || '-')}</td>
+      <td>
+        <button type="button" class="btn btn-outline btn-sm" data-edit="siswa" data-id="${s.id}">✏️</button>
+        <button type="button" class="btn btn-danger btn-sm" data-del="siswa" data-id="${s.id}">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+
+function renderGuru(filter) {
+  updatePeriodeBadges();
+  const q = (filter || document.getElementById('searchGuru')?.value || '').toLowerCase();
+  const aktif = getActivePeriode();
+  let rows = store.guru.filter(g => !aktif || g.periode_id === aktif.id || !g.periode_id);
+  if (q) {
+    rows = rows.filter(g =>
+      (g.nama||'').toLowerCase().includes(q) ||
+      (g.nip||'').includes(q)
+    );
+  }
+  const tb = document.getElementById('tbodyGuru');
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="12">Belum ada data guru</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((g, i) => `
+    <tr data-id="${g.id}">
+      <td><input type="checkbox" class="row-check" value="${g.id}" /></td>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(g.nama)}</td>
+      <td>${escapeHtml(g.jenis_kelamin || '-')}</td>
+      <td>${escapeHtml(g.nip || '-')}</td>
+      <td>${escapeHtml(g.jabatan_struktur || '-')}</td>
+      <td>${escapeHtml(g.jabatan_fungsional || '-')}</td>
+      <td>${escapeHtml(g.pangkat_gol || '-')}</td>
+      <td>${statusBadge(g.status)}</td>
+      <td>${escapeHtml(g.no_hp || '-')}</td>
+      <td>${escapeHtml(g.pin || '-')}</td>
+      <td>
+        <button type="button" class="btn btn-outline btn-sm" data-edit="guru" data-id="${g.id}">✏️</button>
+        <button type="button" class="btn btn-danger btn-sm" data-del="guru" data-id="${g.id}">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+
+function renderLulusan(filter) {
+  updatePeriodeBadges();
+  const q = (filter || document.getElementById('searchLulusan')?.value || '').toLowerCase();
+  const aktif = getActivePeriode();
+  let rows = store.lulusan.filter(l => !aktif || l.periode_id === aktif.id || !l.periode_id);
+  if (q) {
+    rows = rows.filter(l =>
+      (l.nama||'').toLowerCase().includes(q) ||
+      (l.nisn||'').includes(q)
+    );
+  }
+  const tb = document.getElementById('tbodyLulusan');
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="15">Belum ada data lulusan</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((l, i) => `
+    <tr data-id="${l.id}">
+      <td><input type="checkbox" class="row-check" value="${l.id}" /></td>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(l.nama)}</td>
+      <td>${escapeHtml(l.jenis_kelamin || '-')}</td>
+      <td>${escapeHtml(l.nisn || '-')}</td>
+      <td>${statusBadge(l.status || 'Lulus')}</td>
+      <td>${escapeHtml(l.predikat || '-')}</td>
+      <td>${escapeHtml(l.tmp_lahir || '-')}</td>
+      <td>${fmtDate(l.tgl_lahir)}</td>
+      <td>${fmtDate(l.mulai_sekolah)}</td>
+      <td>${fmtDate(l.tgl_lulus)}</td>
+      <td>${escapeHtml(l.tahun_lulus || '-')}</td>
+      <td>${escapeHtml(l.lama_belajar || '-')}</td>
+      <td>${escapeHtml(l.status_awal || '-')}</td>
+      <td>${escapeHtml(l.asal_sekolah || '-')}</td>
+      <td>
+        <button type="button" class="btn btn-outline btn-sm" data-edit="lulusan" data-id="${l.id}">✏️</button>
+        <button type="button" class="btn btn-danger btn-sm" data-del="lulusan" data-id="${l.id}">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+
+function renderPeriode(filter) {
+  const q = (filter || document.getElementById('searchPeriode')?.value || '').toLowerCase();
+  let rows = store.periode.slice();
+  if (q) rows = rows.filter(p => (p.tahun_ajaran||'').toLowerCase().includes(q));
+  const tb = document.getElementById('tbodyPeriode');
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="12">Belum ada periode</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((p, i) => `
+    <tr data-id="${p.id}">
+      <td><input type="checkbox" class="row-check" value="${p.id}" /></td>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(p.tahun_ajaran)}</td>
+      <td>${escapeHtml(p.semester)}</td>
+      <td>${fmtDate(p.tgl_mulai)}</td>
+      <td>${fmtDate(p.tgl_akhir)}</td>
+      <td>${fmtDate(p.tgl_kelulusan)}</td>
+      <td>${fmtDate(p.tgl_naik_kelas)}</td>
+      <td>${escapeHtml(p.sk_kelulusan || '-')}</td>
+      <td>${escapeHtml(p.sk_naik_kelas || '-')}</td>
+      <td>${statusBadge(p.status)}</td>
+      <td>
+        <button type="button" class="btn btn-outline btn-sm" data-edit="periode" data-id="${p.id}">✏️</button>
+        <button type="button" class="btn btn-danger btn-sm" data-del="periode" data-id="${p.id}">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+
+/* ----- Forms config ----- */
+const FORM_FIELDS = {
+  siswa: [
+    { key: 'nama', label: 'Nama', required: true },
+    { key: 'jenis_kelamin', label: 'L/P', type: 'select', options: ['L','P'], required: true },
+    { key: 'nisn', label: 'NISN (10 digit)', required: true },
+    { key: 'kelas', label: 'Kelas' },
+    { key: 'tmp_lahir', label: 'Tempat Lahir' },
+    { key: 'tgl_lahir', label: 'Tanggal Lahir', type: 'date' },
+    { key: 'status_awal', label: 'Status Awal', type: 'select', options: ['Siswa Baru','Pindahan'] },
+    { key: 'status', label: 'Status', type: 'select', options: ['Aktif','Nonaktif','Lulus','Pindah','Keluar'] },
+    { key: 'mulai_sekolah', label: 'Mulai Sekolah', type: 'date' },
+    { key: 'asal_sekolah', label: 'Asal Sekolah' },
+    { key: 'alamat', label: 'Alamat', full: true },
+  ],
+  guru: [
+    { key: 'nama', label: 'Nama', required: true },
+    { key: 'jenis_kelamin', label: 'L/P', type: 'select', options: ['L','P'] },
+    { key: 'nip', label: 'NIP' },
+    { key: 'jabatan_struktur', label: 'Jabatan Struktural' },
+    { key: 'jabatan_fungsional', label: 'Jabatan Fungsional' },
+    { key: 'pangkat_gol', label: 'Pangkat/Gol' },
+    { key: 'status', label: 'Status', type: 'select', options: ['Aktif','Nonaktif','Pensiun','Pindah'] },
+    { key: 'no_hp', label: 'No HP' },
+    { key: 'pin', label: 'PIN (6 digit)', required: true },
+  ],
+  lulusan: [
+    { key: 'nama', label: 'Nama', required: true },
+    { key: 'jenis_kelamin', label: 'L/P', type: 'select', options: ['L','P'] },
+    { key: 'nisn', label: 'NISN' },
+    { key: 'status', label: 'Status', type: 'select', options: ['Lulus','Mengundurkan Diri'] },
+    { key: 'predikat', label: 'Predikat' },
+    { key: 'tmp_lahir', label: 'Tempat Lahir' },
+    { key: 'tgl_lahir', label: 'Tanggal Lahir', type: 'date' },
+    { key: 'mulai_sekolah', label: 'Mulai Sekolah', type: 'date' },
+    { key: 'tgl_lulus', label: 'Tanggal Lulus', type: 'date' },
+    { key: 'tahun_lulus', label: 'Tahun Lulus', type: 'number' },
+    { key: 'lama_belajar', label: 'Lama Belajar' },
+    { key: 'status_awal', label: 'Status Awal' },
+    { key: 'asal_sekolah', label: 'Asal Sekolah', full: true },
+  ],
+  periode: [
+    { key: 'tahun_ajaran', label: 'Tahun Ajaran (contoh 2026/2027)', required: true },
+    { key: 'semester', label: 'Semester', type: 'select', options: ['Ganjil','Genap'], required: true },
+    { key: 'tgl_mulai', label: 'Tgl Mulai', type: 'date' },
+    { key: 'tgl_akhir', label: 'Tgl Akhir', type: 'date' },
+    { key: 'tgl_kelulusan', label: 'Tgl Kelulusan', type: 'date' },
+    { key: 'tgl_naik_kelas', label: 'Tgl Naik Kelas', type: 'date' },
+    { key: 'sk_kelulusan', label: 'SK Kelulusan' },
+    { key: 'sk_naik_kelas', label: 'SK Naik Kelas' },
+    { key: 'status', label: 'Status', type: 'select', options: ['Aktif','Nonaktif','Arsip'], required: true },
+  ],
+};
+
+let crudState = { entity: null, id: null };
+
+function openForm(entity, id) {
+  crudState = { entity, id: id || null };
+  const fields = FORM_FIELDS[entity];
+  const row = id ? store[entity].find(r => r.id === id) : {};
+  const titles = { siswa: 'Siswa', guru: 'Guru', lulusan: 'Lulusan', periode: 'Periode' };
+  document.getElementById('crudModalTitle').textContent = (id ? 'Edit ' : 'Tambah ') + titles[entity];
+
+  document.getElementById('crudModalBody').innerHTML = `
+    <div class="form-grid">
+      ${fields.map(f => {
+        const val = row[f.key] != null ? row[f.key] : '';
+        const cls = f.full ? 'form-group full' : 'form-group';
+        if (f.type === 'select') {
+          return `<div class="${cls}"><label>${f.label}${f.required?' *':''}</label>
+            <select name="${f.key}">
+              ${f.options.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
+            </select></div>`;
+        }
+        return `<div class="${cls}"><label>${f.label}${f.required?' *':''}</label>
+          <input type="${f.type||'text'}" name="${f.key}" value="${escapeHtml(String(val))}" ${f.required?'required':''} /></div>`;
+      }).join('')}
+    </div>`;
+  document.getElementById('crudModal').classList.add('active');
+}
+
+function closeForm() {
+  document.getElementById('crudModal').classList.remove('active');
+  crudState = { entity: null, id: null };
+}
+
+function collectForm() {
+  const body = document.getElementById('crudModalBody');
+  const data = {};
+  body.querySelectorAll('input,select,textarea').forEach(el => {
+    data[el.name] = el.value.trim();
+  });
+  return data;
+}
+
+function saveForm() {
+  const { entity, id } = crudState;
+  if (!entity) return;
+  const data = collectForm();
+  const fields = FORM_FIELDS[entity];
+  for (const f of fields) {
+    if (f.required && !data[f.key]) {
+      toast(f.label + ' wajib diisi', 'err');
+      return;
+    }
+  }
+  if (entity === 'siswa' && data.nisn && !/^\d{10}$/.test(data.nisn)) {
+    toast('NISN harus 10 digit angka', 'err'); return;
+  }
+  if (entity === 'guru' && data.pin && !/^\d{6}$/.test(data.pin)) {
+    toast('PIN harus 6 digit angka', 'err'); return;
+  }
+
+  const aktif = getActivePeriode();
+
+  if (entity === 'periode' && data.status === 'Aktif') {
+    store.periode.forEach(p => { if (p.id !== id) p.status = 'Nonaktif'; });
+  }
+
+  if (id) {
+    const idx = store[entity].findIndex(r => r.id === id);
+    if (idx >= 0) {
+      store[entity][idx] = { ...store[entity][idx], ...data };
+    }
+  } else {
+    const row = { id: uid(), ...data };
+    if (entity !== 'periode' && aktif) row.periode_id = aktif.id;
+    store[entity].push(row);
+  }
+  saveStore(store);
+  closeForm();
+  toast('Data berhasil disimpan', 'ok');
+  if (entity === 'siswa') renderSiswa();
+  if (entity === 'guru') renderGuru();
+  if (entity === 'lulusan') renderLulusan();
+  if (entity === 'periode') { renderPeriode(); updatePeriodeBadges(); }
+}
+
+function deleteOne(entity, id) {
+  if (!confirm('Hapus data ini?')) return;
+  store[entity] = store[entity].filter(r => r.id !== id);
+  saveStore(store);
+  toast('Data dihapus', 'ok');
+  if (entity === 'siswa') renderSiswa();
+  if (entity === 'guru') renderGuru();
+  if (entity === 'lulusan') renderLulusan();
+  if (entity === 'periode') renderPeriode();
+}
+
+function bulkDelete(entity) {
+  const page = document.getElementById('page-data-' + (entity === 'periode' ? 'periode' : entity === 'siswa' ? 'siswa' : entity === 'guru' ? 'guru' : 'lulusan'));
+  // periode page id is page-periode
+  const root = document.getElementById(entity === 'periode' ? 'page-periode' : 'page-data-' + entity);
+  const checks = root.querySelectorAll('.row-check:checked');
+  if (!checks.length) { toast('Pilih minimal 1 baris', 'err'); return; }
+  if (!confirm(`Hapus ${checks.length} data terpilih?`)) return;
+  const ids = new Set([...checks].map(c => c.value));
+  store[entity] = store[entity].filter(r => !ids.has(r.id));
+  saveStore(store);
+  toast(`${checks.length} data dihapus`, 'ok');
+  if (entity === 'siswa') renderSiswa();
+  if (entity === 'guru') renderGuru();
+  if (entity === 'lulusan') renderLulusan();
+  if (entity === 'periode') renderPeriode();
+}
+
+/* Toolbar buttons */
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-crud]');
+  if (btn) {
+    const entity = btn.dataset.crud;
+    const act = btn.dataset.act;
+    if (act === 'tambah') openForm(entity);
+    if (act === 'hapus-massal') bulkDelete(entity);
+    if (act === 'impor') openImport(entity);
+    return;
+  }
+  const edit = e.target.closest('[data-edit]');
+  if (edit) { openForm(edit.dataset.edit, edit.dataset.id); return; }
+  const del = e.target.closest('[data-del]');
+  if (del) { deleteOne(del.dataset.del, del.dataset.id); return; }
+});
+
+document.getElementById('crudModalClose').onclick = closeForm;
+document.getElementById('crudModalCancel').onclick = closeForm;
+document.getElementById('crudModalSave').onclick = saveForm;
+document.getElementById('crudModal').addEventListener('click', (e) => {
+  if (e.target.id === 'crudModal') closeForm();
+});
+
+/* Check all */
+['Siswa','Guru','Lulusan','Periode'].forEach(name => {
+  const el = document.getElementById('checkAll' + name);
+  if (!el) return;
+  el.addEventListener('change', () => {
+    const table = el.closest('table');
+    table.querySelectorAll('.row-check').forEach(c => { c.checked = el.checked; });
+  });
+});
+
+/* Search */
+document.getElementById('searchSiswa')?.addEventListener('input', e => renderSiswa(e.target.value));
+document.getElementById('searchGuru')?.addEventListener('input', e => renderGuru(e.target.value));
+document.getElementById('searchLulusan')?.addEventListener('input', e => renderLulusan(e.target.value));
+document.getElementById('searchPeriode')?.addEventListener('input', e => renderPeriode(e.target.value));
+
+/* ----- Import CSV ----- */
+let importState = { entity: null, rows: [] };
+
+function openImport(entity) {
+  importState = { entity, rows: [] };
+  document.getElementById('importModalTitle').textContent = 'Impor Data ' + entity;
+  document.getElementById('importFile').value = '';
+  document.getElementById('importPreview').style.display = 'none';
+  document.getElementById('importModalGo').disabled = true;
+  document.getElementById('importModal').classList.add('active');
+}
+function closeImport() {
+  document.getElementById('importModal').classList.remove('active');
+}
+
+document.getElementById('importModalClose').onclick = closeImport;
+document.getElementById('importModalCancel').onclick = closeImport;
+document.getElementById('importModal').addEventListener('click', e => {
+  if (e.target.id === 'importModal') closeImport();
+});
+
+document.getElementById('importFile').addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = String(reader.result || '');
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) { toast('CSV kosong / tidak valid', 'err'); return; }
+    const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase());
+    const map = headerMap(importState.entity, headers);
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCsvLine(lines[i]);
+      if (!cols.some(c => c.trim())) continue;
+      const obj = {};
+      Object.keys(map).forEach(field => {
+        const idx = map[field];
+        if (idx >= 0) obj[field] = cols[idx]?.trim() || '';
+      });
+      rows.push(obj);
+    }
+    importState.rows = rows;
+    document.getElementById('importPreview').style.display = 'block';
+    document.getElementById('importPreview').textContent =
+      `Siap impor ${rows.length} baris\n` + JSON.stringify(rows.slice(0, 3), null, 2) + (rows.length > 3 ? '\n…' : '');
+    document.getElementById('importModalGo').disabled = rows.length === 0;
+  };
+  reader.readAsText(file);
+});
+
+function parseCsvLine(line) {
+  const out = []; let cur = ''; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { q = !q; continue; }
+    if (c === ',' && !q) { out.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+function headerMap(entity, headers) {
+  const aliases = {
+    siswa: {
+      nama: ['nama','name'],
+      jenis_kelamin: ['l/p','lp','jk','jenis_kelamin','gender'],
+      nisn: ['nisn'],
+      kelas: ['kelas'],
+      tmp_lahir: ['tmp lahir','tempat lahir','tmp_lahir'],
+      tgl_lahir: ['tgl lahir','tanggal lahir','tgl_lahir'],
+      status_awal: ['status awal','status_awal'],
+      status: ['status'],
+      mulai_sekolah: ['mulai sekolah','mulai_sekolah'],
+      asal_sekolah: ['asal sekolah','asal_sekolah'],
+      alamat: ['alamat'],
+    },
+    guru: {
+      nama: ['nama'],
+      jenis_kelamin: ['l/p','lp','jk','jenis_kelamin'],
+      nip: ['nip'],
+      jabatan_struktur: ['jabatan struktural','jabatan_struktur','an struktural'],
+      jabatan_fungsional: ['jabatan fungsional','jabatan_fungsional'],
+      pangkat_gol: ['pangkat/gol','pangkat','pangkat_gol'],
+      status: ['status'],
+      no_hp: ['no hp','no_hp','hp'],
+      pin: ['pin'],
+    },
+    lulusan: {
+      nama: ['nama'],
+      jenis_kelamin: ['l/p','lp','jk'],
+      nisn: ['nisn'],
+      status: ['status'],
+      predikat: ['predikat'],
+      tmp_lahir: ['tmp lahir','tempat lahir'],
+      tgl_lahir: ['tgl lahir','tanggal lahir'],
+      mulai_sekolah: ['mulai sekolah'],
+      tgl_lulus: ['tgl lulus','tanggal lulus'],
+      tahun_lulus: ['tahun lulus'],
+      lama_belajar: ['lama belajar'],
+      status_awal: ['status awal'],
+      asal_sekolah: ['asal sekolah'],
+    },
+  };
+  const map = {};
+  const conf = aliases[entity] || {};
+  Object.keys(conf).forEach(field => {
+    const idx = headers.findIndex(h => conf[field].includes(h));
+    map[field] = idx;
+  });
+  return map;
+}
+
+document.getElementById('importModalGo').addEventListener('click', () => {
+  const { entity, rows } = importState;
+  if (!rows.length) return;
+  const aktif = getActivePeriode();
+  rows.forEach(r => {
+    const row = { id: uid(), ...r };
+    if (aktif) row.periode_id = aktif.id;
+    if (!row.status) row.status = entity === 'lulusan' ? 'Lulus' : 'Aktif';
+    store[entity].push(row);
+  });
+  saveStore(store);
+  closeImport();
+  toast(`${rows.length} data berhasil diimpor`, 'ok');
+  if (entity === 'siswa') renderSiswa();
+  if (entity === 'guru') renderGuru();
+  if (entity === 'lulusan') renderLulusan();
 });
 
 /* ===== Init ===== */
 (function init() {
   const session = getSession();
   renderUserUI(session);
+  updatePeriodeBadges();
+  navigate('dashboard');
 })();
 </script>
 </body>
