@@ -2362,18 +2362,70 @@ function hmToMin(hm) {
   return h * 60 + m;
 }
 /** Sesi aktif berdasarkan jam sekarang (toleransi 5 menit sebelum mulai) */
+/** Sesi yang sedang berjalan (null jika di luar semua jam sesi) */
 function getSesiAktif() {
   const now = hmToMin(nowHM());
   const list = getSesiList();
   for (const s of list) {
-    const a = hmToMin(s.mulai) - 5;
-    const b = hmToMin(s.selesai);
-    if (now >= a && now < b) return s;
+    const mulai = hmToMin(s.mulai || s.waktu1 || '00:00');
+    const selesai = hmToMin(s.selesai || s.waktu3 || s.waktu2 || '23:59');
+    // toleransi 2 menit sebelum mulai
+    if (now >= mulai - 2 && now < selesai) return s;
   }
-  for (const s of list) {
-    if (now < hmToMin(s.mulai)) return s;
+  return null;
+}
+
+/** Info teks untuk UI: sesi aktif atau jadwal berikutnya */
+function getSesiStatusText() {
+  const aktif = getSesiAktif();
+  if (aktif) {
+    return {
+      ok: true,
+      text: `Sesi aktif: ${aktif.nama} (${aktif.mulai || aktif.waktu1} – ${aktif.selesai || aktif.waktu3})`,
+      sesi: aktif,
+    };
   }
-  return list[list.length - 1];
+  const now = hmToMin(nowHM());
+  const list = getSesiList().slice().sort((a, b) => hmToMin(a.mulai || a.waktu1) - hmToMin(b.mulai || b.waktu1));
+  const next = list.find(s => hmToMin(s.mulai || s.waktu1) > now);
+  if (next) {
+    return {
+      ok: false,
+      text: `Di luar jam sesi. Berikutnya: ${next.nama} pukul ${next.mulai || next.waktu1}`,
+      sesi: null,
+    };
+  }
+  if (list.length) {
+    const last = list[list.length - 1];
+    return {
+      ok: false,
+      text: `Semua sesi hari ini sudah selesai (terakhir ${last.nama} ${last.selesai || last.waktu3})`,
+      sesi: null,
+    };
+  }
+  return { ok: false, text: 'Belum ada sesi. Atur di menu Sesi & Hari Libur.', sesi: null };
+}
+
+function updateScanCameraLock() {
+  const st = getSesiStatusText();
+  const box = document.getElementById('scanSesiAktif');
+  const btn = document.getElementById('btnCamToggle');
+  if (box) {
+    box.textContent = st.text;
+    box.style.background = st.ok ? '#e3f2fd' : '#ffebee';
+    box.style.color = st.ok ? '#0d47a1' : '#b71c1c';
+  }
+  if (btn) {
+    btn.disabled = !st.ok;
+    btn.style.opacity = st.ok ? '1' : '0.5';
+    btn.style.cursor = st.ok ? 'pointer' : 'not-allowed';
+    btn.title = st.ok ? 'Buka kamera scanner' : st.text;
+  }
+  // jika di luar sesi dan kamera masih nyala → tutup
+  if (!st.ok && typeof qrRunning !== 'undefined' && qrRunning) {
+    stopQrScanner();
+  }
+  return st;
 }
 /** TW jika absen sebelum/tepat mulai+10 menit, selain itu TL (masih dalam sesi) */
 function statusDariJam(sesi) {
@@ -2427,12 +2479,14 @@ function renderAbsenLog(elId, filterRole) {
     </div>`).join('');
 }
 function updateSesiBadges() {
-  const s = getSesiAktif();
-  const txt = `Sesi aktif: ${s.nama} (${s.mulai} – ${s.selesai})`;
-  ['fpSesiAktif','scanSesiAktif'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = txt;
-  });
+  updateScanCameraLock();
+  const st = getSesiStatusText();
+  const fp = document.getElementById('fpSesiAktif');
+  if (fp) {
+    fp.textContent = st.text;
+    fp.style.background = st.ok ? '#e3f2fd' : '#ffebee';
+    fp.style.color = st.ok ? '#0d47a1' : '#b71c1c';
+  }
   const label = 'Periode: ' + periodeLabel();
   ['badgePeriodeFp','badgePeriodeScan'].forEach(id => {
     const el = document.getElementById(id);
@@ -2455,7 +2509,24 @@ async function prosesAbsen(kode, metode) {
   lastScanAt = now;
 
   try {
-    const res = await apiCall('absen', { kode: code, metode: metode || 'qr' });
+    const sess = getSession();
+    const scannedBy = sess?.user?.nama
+      ? (sess.user.nama + (sess.role ? ' (' + sess.role + ')' : ''))
+      : 'Petugas';
+    // cek sesi di client dulu
+    const st = getSesiStatusText();
+    if (!st.ok) {
+      return { ok: false, type: 'warn', msg: '<b>Di luar jam sesi</b><br>' + escapeHtml(st.text) };
+    }
+    const now = new Date();
+    const clientHm = now.getHours() * 60 + now.getMinutes();
+    const res = await apiCall('absen', {
+      kode: code,
+      metode: metode || 'qr',
+      scanned_by: scannedBy,
+      sesi_id: st.sesi?.id,
+      client_hm: clientHm,
+    });
     if (res.status === 'reject' || res.status === 'warning') {
       return {
         ok: false,
@@ -2516,6 +2587,7 @@ function initSidikJariPage() {
   }
 }
 
+let _sesiLockTimer = null;
 function initScanPage() {
   updateSesiBadges();
   renderScanLogTable();
@@ -2523,6 +2595,12 @@ function initScanPage() {
   if (sess && sess.role === 'siswa') {
     showAbsenResult('scanResult', 'warn', 'Scanner QR biasanya untuk Guru/Admin. Siswa gunakan menu Sidik Jari.');
   }
+  if (_sesiLockTimer) clearInterval(_sesiLockTimer);
+  _sesiLockTimer = setInterval(() => {
+    if (document.getElementById('page-scan-barcode')?.classList.contains('active')) {
+      updateScanCameraLock();
+    }
+  }, 15000);
 }
 
 function renderScanLogTable() {
@@ -2634,6 +2712,11 @@ document.getElementById('btnFpAbsen')?.addEventListener('click', fpAbsen);
 
 /* QR Scanner */
 async function startQrScanner() {
+  const st = updateScanCameraLock();
+  if (!st.ok) {
+    showBigPopup('warn', 'Di Luar Jam Sesi', st.text + '<br><small>Kamera hanya bisa dibuka saat jam sesi aktif.</small>', 0);
+    return;
+  }
   if (typeof Html5Qrcode === 'undefined') {
     showAbsenResult('scanResult', 'err', 'Library kamera belum termuat. Refresh halaman.');
     return;
