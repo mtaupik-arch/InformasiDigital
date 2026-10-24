@@ -499,6 +499,15 @@
   .scan-act-btn:not(:disabled):active { filter:brightness(.92); }
   .scan-act-ico { font-size:18px; line-height:1; }
   .scan-act-label { white-space:nowrap; }
+  .scan-mode-chip {
+    display:inline-flex; align-items:center; gap:4px;
+    margin:12px auto 0; padding:6px 14px; border-radius:20px;
+    border:1.5px solid #1565c0; background:#e3f2fd; color:#0d47a1;
+    font-size:12px; font-weight:600; cursor:pointer;
+  }
+  .scan-mode-chip.mode-guru {
+    border-color:#2e7d32; background:#e8f5e9; color:#1b5e20;
+  }
   #page-scan-barcode #qr-reader {
     margin-top:14px; border-radius:6px; overflow:hidden;
     max-width:360px; margin-left:auto; margin-right:auto;
@@ -976,13 +985,15 @@
           <span class="scan-act-label" id="btnGuruFpLabel">Absen Sidik Jari</span>
           <span class="scan-act-ico" aria-hidden="true">👆</span>
         </button>
-        <button type="button" class="scan-act-btn is-blue" id="btnCamToggle">
+        <button type="button" class="scan-act-btn is-red" id="btnCamToggle">
           <span class="scan-act-label" id="btnCamLabel">Buka Kamera</span>
           <span class="scan-act-ico" aria-hidden="true">📷</span>
         </button>
       </div>
-      <!-- mode admin (tersembunyi, tetap ada untuk logika) -->
-      <button type="button" id="btnScanMode" style="display:none" title="Ganti mode scan">👤 Siswa</button>
+      <!-- Admin: saklar mode Siswa ↔ Guru (ketuk untuk ganti) -->
+      <button type="button" class="scan-mode-chip" id="btnScanMode" style="display:none" title="Ganti mode scan">
+        Mode: <b id="scanModeChipText">Siswa</b>
+      </button>
       <button type="button" id="btnCamStop" style="display:none">Tutup Kamera</button>
       <div id="qr-reader"></div>
       <div class="absen-result" id="scanResult"></div>
@@ -1226,9 +1237,30 @@ async function apiCall(action, payload = {}) {
     throw new Error('Function api merespons non-JSON (HTTP ' + res.status + '). Kemungkinan kode function error saat deploy.');
   }
   if (!res.ok || data.status === 'error') {
-    throw new Error(data.message || data.error || ('HTTP ' + res.status));
+    throw new Error(formatApiErrMsg(data, res.status));
   }
   return data;
+}
+
+/** Ambil pesan error yang bisa dibaca (hindari [object Object]) */
+function formatApiErrMsg(data, httpStatus) {
+  if (!data) return 'HTTP ' + (httpStatus || '?');
+  const candidates = [data.message, data.error, data.msg, data.details, data.hint];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c;
+    if (c && typeof c === 'object') {
+      if (typeof c.message === 'string') return c.message;
+      if (typeof c.details === 'string') return c.details;
+      try { return JSON.stringify(c); } catch (_) {}
+    }
+  }
+  try { return JSON.stringify(data); } catch (_) { return 'HTTP ' + (httpStatus || '?'); }
+}
+function errToText(e) {
+  if (!e) return 'Unknown error';
+  if (typeof e === 'string') return e;
+  if (e.message && typeof e.message === 'string') return e.message;
+  try { return JSON.stringify(e); } catch (_) { return String(e); }
 }
 
 async function refreshStoreFromDb() {
@@ -2896,28 +2928,23 @@ function updateScanCameraLock() {
 
   if (btn) {
     const running = typeof qrRunning !== 'undefined' && qrRunning;
-    if (!st.ok) {
-      // Merah jika tertutup / tidak ada sesi
-      btn.disabled = true;
-      btn.classList.remove('is-blue');
-      btn.classList.add('is-red');
-      if (camLabel) camLabel.textContent = 'Buka Kamera';
-      else btn.innerHTML = '<span class="scan-act-label">Buka Kamera</span><span class="scan-act-ico">📷</span>';
-    } else if (running) {
+    // Merah = kamera tertutup ATAU di luar sesi; Biru = kamera terbuka
+    if (running && st.ok) {
       btn.disabled = false;
       btn.classList.remove('is-red');
       btn.classList.add('is-blue');
       if (camLabel) camLabel.textContent = 'Tutup Kamera';
       else btn.innerHTML = '<span class="scan-act-label">Tutup Kamera</span><span class="scan-act-ico">📷</span>';
     } else {
-      btn.disabled = false;
-      btn.classList.remove('is-red');
-      btn.classList.add('is-blue');
+      btn.disabled = !st.ok;
+      btn.classList.remove('is-blue');
+      btn.classList.add('is-red');
       if (camLabel) camLabel.textContent = 'Buka Kamera';
       else btn.innerHTML = '<span class="scan-act-label">Buka Kamera</span><span class="scan-act-ico">📷</span>';
     }
     btn.title = st.ok ? (running ? 'Tutup kamera' : 'Buka kamera') : st.text;
   }
+  updateScanModeChip();
 
   // jika di luar sesi dan kamera masih nyala → tutup
   if (!st.ok && typeof qrRunning !== 'undefined' && qrRunning) {
@@ -3018,14 +3045,20 @@ async function prosesAbsen(kode, metode) {
     }
     const now = new Date();
     const clientHm = now.getHours() * 60 + now.getMinutes();
-    const res = await apiCall('absen', {
+    const absenPayload = {
       kode: code,
       metode: metode || 'qr',
       scanned_by: scannedBy,
       sesi_id: st.sesi?.id,
       client_hm: clientHm,
       target_role: scanTargetRole || 'siswa',
-    });
+    };
+    // Absen mandiri sidik jari guru → pastikan mode guru
+    if (metode === 'fingerprint' && code.length === 6 && (scanTargetRole === 'guru' || sess?.role === 'guru' || sess?.role === 'admin')) {
+      absenPayload.target_role = 'guru';
+      absenPayload.self_absen = true;
+    }
+    const res = await apiCall('absen', absenPayload);
     if (res.status === 'reject' || res.status === 'warning') {
       return {
         ok: false,
@@ -3056,7 +3089,7 @@ async function prosesAbsen(kode, metode) {
         <small style="color:#666">Metode: ${escapeHtml(metode || 'qr')} · ${escapeHtml(d.scanned_by || '')}</small>`,
     };
   } catch (e) {
-    return { ok: false, type: 'err', msg: 'Gagal absen ke database:<br>' + escapeHtml(e.message) };
+    return { ok: false, type: 'err', msg: 'Gagal absen ke database:<br>' + escapeHtml(errToText(e)) };
   }
 }
 
@@ -3097,20 +3130,33 @@ function initSidikJariPage() {
 }
 
 let _sesiLockTimer = null;
+function updateScanModeChip() {
+  const modeBtn = document.getElementById('btnScanMode');
+  const chipText = document.getElementById('scanModeChipText');
+  const sess = getSession();
+  if (!modeBtn) return;
+  // Hanya admin yang bisa saklar mode Siswa ↔ Guru
+  if (sess && sess.role === 'admin') {
+    modeBtn.style.display = 'inline-flex';
+    if (chipText) chipText.textContent = scanTargetRole === 'guru' ? 'Guru' : 'Siswa';
+    modeBtn.classList.toggle('mode-guru', scanTargetRole === 'guru');
+  } else {
+    modeBtn.style.display = 'none';
+    scanTargetRole = 'siswa';
+  }
+}
+
 function initScanPage() {
   updateSesiBadges();
   renderScanLogTable();
   const sess = getSession();
-  const modeBtn = document.getElementById('btnScanMode');
   const fpBtn = document.getElementById('btnGuruFpMain');
 
-  // Guru default scan siswa; admin bisa ganti mode (tombol mode disembunyikan di UI bersih)
   if (sess && sess.role === 'admin') {
-    // tetap default siswa; mode tersembunyi
-    if (modeBtn) modeBtn.style.display = 'none';
+    // default siswa; bisa diganti lewat chip
+    if (!scanTargetRole) scanTargetRole = 'siswa';
   } else {
     scanTargetRole = 'siswa';
-    if (modeBtn) modeBtn.style.display = 'none';
   }
 
   // Tombol sidik jari: hanya guru/admin
@@ -3121,6 +3167,7 @@ function initScanPage() {
   }
 
   updateScanCameraLock();
+  updateScanModeChip();
 
   if (sess && sess.role === 'siswa') {
     showBigPopup('warn', 'Akses', 'Scanner QR untuk Guru/Admin. Siswa gunakan menu Sidik Jari.', 3000);
@@ -3581,17 +3628,11 @@ document.getElementById('btnCamToggle')?.addEventListener('click', startQrScanne
 document.getElementById('btnCamStop')?.addEventListener('click', stopQrScanner);
 
 document.getElementById('btnScanMode')?.addEventListener('click', () => {
+  const sess = getSession();
+  if (!sess || sess.role !== 'admin') return;
   scanTargetRole = scanTargetRole === 'siswa' ? 'guru' : 'siswa';
-  const btn = document.getElementById('btnScanMode');
-  const hint = document.getElementById('scanModeHint');
-  if (scanTargetRole === 'guru') {
-    if (btn) { btn.textContent = '👨‍🏫 Guru'; btn.className = 'btn btn-primary'; }
-    if (hint) hint.innerHTML = 'Mode: <b>Guru</b> — arahkan ke QR/barcode <b>PIN 6 digit</b> atau <b>NIP</b>';
-  } else {
-    if (btn) { btn.textContent = '👤 Siswa'; btn.className = 'btn btn-success'; }
-    if (hint) hint.innerHTML = 'Mode: <b>Siswa</b> — arahkan ke QR/barcode <b>NISN 10 digit</b>';
-  }
-  toast('Mode scan: ' + (scanTargetRole === 'guru' ? 'Guru' : 'Siswa'), 'ok');
+  updateScanModeChip();
+  toast('Mode scan: ' + (scanTargetRole === 'guru' ? 'Guru (PIN/NIP)' : 'Siswa (NISN)'), 'ok');
 });
 
 
