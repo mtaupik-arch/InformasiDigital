@@ -188,6 +188,8 @@
     gap:3px; font-weight:400; line-height:1.25;
   }
   .stat-box .nums span { font-size:12px; font-weight:400; }
+  .stat-box .nums span.num-zero { opacity:.45; font-weight:400; }
+  .stat-box .nums span.num-pos { font-weight:700; opacity:1; }
   .stat-box .lbl {
     font-size:10px; margin-top:4px; font-weight:700;
   }
@@ -1796,7 +1798,10 @@ function buildSesiStatsHtml(sesiList, absenRows, role) {
           ).length;
         })
       : [0];
-    const numsHtml = nums.map(n => `<span>${n}</span>`).join('');
+    // 0 → "-" agar angka non-nol lebih menonjol
+    const numsHtml = nums.map(n =>
+      `<span class="${n ? 'num-pos' : 'num-zero'}">${n ? n : '–'}</span>`
+    ).join('');
     return `<div class="stat-box ${st.cls}">
       <div class="nums">${numsHtml}</div>
       <div class="lbl">${st.lbl}</div>
