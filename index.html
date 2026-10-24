@@ -115,65 +115,101 @@
   .card h3 { font-size:14px; color:var(--primary); margin-bottom:12px;
     padding-bottom:8px; border-bottom:2px solid #eef2f7; display:flex; align-items:center; gap:6px; }
 
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
+  /* ===== DASH PANEL (layout seperti sketsa HP) ===== */
+  .dash-panel {
+    background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.08);
+    padding:14px; margin-bottom:14px;
   }
-  @media(min-width:768px){
-    .grid-2 { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .dash-panel-head {
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    margin-bottom:12px;
   }
+  .dash-avatar {
+    width:64px; height:64px; border-radius:50%;
+    background:linear-gradient(135deg,#1976d2,#42a5f5);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:18px; font-weight:800; letter-spacing:.5px; flex-shrink:0;
+    box-shadow:0 3px 10px rgba(25,118,210,.35);
+  }
+  .dash-avatar.user { background:linear-gradient(135deg,#1565c0,#1e88e5); }
+  .dash-name {
+    margin-top:8px; font-size:13px; font-weight:700; color:#1a237e;
+    text-transform:uppercase; letter-spacing:.3px; line-height:1.3;
+  }
+  .dash-body {
+    display:flex; flex-direction:row; align-items:flex-start; gap:10px;
+  }
+  .dash-detail { flex:1; min-width:0; }
+  .dash-detail p {
+    font-size:11.5px; margin-bottom:4px; color:#555;
+    display:flex; line-height:1.35;
+  }
+  .dash-detail p b {
+    color:#222; min-width:72px; flex-shrink:0; font-weight:600;
+  }
+  .dash-detail p span { flex:1; text-align:left; word-break:break-word; }
 
-  .school-info { display: flex; flex-direction: row; align-items: center; gap: 16px; }
-  .school-logo-big {
-    width: 70px; height: 70px; border-radius: 16px;
-    background: linear-gradient(135deg,var(--primary),var(--primary-light));
-    color: #fff; display: flex; align-items: center; justify-content: center;
-    font-size: 24px; font-weight: 700; flex-shrink: 0;
+  .dash-stats {
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;
+    width:42%; max-width:160px; flex-shrink:0;
   }
-  .school-detail { flex: 1; }
-  .school-detail p { font-size: 13px; margin-bottom: 6px; color: #555; display: flex; }
-  .school-detail p b { color: #222; min-width: 100px; flex-shrink: 0; }
-  .school-detail p span { flex: 1; text-align: left; }
-
-  .user-info { display: flex; flex-direction: row; align-items: center; gap: 16px; }
-  .user-photo {
-    width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
-    border: 3px solid #e3eaf3; background: #e8eef5;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 30px; color: #90a4ae; flex-shrink: 0;
+  .stat-box {
+    border-radius:8px; padding:8px 2px; text-align:center; color:#fff;
+    transition:.2s; min-height:44px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
   }
-  .user-detail { flex: 1; }
-  .user-detail p { font-size: 13px; margin-bottom: 6px; color: #555; display: flex; }
-  .user-detail p b { color: #222; min-width: 60px; flex-shrink: 0; }
-  .user-detail p span { flex: 1; text-align: left; }
-
-  @media(max-width:480px){
-    .card { padding: 12px; }
-    .school-info, .user-info { gap: 10px; }
-    .school-logo-big { width: 50px; height: 50px; font-size: 18px; border-radius: 10px; }
-    .user-photo { width: 60px; height: 60px; font-size: 22px; border-width: 2px; }
-    .school-detail p, .user-detail p { font-size: 11.5px; margin-bottom: 4px; }
-    .school-detail p b { min-width: 75px; }
-    .user-detail p b { min-width: 45px; }
-  }
-
-  .stat-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-  @media(min-width:900px){
-    .stat-grid { grid-template-columns: repeat(6, 1fr); gap: 10px; }
-  }
-  .stat-box { border-radius:8px; padding:12px 4px; text-align:center; color:#fff; transition:.2s; }
-  .stat-box:hover { transform:translateY(-3px); box-shadow:0 6px 14px rgba(0,0,0,.18); }
-  .stat-box .num { font-size:20px; font-weight:800; line-height:1; }
-  .stat-box .lbl { font-size:11px; margin-top:4px; font-weight:600; opacity:.95; }
+  .stat-box:hover { transform:translateY(-2px); box-shadow:0 4px 10px rgba(0,0,0,.15); }
+  .stat-box .num { font-size:15px; font-weight:800; line-height:1; }
+  .stat-box .lbl { font-size:9px; margin-top:2px; font-weight:600; opacity:.95; }
 
   .c-biru { background:var(--biru); } .c-hijau { background:var(--hijau); }
   .c-orange { background:var(--orange); } .c-kuning { background:var(--kuning); color:#5d4037; }
   .c-pink { background:var(--pink); } .c-merah { background:var(--merah); }
+
+  /* Desktop: 2 kolom, logo + info horizontal, stats lebih besar */
+  @media(min-width:768px){
+    .dash-row {
+      display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;
+    }
+    .dash-panel { margin-bottom:0; padding:16px; }
+    .dash-panel-head {
+      flex-direction:row; align-items:center; text-align:left; gap:14px;
+      margin-bottom:14px; padding-bottom:12px; border-bottom:2px solid #eef2f7;
+    }
+    .dash-avatar { width:70px; height:70px; font-size:22px; }
+    .dash-name { margin-top:0; font-size:15px; }
+    .dash-body { gap:16px; }
+    .dash-detail p { font-size:13px; margin-bottom:6px; }
+    .dash-detail p b { min-width:100px; }
+    .dash-stats {
+      width:auto; max-width:none; flex:1;
+      grid-template-columns:repeat(3, 1fr); gap:8px;
+    }
+    .stat-box { padding:12px 4px; min-height:56px; }
+    .stat-box .num { font-size:20px; }
+    .stat-box .lbl { font-size:11px; margin-top:4px; }
+  }
+  @media(min-width:1100px){
+    .dash-stats { grid-template-columns:repeat(6, 1fr); }
+  }
+
+  @media(max-width:480px){
+    .card { padding: 12px; }
+    .dash-panel { padding:12px; }
+    .dash-avatar { width:56px; height:56px; font-size:15px; }
+    .dash-name { font-size:12px; }
+    .dash-detail p { font-size:11px; }
+    .dash-detail p b { min-width:62px; }
+    .dash-stats { width:44%; max-width:148px; gap:5px; }
+    .stat-box { padding:6px 1px; min-height:40px; border-radius:6px; }
+    .stat-box .num { font-size:13px; }
+    .stat-box .lbl { font-size:8px; }
+  }
+
+  /* legacy helpers (jika dipakai di tempat lain) */
+  .grid-2 { display:grid; grid-template-columns:1fr; gap:12px; }
+  @media(min-width:768px){ .grid-2 { grid-template-columns:1fr 1fr; gap:16px; } }
+  .school-info, .user-info { display:flex; flex-direction:row; align-items:center; gap:16px; }
 
   table { width:100%; border-collapse:collapse; font-size:12px; }
   thead th { background:#eef3fa; color:var(--primary); padding:8px 10px; text-align:left;
@@ -405,24 +441,20 @@
     <button type="button" id="btnOpenLogin">Login</button>
   </div>
 
-  <!-- ROW 1 : Info Sekolah + Statistik Guru -->
-  <div class="grid-2">
-    <div class="card">
-      <h3>🏫 Profil Sekolah</h3>
-      <div class="school-info">
-        <div class="school-logo-big">S</div>
-        <div class="school-detail">
-          <p><b>NSS</b> <span>: 30101010101</span></p>
-          <p><b>NPSN</b> <span>: 20201010</span></p>
-          <p><b>Tahun Berdiri</b> <span>: 1975</span></p>
-          <p><b>Alamat</b> <span>: Jl. Pendidikan No. 1, Nusantara</span></p>
-        </div>
-      </div>
+  <!-- ROW 1 : Profil Sekolah + Statistik Guru (layout HP seperti sketsa) -->
+  <div class="dash-panel" id="panelSekolah">
+    <div class="dash-panel-head">
+      <div class="dash-avatar" id="schoolAvatar">S</div>
+      <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
     </div>
-
-    <div class="card">
-      <h3>📊 Statistik Guru</h3>
-      <div class="stat-grid">
+    <div class="dash-body">
+      <div class="dash-detail" id="schoolDetail">
+        <p><b>NSS</b> <span>: 30101010101</span></p>
+        <p><b>NPSN</b> <span>: 20201010</span></p>
+        <p><b>Th Berdiri</b> <span>: 1975</span></p>
+        <p><b>Alamat</b> <span>: Jl. Pendidikan No. 1, Nusantara</span></p>
+      </div>
+      <div class="dash-stats" title="Statistik Guru">
         <div class="stat-box c-biru"><div class="num">42</div><div class="lbl">TW</div></div>
         <div class="stat-box c-hijau"><div class="num">5</div><div class="lbl">TL</div></div>
         <div class="stat-box c-orange"><div class="num">3</div><div class="lbl">Sakit</div></div>
@@ -434,21 +466,17 @@
   </div>
 
   <!-- ROW 2 : Profil User + Statistik Siswa -->
-  <div class="grid-2">
-    <div class="card" id="cardProfilUser">
-      <h3>👤 Profil Pengguna</h3>
-      <div class="user-info">
-        <div class="user-photo" id="userPhoto">👤</div>
-        <div class="user-detail" id="userDetail">
-          <p><b>Status</b> <span>: Tamu</span></p>
-          <p><b>Akses</b> <span>: Dashboard publik</span></p>
-        </div>
-      </div>
+  <div class="dash-panel" id="cardProfilUser">
+    <div class="dash-panel-head">
+      <div class="dash-avatar user" id="userPhoto">👤</div>
+      <div class="dash-name" id="userDisplayName">Tamu</div>
     </div>
-
-    <div class="card">
-      <h3>📊 Statistik Siswa</h3>
-      <div class="stat-grid">
+    <div class="dash-body">
+      <div class="dash-detail" id="userDetail">
+        <p><b>Status</b> <span>: Tamu</span></p>
+        <p><b>Akses</b> <span>: Dashboard publik</span></p>
+      </div>
+      <div class="dash-stats" title="Statistik Siswa">
         <div class="stat-box c-biru"><div class="num">120</div><div class="lbl">TW</div></div>
         <div class="stat-box c-hijau"><div class="num">8</div><div class="lbl">TL</div></div>
         <div class="stat-box c-orange"><div class="num">5</div><div class="lbl">Sakit</div></div>
@@ -639,6 +667,13 @@ function applyRoleMenus(role) {
 }
 
 /* ===== Profil & topbar ===== */
+function initialsFromName(nama) {
+  if (!nama) return '?';
+  const parts = String(nama).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 3).toUpperCase();
+  return (parts[0][0] + (parts[1] ? parts[1][0] : '') + (parts[2] ? parts[2][0] : '')).toUpperCase().slice(0, 3);
+}
+
 function renderUserUI(session) {
   const topName = document.getElementById('topUserName');
   const avatar = document.getElementById('avatarInitial');
@@ -650,6 +685,7 @@ function renderUserUI(session) {
   const guestBanner = document.getElementById('guestBanner');
   const userDetail = document.getElementById('userDetail');
   const userPhoto = document.getElementById('userPhoto');
+  const userDisplayName = document.getElementById('userDisplayName');
 
   if (!session) {
     topName.textContent = '👤 Tamu (belum login)';
@@ -660,7 +696,8 @@ function renderUserUI(session) {
     btnEdit.style.display = 'none';
     btnSet.style.display = 'none';
     guestBanner.style.display = 'flex';
-    userPhoto.textContent = '👤';
+    userPhoto.textContent = 'TM';
+    if (userDisplayName) userDisplayName.textContent = 'Tamu';
     userDetail.innerHTML = `
       <p><b>Status</b> <span>: Tamu</span></p>
       <p><b>Akses</b> <span>: Dashboard publik</span></p>`;
@@ -672,6 +709,7 @@ function renderUserUI(session) {
   const nama = user.nama || 'Pengguna';
   const initial = nama.charAt(0).toUpperCase();
   const roleLabel = role === 'siswa' ? 'Siswa' : role === 'guru' ? 'Guru' : 'Administrator';
+  const avatarCode = initialsFromName(nama);
 
   topName.textContent = `👤 ${nama} (${roleLabel})`;
   avatar.textContent = initial;
@@ -681,35 +719,29 @@ function renderUserUI(session) {
   btnEdit.style.display = '';
   btnSet.style.display = role === 'admin' ? '' : 'none';
   guestBanner.style.display = 'none';
+  if (userDisplayName) userDisplayName.textContent = nama;
+  userPhoto.textContent = avatarCode;
 
   if (role === 'siswa') {
-    userPhoto.textContent = '👨‍🎓';
     userDetail.innerHTML = `
-      <p><b>Nama</b> <span>: ${escapeHtml(user.nama)}</span></p>
       <p><b>NISN</b> <span>: ${escapeHtml(user.nisn || '-')}</span></p>
       <p><b>Kelas</b> <span>: ${escapeHtml(user.kelas || '-')}</span></p>
       <p><b>Alamat</b> <span>: ${escapeHtml(user.alamat || '-')}</span></p>`;
   } else if (role === 'guru') {
-    userPhoto.textContent = '👨‍🏫';
     userDetail.innerHTML = `
-      <p><b>Nama</b> <span>: ${escapeHtml(user.nama)}</span></p>
       <p><b>NIP</b> <span>: ${escapeHtml(user.nip || '-')}</span></p>
       <p><b>Jabatan</b> <span>: ${escapeHtml(user.jabatan_struktur || '-')}</span></p>
       <p><b>Mapel</b> <span>: ${escapeHtml(user.jabatan_fungsional || '-')}</span></p>`;
   } else {
-    userPhoto.textContent = '🛡️';
     userDetail.innerHTML = `
-      <p><b>Nama</b> <span>: ${escapeHtml(user.nama)}</span></p>
       <p><b>Jabatan</b> <span>: ${escapeHtml(user.jabatan || 'Administrator')}</span></p>
       <p><b>Akses</b> <span>: Penuh (Admin)</span></p>`;
   }
 
   applyRoleMenus(role);
 
-  // Set JWT ke Supabase client agar RLS aktif
   if (supabaseClient && session.token) {
-    supabaseClient.realtime.setAuth(session.token);
-    // Untuk REST: header Authorization di-set per request bila perlu
+    try { supabaseClient.realtime.setAuth(session.token); } catch (_) {}
   }
 }
 
