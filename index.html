@@ -871,9 +871,11 @@
       <p class="hint">Arahkan kamera ke QR/barcode yang berisi NISN (siswa) atau PIN 6 digit (guru). Hanya untuk peran Guru/Admin.</p>
       <div class="sesi-aktif-box" id="scanSesiAktif">Sesi aktif: memuat…</div>
       <div class="absen-actions">
+        <button type="button" class="btn btn-success" id="btnScanMode" title="Ganti mode scan">👤 Siswa</button>
         <button type="button" class="btn btn-primary" id="btnCamToggle">Buka Kamera</button>
         <button type="button" class="btn btn-outline" id="btnCamStop" style="display:none">Tutup Kamera</button>
       </div>
+      <p id="scanModeHint" style="font-size:11px;color:#666;margin-top:6px">Mode: <b>Siswa</b> — arahkan ke QR/barcode NISN 10 digit</p>
       <div id="qr-reader"></div>
       <div class="absen-result" id="scanResult"></div>
     </div>
@@ -2339,6 +2341,7 @@ const ABSEN_KEY = 'sis_absen_log_v1';
 const FP_KEY = 'sis_fp_cred_v1';
 let lastScanAt = 0;
 let lastProcessedCode = '';
+let scanTargetRole = 'siswa'; // 'siswa' | 'guru'
 let lastProcessedAt = 0;
 let qrScanner = null;
 let qrRunning = false;
@@ -2526,6 +2529,7 @@ async function prosesAbsen(kode, metode) {
       scanned_by: scannedBy,
       sesi_id: st.sesi?.id,
       client_hm: clientHm,
+      target_role: scanTargetRole || 'siswa',
     });
     if (res.status === 'reject' || res.status === 'warning') {
       return {
@@ -2761,6 +2765,20 @@ async function stopQrScanner() {
 }
 document.getElementById('btnCamToggle')?.addEventListener('click', startQrScanner);
 document.getElementById('btnCamStop')?.addEventListener('click', stopQrScanner);
+
+document.getElementById('btnScanMode')?.addEventListener('click', () => {
+  scanTargetRole = scanTargetRole === 'siswa' ? 'guru' : 'siswa';
+  const btn = document.getElementById('btnScanMode');
+  const hint = document.getElementById('scanModeHint');
+  if (scanTargetRole === 'guru') {
+    if (btn) { btn.textContent = '👨‍🏫 Guru'; btn.className = 'btn btn-primary'; }
+    if (hint) hint.innerHTML = 'Mode: <b>Guru</b> — arahkan ke QR/barcode <b>PIN 6 digit</b> atau <b>NIP</b>';
+  } else {
+    if (btn) { btn.textContent = '👤 Siswa'; btn.className = 'btn btn-success'; }
+    if (hint) hint.innerHTML = 'Mode: <b>Siswa</b> — arahkan ke QR/barcode <b>NISN 10 digit</b>';
+  }
+  toast('Mode scan: ' + (scanTargetRole === 'guru' ? 'Guru' : 'Siswa'), 'ok');
+});
 
 
 
