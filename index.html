@@ -118,110 +118,105 @@
   .card h3 { font-size:14px; color:var(--primary); margin-bottom:12px;
     padding-bottom:8px; border-bottom:2px solid #eef2f7; display:flex; align-items:center; gap:6px; }
 
-  /* ===== DASH PANEL (avatar kiri + legend per sesi) ===== */
+  /* ===== DASH PANEL (6 legend, angka per sesi vertikal) ===== */
   .dash-panel {
     background:#fff; border-radius:4px; box-shadow:0 1px 6px rgba(0,0,0,.08);
     padding:12px; margin-bottom:12px;
-  }
-  .dash-panel-title {
-    display:flex; align-items:center; justify-content:space-between;
-    gap:8px; margin-bottom:10px; padding-bottom:8px;
-    border-bottom:2px solid #eef2f7;
-  }
-  .dash-panel-title h3 {
-    margin:0; font-size:14px; color:var(--primary); font-weight:700;
-  }
-  .dash-panel-title .count-badge {
-    font-size:12px; font-weight:700; color:#1565c0;
-    background:#e3f2fd; padding:3px 10px; border-radius:12px;
   }
   .dash-body {
     display:flex; flex-direction:row; align-items:flex-start; gap:10px;
   }
   .dash-left {
-    display:flex; flex-direction:row; align-items:flex-start; gap:10px;
-    flex:1; min-width:0;
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    width:42%; max-width:180px; flex-shrink:0;
   }
   .dash-avatar {
-    width:56px; height:56px; border-radius:50%;
+    width:64px; height:64px; border-radius:50%;
     background:linear-gradient(135deg,#1976d2,#42a5f5);
     color:#fff; display:flex; align-items:center; justify-content:center;
     font-size:16px; font-weight:800; letter-spacing:.5px; flex-shrink:0;
     box-shadow:0 3px 10px rgba(25,118,210,.3);
-  }
-  .dash-avatar.user { background:linear-gradient(135deg,#1565c0,#1e88e5); }
-  .dash-id { flex:1; min-width:0; }
-  .dash-name {
-    font-size:12px; font-weight:700; color:#1a237e;
-    text-transform:uppercase; letter-spacing:.3px; line-height:1.3;
     margin-bottom:6px;
   }
+  .dash-avatar.user { background:linear-gradient(135deg,#1565c0,#1e88e5); }
+  .dash-name {
+    font-size:11px; font-weight:700; color:#1a237e;
+    text-transform:uppercase; letter-spacing:.3px; line-height:1.3;
+    margin-bottom:6px; width:100%;
+  }
+  .dash-detail { width:100%; text-align:left; }
   .dash-detail p {
-    font-size:11px; margin-bottom:3px; color:#555;
+    font-size:10.5px; margin-bottom:2px; color:#555;
     display:flex; line-height:1.35;
   }
   .dash-detail p b {
-    color:#222; min-width:68px; flex-shrink:0; font-weight:600;
+    color:#222; min-width:62px; flex-shrink:0; font-weight:600;
   }
   .dash-detail p span { flex:1; word-break:break-word; }
 
-  .dash-stats-wrap {
-    flex-shrink:0; width:48%; max-width:200px;
-    display:flex; flex-direction:column; gap:6px;
+  .dash-right {
+    flex:1; min-width:0; display:flex; flex-direction:column; gap:8px;
   }
-  .dash-sesi-row {
-    display:grid; grid-template-columns:repeat(3, 1fr); gap:4px;
+  .dash-rekap-title {
+    display:inline-flex; align-items:center; gap:8px;
+    align-self:flex-start;
+    border:2px solid #1976d2; border-radius:6px;
+    padding:4px 10px; font-size:12px; font-weight:700; color:#1565c0;
+    background:#fff;
   }
-  .dash-sesi-label {
-    grid-column:1 / -1; font-size:9px; font-weight:700; color:#666;
-    text-align:left; margin-bottom:1px;
+  .dash-rekap-title.siswa { border-color:#43a047; color:#2e7d32; }
+  .dash-rekap-title .count {
+    background:#e3f2fd; color:#1565c0; padding:1px 8px;
+    border-radius:10px; font-size:12px; font-weight:800;
+  }
+  .dash-rekap-title.siswa .count { background:#e8f5e9; color:#2e7d32; }
+
+  .dash-stats {
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;
   }
   .stat-box {
-    border-radius:4px; padding:5px 2px; text-align:center; color:#fff;
-    min-height:36px; display:flex; flex-direction:column;
+    border-radius:6px; padding:6px 4px; text-align:center;
+    background:#fff; min-height:48px;
+    display:flex; flex-direction:column;
     align-items:center; justify-content:center;
-    border:2px solid transparent;
+    border:2px solid #ccc;
   }
-  .stat-box .num { font-size:13px; font-weight:800; line-height:1; }
-  .stat-box .lbl { font-size:8px; margin-top:1px; font-weight:600; opacity:.95; }
-
-  .c-biru { background:var(--biru); } .c-hijau { background:var(--hijau); }
-  .c-orange { background:var(--orange); } .c-kuning { background:var(--kuning); color:#5d4037; }
-  .c-pink { background:var(--pink); } .c-merah { background:var(--merah); }
-
-  /* outline style like sketch (optional) */
-  .stat-box.outline { background:#fff; }
-  .stat-box.outline.c-biru { border-color:var(--biru); color:var(--biru); }
-  .stat-box.outline.c-hijau { border-color:var(--hijau); color:var(--hijau); }
-  .stat-box.outline.c-orange { border-color:var(--orange); color:var(--orange); }
-  .stat-box.outline.c-kuning { border-color:var(--kuning); color:#f9a825; }
-  .stat-box.outline.c-pink { border-color:var(--pink); color:var(--pink); }
-  .stat-box.outline.c-merah { border-color:var(--merah); color:var(--merah); }
+  .stat-box .nums {
+    display:flex; flex-direction:column; align-items:center;
+    gap:1px; font-weight:800; line-height:1.15;
+  }
+  .stat-box .nums span { font-size:13px; }
+  .stat-box .lbl {
+    font-size:9px; margin-top:3px; font-weight:700; opacity:.85;
+  }
+  .stat-box.c-biru { border-color:var(--biru); color:var(--biru); }
+  .stat-box.c-hijau { border-color:var(--hijau); color:var(--hijau); }
+  .stat-box.c-orange { border-color:var(--orange); color:var(--orange); }
+  .stat-box.c-kuning { border-color:var(--kuning); color:#f9a825; }
+  .stat-box.c-pink { border-color:var(--pink); color:var(--pink); }
+  .stat-box.c-merah { border-color:var(--merah); color:var(--merah); }
 
   @media(min-width:768px){
-    .dash-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
-    .dash-panel { margin-bottom:0; padding:16px; }
-    .dash-panel-title h3 { font-size:16px; }
-    .dash-avatar { width:70px; height:70px; font-size:20px; }
-    .dash-name { font-size:14px; }
-    .dash-detail p { font-size:13px; margin-bottom:5px; }
+    .dash-panel { padding:16px; }
+    .dash-left { width:auto; max-width:240px; align-items:flex-start; text-align:left; }
+    .dash-avatar { width:72px; height:72px; font-size:20px; }
+    .dash-name { font-size:13px; text-align:left; }
+    .dash-detail p { font-size:13px; }
     .dash-detail p b { min-width:90px; }
-    .dash-stats-wrap { width:auto; max-width:280px; flex:0 0 280px; }
-    .stat-box { min-height:48px; padding:8px 4px; }
-    .stat-box .num { font-size:18px; }
-    .stat-box .lbl { font-size:10px; }
-    .dash-sesi-label { font-size:11px; }
+    .dash-rekap-title { font-size:14px; }
+    .stat-box { min-height:64px; padding:10px 6px; }
+    .stat-box .nums span { font-size:16px; }
+    .stat-box .lbl { font-size:11px; }
+    .dash-stats { gap:10px; max-width:320px; }
   }
   @media(max-width:480px){
-    .dash-panel { padding:10px; }
-    .dash-avatar { width:48px; height:48px; font-size:14px; }
-    .dash-name { font-size:11px; }
+    .dash-avatar { width:52px; height:52px; font-size:14px; }
+    .dash-name { font-size:10px; }
     .dash-detail p { font-size:10px; }
-    .dash-detail p b { min-width:58px; }
-    .dash-stats-wrap { width:46%; max-width:160px; }
-    .stat-box { min-height:32px; padding:4px 1px; }
-    .stat-box .num { font-size:12px; }
-    .stat-box .lbl { font-size:7px; }
+    .dash-detail p b { min-width:54px; }
+    .stat-box { min-height:42px; padding:4px 2px; }
+    .stat-box .nums span { font-size:12px; }
+    .stat-box .lbl { font-size:8px; }
   }
 
   /* legacy helpers (jika dipakai di tempat lain) */
@@ -615,48 +610,38 @@
 
   <!-- REKAP GURU -->
   <div class="dash-panel" id="panelRekapGuru">
-    <div class="dash-panel-title">
-      <h3>📋 Rekap Guru</h3>
-      <span class="count-badge" id="countGuru">0 guru</span>
-    </div>
     <div class="dash-body">
       <div class="dash-left">
         <div class="dash-avatar" id="schoolAvatar">S</div>
-        <div class="dash-id">
-          <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
-          <div class="dash-detail" id="schoolDetail">
-            <p><b>NSS</b> <span>: -</span></p>
-            <p><b>NPSN</b> <span>: -</span></p>
-            <p><b>Th Berdiri</b> <span>: -</span></p>
-            <p><b>Alamat</b> <span>: -</span></p>
-          </div>
+        <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
+        <div class="dash-detail" id="schoolDetail">
+          <p><b>NSS</b> <span>: -</span></p>
+          <p><b>NPSN</b> <span>: -</span></p>
+          <p><b>Th Berdiri</b> <span>: -</span></p>
+          <p><b>Alamat</b> <span>: -</span></p>
         </div>
       </div>
-      <div class="dash-stats-wrap" id="statsGuru">
-        <div style="font-size:11px;color:#999;text-align:center;padding:12px">Memuat…</div>
+      <div class="dash-right">
+        <div class="dash-rekap-title">Rekap Guru <span class="count" id="countGuru">0</span></div>
+        <div class="dash-stats" id="statsGuru"></div>
       </div>
     </div>
   </div>
 
   <!-- REKAP SISWA -->
   <div class="dash-panel" id="panelRekapSiswa">
-    <div class="dash-panel-title">
-      <h3>📋 Rekap Siswa</h3>
-      <span class="count-badge" id="countSiswa">0 siswa</span>
-    </div>
     <div class="dash-body">
       <div class="dash-left">
         <div class="dash-avatar user" id="userPhoto">👤</div>
-        <div class="dash-id">
-          <div class="dash-name" id="userDisplayName">Tamu</div>
-          <div class="dash-detail" id="userDetail">
-            <p><b>Status</b> <span>: Tamu</span></p>
-            <p><b>Akses</b> <span>: Dashboard publik</span></p>
-          </div>
+        <div class="dash-name" id="userDisplayName">Tamu</div>
+        <div class="dash-detail" id="userDetail">
+          <p><b>Status</b> <span>: Tamu</span></p>
+          <p><b>Akses</b> <span>: Dashboard publik</span></p>
         </div>
       </div>
-      <div class="dash-stats-wrap" id="statsSiswa">
-        <div style="font-size:11px;color:#999;text-align:center;padding:12px">Memuat…</div>
+      <div class="dash-right">
+        <div class="dash-rekap-title siswa">Rekap Siswa <span class="count" id="countSiswa">0</span></div>
+        <div class="dash-stats" id="statsSiswa"></div>
       </div>
     </div>
   </div>
@@ -1653,26 +1638,21 @@ const STATUS_ORDER = [
 
 function buildSesiStatsHtml(sesiList, absenRows, role) {
   const list = (sesiList || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
-  if (!list.length) {
-    return '<div style="font-size:11px;color:#999;text-align:center;padding:8px">Belum ada sesi</div>';
-  }
   const rows = (absenRows || []).filter(r => r.role === role);
-  return list.map(s => {
-    const counts = {};
-    STATUS_ORDER.forEach(st => { counts[st.key] = 0; });
-    rows.filter(r => String(r.sesi_id) === String(s.id) || r.sesi_nama === s.nama)
-      .forEach(r => {
-        const k = r.status === 'Hadir' ? 'TW' : r.status;
-        if (counts[k] != null) counts[k]++;
-        else if (STATUS_ORDER.some(x => x.key === r.status)) counts[r.status]++;
-      });
-    const boxes = STATUS_ORDER.map(st =>
-      `<div class="stat-box ${st.cls}"><div class="num">${counts[st.key] || 0}</div><div class="lbl">${st.lbl}</div></div>`
-    ).join('');
-    // 2 baris x 3 kolom per sesi
-    return `<div class="dash-sesi-row">
-      <div class="dash-sesi-label">${escapeHtml(s.nama || 'Sesi')} · ${escapeHtml((s.waktu1 || s.mulai || '').toString().slice(0,5))}–${escapeHtml((s.waktu3 || s.selesai || '').toString().slice(0,5))}</div>
-      ${boxes}
+  // Per status: array angka per sesi (vertikal dalam 1 kotak)
+  return STATUS_ORDER.map(st => {
+    const nums = list.length
+      ? list.map(s => {
+          return rows.filter(r =>
+            (String(r.sesi_id) === String(s.id) || r.sesi_nama === s.nama) &&
+            (r.status === st.key || (st.key === 'TW' && r.status === 'Hadir'))
+          ).length;
+        })
+      : [0];
+    const numsHtml = nums.map(n => `<span>${n}</span>`).join('');
+    return `<div class="stat-box ${st.cls}">
+      <div class="nums">${numsHtml}</div>
+      <div class="lbl">${st.lbl}</div>
     </div>`;
   }).join('');
 }
@@ -1682,8 +1662,8 @@ async function renderDashboard() {
   const countSiswa = document.getElementById('countSiswa');
   const statsGuru = document.getElementById('statsGuru');
   const statsSiswa = document.getElementById('statsSiswa');
-  if (countGuru) countGuru.textContent = (store.guru || []).length + ' guru';
-  if (countSiswa) countSiswa.textContent = (store.siswa || []).length + ' siswa';
+  if (countGuru) countGuru.textContent = String((store.guru || []).length);
+  if (countSiswa) countSiswa.textContent = String((store.siswa || []).length);
 
   // sesi list
   let sesiList = getSesiList();
