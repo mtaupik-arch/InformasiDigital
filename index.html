@@ -756,7 +756,7 @@
           <thead>
             <tr>
               <th><input type="checkbox" id="checkAllGuru" /></th>
-              <th>No</th><th>Nama</th><th>L/P</th><th>NIP</th>
+              <th>No</th><th>DUK</th><th>Nama</th><th>L/P</th><th>NIP</th>
               <th>Jabatan Struktural</th><th>Jabatan Fungsional</th>
               <th>Pangkat/Gol</th><th>Status</th><th>No HP</th><th>PIN</th><th>Aksi</th>
             </tr>
@@ -1532,6 +1532,7 @@ function seedStore() {
     guru: [{
       id: 'g-budi',
       periode_id: periodeId,
+      duk: 1,
       nama: 'Budi Santoso',
       jenis_kelamin: 'L',
       nip: '197602031995021001',
@@ -1544,11 +1545,12 @@ function seedStore() {
     }, {
       id: 'g-sutrisno',
       periode_id: periodeId,
+      duk: 2,
       nama: 'Drs. H. Sutrisno, M.Pd',
       jenis_kelamin: 'L',
       nip: '',
-      jabatan_struktur: 'Kepala Sekolah',
-      jabatan_fungsional: 'Kepala Sekolah',
+      jabatan_struktur: 'Wakil Kepala',
+      jabatan_fungsional: 'Guru Matematika',
       pangkat_gol: '',
       status: 'Aktif',
       no_hp: '',
@@ -1680,7 +1682,7 @@ function renderStrukturOrganisasi() {
       return st === 'aktif' || st === '' || st === 'active';
     })
     .slice()
-    .sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), 'en', { numeric: true }));
+    .sort(sortByDuk);
   if (!rows.length) {
     tb.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada data guru</td></tr>';
     return;
@@ -1769,7 +1771,7 @@ function renderRekapKehadiran(role, sesiList, absenRows) {
         return st === 'aktif' || st === '' || st === 'active';
       })
       .slice()
-      .sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), 'en', { numeric: true }));
+      .sort(sortByDuk);
   } else {
     people = (store.siswa || [])
       .filter(s => {
@@ -1934,6 +1936,17 @@ function renderSiswa(filter) {
     </tr>`).join('');
 }
 
+function sortByDuk(a, b) {
+  const da = Number(a.duk);
+  const db = Number(b.duk);
+  const aOk = !isNaN(da) && a.duk !== '' && a.duk != null;
+  const bOk = !isNaN(db) && b.duk !== '' && b.duk != null;
+  if (aOk && bOk && da !== db) return da - db;
+  if (aOk && !bOk) return -1;
+  if (!aOk && bOk) return 1;
+  return String(a.id || '').localeCompare(String(b.id || ''), 'en', { numeric: true });
+}
+
 function renderGuru(filter) {
   updatePeriodeBadges();
   const q = (filter || document.getElementById('searchGuru')?.value || '').toLowerCase();
@@ -1942,18 +1955,21 @@ function renderGuru(filter) {
   if (q) {
     rows = rows.filter(g =>
       (g.nama||'').toLowerCase().includes(q) ||
-      (g.nip||'').includes(q)
+      (g.nip||'').includes(q) ||
+      String(g.duk||'').includes(q)
     );
   }
+  rows = rows.slice().sort(sortByDuk);
   const tb = document.getElementById('tbodyGuru');
   if (!rows.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="12">Belum ada data guru</td></tr>';
+    tb.innerHTML = '<tr class="empty-row"><td colspan="13">Belum ada data guru</td></tr>';
     return;
   }
   tb.innerHTML = rows.map((g, i) => `
     <tr data-id="${g.id}">
       <td><input type="checkbox" class="row-check" value="${g.id}" /></td>
       <td>${i + 1}</td>
+      <td>${escapeHtml(g.duk != null && g.duk !== '' ? g.duk : '-')}</td>
       <td>${escapeHtml(g.nama)}</td>
       <td>${escapeHtml(g.jenis_kelamin || '-')}</td>
       <td>${escapeHtml(g.nip || '-')}</td>
@@ -2055,6 +2071,7 @@ const FORM_FIELDS = {
     { key: 'alamat', label: 'Alamat', full: true },
   ],
   guru: [
+    { key: 'duk', label: 'DUK (urutan kedudukan)', type: 'number' },
     { key: 'nama', label: 'Nama', required: true },
     { key: 'jenis_kelamin', label: 'L/P', type: 'select', options: ['L','P'] },
     { key: 'nip', label: 'NIP' },
@@ -2274,7 +2291,7 @@ const TEMPLATE_HEADERS = {
     'NISN','Nama','L/P','Kelas','Tmp Lahir','Tgl Lahir','Status Awal','Status','Mulai Sekolah','Asal Sekolah','Alamat'
   ],
   guru: [
-    'PIN','Nama','L/P','NIP','Jabatan Struktural','Jabatan Fungsional','Pangkat/Gol','Status','No HP'
+    'DUK','PIN','Nama','L/P','NIP','Jabatan Struktural','Jabatan Fungsional','Pangkat/Gol','Status','No HP'
   ],
   lulusan: [
     'NISN','Nama','L/P','Status','Predikat','Tmp Lahir','Tgl Lahir','Mulai Sekolah','Tgl Lulus','Tahun Lulus','Lama Belajar','Status Awal','Asal Sekolah'
@@ -2291,7 +2308,7 @@ const TEMPLATE_SAMPLE = {
     Status: 'Aktif', 'Mulai Sekolah': '2024-07-13', 'Asal Sekolah': 'SDN 1 Majasari', Alamat: 'Kp. Ciparasi'
   }],
   guru: [{
-    PIN: '555555', Nama: 'Budi Santoso', 'L/P': 'L', NIP: '197602031995021001',
+    DUK: '1', PIN: '555555', Nama: 'Budi Santoso', 'L/P': 'L', NIP: '197602031995021001',
     'Jabatan Struktural': 'Kepala Sekolah', 'Jabatan Fungsional': 'Kepala Sekolah',
     'Pangkat/Gol': 'Pembina / Iva', Status: 'Aktif', 'No HP': '08123456789'
   }],
@@ -2318,6 +2335,7 @@ const FIELD_FROM_HEADER = {
     asal_sekolah: ['asal sekolah','asal_sekolah'], alamat: ['alamat'],
   },
   guru: {
+    duk: ['duk', 'no duk', 'urutan', 'urutan duk'],
     pin: ['pin'], nama: ['nama'], jenis_kelamin: ['l/p','lp','jk','jenis_kelamin'],
     nip: ['nip'], jabatan_struktur: ['jabatan struktural','jabatan_struktur'],
     jabatan_fungsional: ['jabatan fungsional','jabatan_fungsional'],
@@ -2391,7 +2409,10 @@ function downloadTemplate(entity) {
     { Kolom: 'L/P', Keterangan: 'Isi L atau P' },
   ];
   if (entity === 'siswa') tip.push({ Kolom: 'NISN', Keterangan: 'Wajib 10 digit. Kunci unik.' });
-  if (entity === 'guru') tip.push({ Kolom: 'PIN', Keterangan: 'Wajib 6 digit. Kunci unik.' });
+  if (entity === 'guru') {
+    tip.push({ Kolom: 'PIN', Keterangan: 'Wajib 6 digit. Kunci unik.' });
+    tip.push({ Kolom: 'DUK', Keterangan: 'Nomor urut kedudukan (angka). Semakin kecil = semakin tinggi. Dipakai urutan Struktur Organisasi & Rekap Kehadiran.' });
+  }
   if (entity === 'periode') tip.push({ Kolom: 'Status', Keterangan: 'Aktif / Nonaktif / Arsip. Hanya satu Aktif disarankan.' });
   const ws2 = XLSX.utils.json_to_sheet(tip);
   XLSX.utils.book_append_sheet(wb, ws2, 'Petunjuk');
