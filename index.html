@@ -251,6 +251,69 @@
   .hadir { color:#2e7d32; font-weight:700; } .alpa { color:#c62828; font-weight:700; }
   .izin { color:#ef6c00; font-weight:700; } .sakit { color:#1565c0; font-weight:700; }
 
+  /* Rekap kehadiran — ringkas, muat 2–3 sesi tanpa scroll horizontal */
+  .table-scroll.rekap-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .table-scroll.rekap-scroll table.rekap-table {
+    min-width:0; width:100%; table-layout:fixed; font-size:11px; border-collapse:collapse;
+  }
+  .rekap-table thead th {
+    background:#eef3fa; color:var(--primary); padding:6px 4px; font-size:10px;
+    text-transform:uppercase; letter-spacing:.2px; border-bottom:2px solid #d6e2f0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .rekap-table tbody td {
+    padding:5px 3px; border-bottom:1px solid #f0f3f7; vertical-align:middle;
+    word-break:break-word; overflow-wrap:anywhere;
+  }
+  .rekap-table .col-no { width:28px; text-align:center; }
+  .rekap-table .col-nama { width:28%; min-width:0; }
+  .rekap-table .col-kelas { width:14%; min-width:0; }
+  .rekap-table .col-sesi { width:auto; text-align:center; }
+  .rekap-table .nama-cell {
+    font-size:11px; font-weight:600; color:#333; line-height:1.25;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .rekap-table .kelas-cell { font-size:10px; color:#555; }
+  .absen-cell {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:1px; line-height:1.2; min-height:42px; padding:2px 0;
+  }
+  .absen-cell .ac-status { font-size:12px; font-weight:800; letter-spacing:.3px; }
+  .absen-cell .ac-jam { font-size:10px; font-weight:600; }
+  .absen-cell .ac-by {
+    font-size:9px; font-weight:500; max-width:100%;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .absen-cell.empty { color:#bbb; font-size:12px; font-weight:600; }
+  .absen-cell.st-tw .ac-status { color:#1565c0; }
+  .absen-cell.st-tw .ac-jam { color:#1976d2; }
+  .absen-cell.st-tw .ac-by { color:#42a5f5; }
+  .absen-cell.st-tl .ac-status { color:#2e7d32; }
+  .absen-cell.st-tl .ac-jam { color:#43a047; }
+  .absen-cell.st-tl .ac-by { color:#66bb6a; }
+  .absen-cell.st-sakit .ac-status { color:#e65100; }
+  .absen-cell.st-sakit .ac-jam { color:#fb8c00; }
+  .absen-cell.st-sakit .ac-by { color:#ffb74d; }
+  .absen-cell.st-izin .ac-status { color:#f9a825; }
+  .absen-cell.st-izin .ac-jam { color:#fbc02d; }
+  .absen-cell.st-izin .ac-by { color:#fdd835; }
+  .absen-cell.st-alpa .ac-status,
+  .absen-cell.st-bolos .ac-status { color:#c62828; }
+  .absen-cell.st-alpa .ac-jam,
+  .absen-cell.st-bolos .ac-jam { color:#e53935; }
+  .absen-cell.st-alpa .ac-by,
+  .absen-cell.st-bolos .ac-by { color:#ef5350; }
+  @media(max-width:480px){
+    .rekap-table { font-size:10px; }
+    .rekap-table .col-no { width:22px; }
+    .rekap-table .col-nama { width:26%; }
+    .rekap-table .col-kelas { width:12%; }
+    .absen-cell .ac-status { font-size:11px; }
+    .absen-cell .ac-jam { font-size:9px; }
+    .absen-cell .ac-by { font-size:8px; }
+  }
+
   .footer {
     position:fixed; bottom:0; left:0; right:0; height:var(--footer-h);
     background:var(--primary); color:#cfd8e3; display:flex; align-items:center;
@@ -683,10 +746,10 @@
   <!-- REKAP KEHADIRAN GURU -->
   <div class="card">
     <h3>📋 Rekap Kehadiran Guru <small style="font-weight:500;color:#666;font-size:11px" id="labelRekapGuruHari"></small></h3>
-    <div class="table-scroll">
-      <table id="tableRekapGuru">
+    <div class="table-scroll rekap-scroll">
+      <table id="tableRekapGuru" class="rekap-table">
         <thead id="theadRekapGuru">
-          <tr><th>No</th><th>Nama</th></tr>
+          <tr><th class="col-no">No</th><th class="col-nama">Nama</th></tr>
         </thead>
         <tbody id="tbodyRekapGuru">
           <tr class="empty-row"><td colspan="2">Memuat data…</td></tr>
@@ -698,10 +761,10 @@
   <!-- REKAP KEHADIRAN SISWA -->
   <div class="card">
     <h3>📋 Rekap Kehadiran Siswa <small style="font-weight:500;color:#666;font-size:11px" id="labelRekapSiswaHari"></small></h3>
-    <div class="table-scroll">
-      <table id="tableRekapSiswa">
+    <div class="table-scroll rekap-scroll">
+      <table id="tableRekapSiswa" class="rekap-table">
         <thead id="theadRekapSiswa">
-          <tr><th>No</th><th>Nama</th><th>Kelas</th></tr>
+          <tr><th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-kelas">Kelas</th></tr>
         </thead>
         <tbody id="tbodyRekapSiswa">
           <tr class="empty-row"><td colspan="3">Memuat data…</td></tr>
@@ -1696,17 +1759,57 @@ function renderStrukturOrganisasi() {
     </tr>`).join('');
 }
 
-/** Kelas CSS + teks tampilan status absensi di tabel rekap */
-function absenCellDisplay(status) {
+/** Ambil label status singkat untuk sel rekap */
+function absenStatusLabel(status) {
   const u = String(status || '').trim().toUpperCase();
-  if (!u) return { cls: '', text: '—' };
-  if (u === 'TW' || u === 'HADIR') return { cls: 'hadir', text: u === 'TW' ? '✓ TW' : '✓ Hadir' };
-  if (u === 'TL') return { cls: 'hadir', text: 'TL' };
-  if (u === 'SAKIT') return { cls: 'sakit', text: 'Sakit' };
-  if (u === 'IZIN') return { cls: 'izin', text: 'Izin' };
-  if (u === 'ALPA') return { cls: 'alpa', text: 'Alpa' };
-  if (u === 'BOLOS') return { cls: 'alpa', text: 'Bolos' };
-  return { cls: '', text: status };
+  if (!u) return '';
+  if (u === 'TW' || u === 'HADIR') return u === 'HADIR' ? 'Hadir' : 'TW';
+  if (u === 'TL') return 'TL';
+  if (u === 'SAKIT') return 'Sakit';
+  if (u === 'IZIN') return 'Izin';
+  if (u === 'ALPA') return 'Alpa';
+  if (u === 'BOLOS') return 'Bolos';
+  return status;
+}
+
+function absenStatusClass(status) {
+  const u = String(status || '').trim().toUpperCase();
+  if (u === 'TW' || u === 'HADIR') return 'st-tw';
+  if (u === 'TL') return 'st-tl';
+  if (u === 'SAKIT') return 'st-sakit';
+  if (u === 'IZIN') return 'st-izin';
+  if (u === 'ALPA') return 'st-alpa';
+  if (u === 'BOLOS') return 'st-bolos';
+  return '';
+}
+
+/** Format jam absen: HH:MM */
+function formatAbsenJam(jam) {
+  if (!jam) return '';
+  const s = String(jam).trim();
+  // sudah HH:MM atau HH:MM:SS
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (m) return String(m[1]).padStart(2, '0') + ':' + m[2];
+  return s.slice(0, 5);
+}
+
+/** Nama petugas: potong gelar panjang, ambil nama singkat */
+function shortScannerName(name) {
+  if (!name) return '';
+  let n = String(name).trim();
+  // buang suffix peran "(Guru)" / "(Admin)"
+  n = n.replace(/\s*\((guru|admin|siswa|petugas)\)\s*$/i, '').trim();
+  // ambil segmen sebelum koma jika ada gelar panjang
+  if (n.includes(',')) n = n.split(',')[0].trim();
+  // jika terlalu panjang, ambil 2 kata terakhir (biasanya nama)
+  const parts = n.split(/\s+/).filter(Boolean);
+  if (parts.length > 3) {
+    // buang gelar di depan (Drs., Hj., Ir., dll)
+    const cleaned = parts.filter(p => !/^(drs?|hj|ir|prof|dr|h|kh|a\.?md)\.?$/i.test(p));
+    if (cleaned.length >= 2) return cleaned.slice(0, 2).join(' ');
+    return parts.slice(-2).join(' ');
+  }
+  return n;
 }
 
 function matchAbsenPerson(row, person, role) {
@@ -1729,7 +1832,8 @@ function matchAbsenPerson(row, person, role) {
   return false;
 }
 
-function findAbsenStatus(absenRows, person, role, sesi) {
+/** Kembalikan record absensi terakhir untuk orang+sesi (status, jam, scanned_by) */
+function findAbsenRecord(absenRows, person, role, sesi) {
   const today = todayStr();
   const hits = (absenRows || []).filter(r => {
     if (r.tanggal && String(r.tanggal).slice(0, 10) !== today) return false;
@@ -1741,9 +1845,24 @@ function findAbsenStatus(absenRows, person, role, sesi) {
     }
     return true;
   });
-  if (!hits.length) return '';
-  // ambil status terakhir jika ada beberapa
-  return hits[hits.length - 1].status || '';
+  if (!hits.length) return null;
+  return hits[hits.length - 1];
+}
+
+/** HTML sel absensi: Status + Jam + Discan oleh (desain seperti kartu ringkas) */
+function buildAbsenCellHtml(rec) {
+  if (!rec || !rec.status) {
+    return `<div class="absen-cell empty">—</div>`;
+  }
+  const st = absenStatusLabel(rec.status);
+  const cls = absenStatusClass(rec.status);
+  const jam = formatAbsenJam(rec.jam);
+  const by = shortScannerName(rec.scanned_by || rec.operator || '');
+  return `<div class="absen-cell ${cls}">
+    <span class="ac-status">${escapeHtml(st)}</span>
+    ${jam ? `<span class="ac-jam">${escapeHtml(jam)}</span>` : ''}
+    ${by ? `<span class="ac-by">${escapeHtml(by)}</span>` : ''}
+  </div>`;
 }
 
 function renderRekapKehadiran(role, sesiList, absenRows) {
@@ -1756,11 +1875,20 @@ function renderRekapKehadiran(role, sesiList, absenRows) {
   const list = (sesiList || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
   if (label) label.textContent = '· ' + todayStr();
 
-  // header dinamis sesuai sesi
+  // header dinamis sesuai sesi — kolom ringkas
   if (isGuru) {
-    thead.innerHTML = `<tr><th>No</th><th>Nama</th>${list.map(s => `<th>${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}</tr>`;
+    thead.innerHTML = `<tr>
+      <th class="col-no">No</th>
+      <th class="col-nama">Nama</th>
+      ${list.map(s => `<th class="col-sesi">${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}
+    </tr>`;
   } else {
-    thead.innerHTML = `<tr><th>No</th><th>Nama</th><th>Kelas</th>${list.map(s => `<th>${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}</tr>`;
+    thead.innerHTML = `<tr>
+      <th class="col-no">No</th>
+      <th class="col-nama">Nama</th>
+      <th class="col-kelas">Kelas</th>
+      ${list.map(s => `<th class="col-sesi">${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}
+    </tr>`;
   }
 
   let people;
@@ -1794,14 +1922,19 @@ function renderRekapKehadiran(role, sesiList, absenRows) {
 
   tbody.innerHTML = people.map((p, i) => {
     const cells = list.map(s => {
-      const st = findAbsenStatus(absenRows, p, role, s);
-      const d = absenCellDisplay(st);
-      return `<td class="${d.cls}">${escapeHtml(d.text)}</td>`;
+      const rec = findAbsenRecord(absenRows, p, role, s);
+      return `<td class="col-sesi">${buildAbsenCellHtml(rec)}</td>`;
     }).join('');
+    const namaHtml = `<td class="col-nama"><div class="nama-cell" title="${escapeHtml(p.nama || '')}">${escapeHtml(p.nama || '-')}</div></td>`;
     if (isGuru) {
-      return `<tr><td>${i + 1}</td><td>${escapeHtml(p.nama || '-')}</td>${cells}</tr>`;
+      return `<tr><td class="col-no">${i + 1}</td>${namaHtml}${cells}</tr>`;
     }
-    return `<tr><td>${i + 1}</td><td>${escapeHtml(p.nama || '-')}</td><td>${escapeHtml(p.kelas || '-')}</td>${cells}</tr>`;
+    return `<tr>
+      <td class="col-no">${i + 1}</td>
+      ${namaHtml}
+      <td class="col-kelas"><span class="kelas-cell">${escapeHtml(p.kelas || '-')}</span></td>
+      ${cells}
+    </tr>`;
   }).join('');
 }
 
