@@ -118,95 +118,110 @@
   .card h3 { font-size:14px; color:var(--primary); margin-bottom:12px;
     padding-bottom:8px; border-bottom:2px solid #eef2f7; display:flex; align-items:center; gap:6px; }
 
-  /* ===== DASH PANEL (layout seperti sketsa HP) ===== */
+  /* ===== DASH PANEL (avatar kiri + legend per sesi) ===== */
   .dash-panel {
     background:#fff; border-radius:4px; box-shadow:0 1px 6px rgba(0,0,0,.08);
-    padding:14px; margin-bottom:12px;
+    padding:12px; margin-bottom:12px;
   }
-  .dash-panel-head {
-    display:flex; flex-direction:column; align-items:center; text-align:center;
-    margin-bottom:12px;
+  .dash-panel-title {
+    display:flex; align-items:center; justify-content:space-between;
+    gap:8px; margin-bottom:10px; padding-bottom:8px;
+    border-bottom:2px solid #eef2f7;
   }
-  .dash-avatar {
-    width:64px; height:64px; border-radius:50%;
-    background:linear-gradient(135deg,#1976d2,#42a5f5);
-    color:#fff; display:flex; align-items:center; justify-content:center;
-    font-size:18px; font-weight:800; letter-spacing:.5px; flex-shrink:0;
-    box-shadow:0 3px 10px rgba(25,118,210,.35);
+  .dash-panel-title h3 {
+    margin:0; font-size:14px; color:var(--primary); font-weight:700;
   }
-  .dash-avatar.user { background:linear-gradient(135deg,#1565c0,#1e88e5); }
-  .dash-name {
-    margin-top:8px; font-size:13px; font-weight:700; color:#1a237e;
-    text-transform:uppercase; letter-spacing:.3px; line-height:1.3;
+  .dash-panel-title .count-badge {
+    font-size:12px; font-weight:700; color:#1565c0;
+    background:#e3f2fd; padding:3px 10px; border-radius:12px;
   }
   .dash-body {
     display:flex; flex-direction:row; align-items:flex-start; gap:10px;
   }
-  .dash-detail { flex:1; min-width:0; }
+  .dash-left {
+    display:flex; flex-direction:row; align-items:flex-start; gap:10px;
+    flex:1; min-width:0;
+  }
+  .dash-avatar {
+    width:56px; height:56px; border-radius:50%;
+    background:linear-gradient(135deg,#1976d2,#42a5f5);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:800; letter-spacing:.5px; flex-shrink:0;
+    box-shadow:0 3px 10px rgba(25,118,210,.3);
+  }
+  .dash-avatar.user { background:linear-gradient(135deg,#1565c0,#1e88e5); }
+  .dash-id { flex:1; min-width:0; }
+  .dash-name {
+    font-size:12px; font-weight:700; color:#1a237e;
+    text-transform:uppercase; letter-spacing:.3px; line-height:1.3;
+    margin-bottom:6px;
+  }
   .dash-detail p {
-    font-size:11.5px; margin-bottom:4px; color:#555;
+    font-size:11px; margin-bottom:3px; color:#555;
     display:flex; line-height:1.35;
   }
   .dash-detail p b {
-    color:#222; min-width:72px; flex-shrink:0; font-weight:600;
+    color:#222; min-width:68px; flex-shrink:0; font-weight:600;
   }
-  .dash-detail p span { flex:1; text-align:left; word-break:break-word; }
+  .dash-detail p span { flex:1; word-break:break-word; }
 
-  .dash-stats {
-    display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;
-    width:42%; max-width:160px; flex-shrink:0;
+  .dash-stats-wrap {
+    flex-shrink:0; width:48%; max-width:200px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .dash-sesi-row {
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:4px;
+  }
+  .dash-sesi-label {
+    grid-column:1 / -1; font-size:9px; font-weight:700; color:#666;
+    text-align:left; margin-bottom:1px;
   }
   .stat-box {
-    border-radius:8px; padding:8px 2px; text-align:center; color:#fff;
-    transition:.2s; min-height:44px; display:flex; flex-direction:column;
+    border-radius:4px; padding:5px 2px; text-align:center; color:#fff;
+    min-height:36px; display:flex; flex-direction:column;
     align-items:center; justify-content:center;
+    border:2px solid transparent;
   }
-  .stat-box:hover { transform:translateY(-2px); box-shadow:0 4px 10px rgba(0,0,0,.15); }
-  .stat-box .num { font-size:15px; font-weight:800; line-height:1; }
-  .stat-box .lbl { font-size:9px; margin-top:2px; font-weight:600; opacity:.95; }
+  .stat-box .num { font-size:13px; font-weight:800; line-height:1; }
+  .stat-box .lbl { font-size:8px; margin-top:1px; font-weight:600; opacity:.95; }
 
   .c-biru { background:var(--biru); } .c-hijau { background:var(--hijau); }
   .c-orange { background:var(--orange); } .c-kuning { background:var(--kuning); color:#5d4037; }
   .c-pink { background:var(--pink); } .c-merah { background:var(--merah); }
 
-  /* Desktop: 2 kolom, logo + info horizontal, stats lebih besar */
-  @media(min-width:768px){
-    .dash-row {
-      display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;
-    }
-    .dash-panel { margin-bottom:0; padding:16px; }
-    .dash-panel-head {
-      flex-direction:row; align-items:center; text-align:left; gap:14px;
-      margin-bottom:14px; padding-bottom:12px; border-bottom:2px solid #eef2f7;
-    }
-    .dash-avatar { width:70px; height:70px; font-size:22px; }
-    .dash-name { margin-top:0; font-size:15px; }
-    .dash-body { gap:16px; }
-    .dash-detail p { font-size:13px; margin-bottom:6px; }
-    .dash-detail p b { min-width:100px; }
-    .dash-stats {
-      width:auto; max-width:none; flex:1;
-      grid-template-columns:repeat(3, 1fr); gap:8px;
-    }
-    .stat-box { padding:12px 4px; min-height:56px; }
-    .stat-box .num { font-size:20px; }
-    .stat-box .lbl { font-size:11px; margin-top:4px; }
-  }
-  @media(min-width:1100px){
-    .dash-stats { grid-template-columns:repeat(6, 1fr); }
-  }
+  /* outline style like sketch (optional) */
+  .stat-box.outline { background:#fff; }
+  .stat-box.outline.c-biru { border-color:var(--biru); color:var(--biru); }
+  .stat-box.outline.c-hijau { border-color:var(--hijau); color:var(--hijau); }
+  .stat-box.outline.c-orange { border-color:var(--orange); color:var(--orange); }
+  .stat-box.outline.c-kuning { border-color:var(--kuning); color:#f9a825; }
+  .stat-box.outline.c-pink { border-color:var(--pink); color:var(--pink); }
+  .stat-box.outline.c-merah { border-color:var(--merah); color:var(--merah); }
 
+  @media(min-width:768px){
+    .dash-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+    .dash-panel { margin-bottom:0; padding:16px; }
+    .dash-panel-title h3 { font-size:16px; }
+    .dash-avatar { width:70px; height:70px; font-size:20px; }
+    .dash-name { font-size:14px; }
+    .dash-detail p { font-size:13px; margin-bottom:5px; }
+    .dash-detail p b { min-width:90px; }
+    .dash-stats-wrap { width:auto; max-width:280px; flex:0 0 280px; }
+    .stat-box { min-height:48px; padding:8px 4px; }
+    .stat-box .num { font-size:18px; }
+    .stat-box .lbl { font-size:10px; }
+    .dash-sesi-label { font-size:11px; }
+  }
   @media(max-width:480px){
-    .card { padding: 12px; }
-    .dash-panel { padding:12px; }
-    .dash-avatar { width:56px; height:56px; font-size:15px; }
-    .dash-name { font-size:12px; }
-    .dash-detail p { font-size:11px; }
-    .dash-detail p b { min-width:62px; }
-    .dash-stats { width:44%; max-width:148px; gap:5px; }
-    .stat-box { padding:6px 1px; min-height:40px; border-radius:6px; }
-    .stat-box .num { font-size:13px; }
-    .stat-box .lbl { font-size:8px; }
+    .dash-panel { padding:10px; }
+    .dash-avatar { width:48px; height:48px; font-size:14px; }
+    .dash-name { font-size:11px; }
+    .dash-detail p { font-size:10px; }
+    .dash-detail p b { min-width:58px; }
+    .dash-stats-wrap { width:46%; max-width:160px; }
+    .stat-box { min-height:32px; padding:4px 1px; }
+    .stat-box .num { font-size:12px; }
+    .stat-box .lbl { font-size:7px; }
   }
 
   /* legacy helpers (jika dipakai di tempat lain) */
@@ -598,48 +613,50 @@
   <!-- ========== PAGE: DASHBOARD ========== -->
   <div class="page active" id="page-dashboard">
 
-  <!-- ROW 1 : Profil Sekolah + Statistik Guru (layout HP seperti sketsa) -->
-  <div class="dash-panel" id="panelSekolah">
-    <div class="dash-panel-head">
-      <div class="dash-avatar" id="schoolAvatar">S</div>
-      <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
+  <!-- REKAP GURU -->
+  <div class="dash-panel" id="panelRekapGuru">
+    <div class="dash-panel-title">
+      <h3>📋 Rekap Guru</h3>
+      <span class="count-badge" id="countGuru">0 guru</span>
     </div>
     <div class="dash-body">
-      <div class="dash-detail" id="schoolDetail">
-        <p><b>NSS</b> <span>: 30101010101</span></p>
-        <p><b>NPSN</b> <span>: 20201010</span></p>
-        <p><b>Th Berdiri</b> <span>: 1975</span></p>
-        <p><b>Alamat</b> <span>: Jl. Pendidikan No. 1, Nusantara</span></p>
+      <div class="dash-left">
+        <div class="dash-avatar" id="schoolAvatar">S</div>
+        <div class="dash-id">
+          <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
+          <div class="dash-detail" id="schoolDetail">
+            <p><b>NSS</b> <span>: -</span></p>
+            <p><b>NPSN</b> <span>: -</span></p>
+            <p><b>Th Berdiri</b> <span>: -</span></p>
+            <p><b>Alamat</b> <span>: -</span></p>
+          </div>
+        </div>
       </div>
-      <div class="dash-stats" title="Statistik Guru">
-        <div class="stat-box c-biru"><div class="num">42</div><div class="lbl">TW</div></div>
-        <div class="stat-box c-hijau"><div class="num">5</div><div class="lbl">TL</div></div>
-        <div class="stat-box c-orange"><div class="num">3</div><div class="lbl">Sakit</div></div>
-        <div class="stat-box c-kuning"><div class="num">2</div><div class="lbl">Izin</div></div>
-        <div class="stat-box c-pink"><div class="num">1</div><div class="lbl">Alpa</div></div>
-        <div class="stat-box c-merah"><div class="num">0</div><div class="lbl">Bolos</div></div>
+      <div class="dash-stats-wrap" id="statsGuru">
+        <div style="font-size:11px;color:#999;text-align:center;padding:12px">Memuat…</div>
       </div>
     </div>
   </div>
 
-  <!-- ROW 2 : Profil User + Statistik Siswa -->
-  <div class="dash-panel" id="cardProfilUser">
-    <div class="dash-panel-head">
-      <div class="dash-avatar user" id="userPhoto">👤</div>
-      <div class="dash-name" id="userDisplayName">Tamu</div>
+  <!-- REKAP SISWA -->
+  <div class="dash-panel" id="panelRekapSiswa">
+    <div class="dash-panel-title">
+      <h3>📋 Rekap Siswa</h3>
+      <span class="count-badge" id="countSiswa">0 siswa</span>
     </div>
     <div class="dash-body">
-      <div class="dash-detail" id="userDetail">
-        <p><b>Status</b> <span>: Tamu</span></p>
-        <p><b>Akses</b> <span>: Dashboard publik</span></p>
+      <div class="dash-left">
+        <div class="dash-avatar user" id="userPhoto">👤</div>
+        <div class="dash-id">
+          <div class="dash-name" id="userDisplayName">Tamu</div>
+          <div class="dash-detail" id="userDetail">
+            <p><b>Status</b> <span>: Tamu</span></p>
+            <p><b>Akses</b> <span>: Dashboard publik</span></p>
+          </div>
+        </div>
       </div>
-      <div class="dash-stats" title="Statistik Siswa">
-        <div class="stat-box c-biru"><div class="num">120</div><div class="lbl">TW</div></div>
-        <div class="stat-box c-hijau"><div class="num">8</div><div class="lbl">TL</div></div>
-        <div class="stat-box c-orange"><div class="num">5</div><div class="lbl">Sakit</div></div>
-        <div class="stat-box c-kuning"><div class="num">4</div><div class="lbl">Izin</div></div>
-        <div class="stat-box c-pink"><div class="num">2</div><div class="lbl">Alpa</div></div>
-        <div class="stat-box c-merah"><div class="num">1</div><div class="lbl">Bolos</div></div>
+      <div class="dash-stats-wrap" id="statsSiswa">
+        <div style="font-size:11px;color:#999;text-align:center;padding:12px">Memuat…</div>
       </div>
     </div>
   </div>
@@ -1623,8 +1640,78 @@ function toast(msg, type) {
   toast._t = setTimeout(() => { el.className = 'toast'; }, 2800);
 }
 
+
+/* ----- Dashboard rekap absensi per sesi ----- */
+const STATUS_ORDER = [
+  { key: 'TW', lbl: 'TW', cls: 'c-biru' },
+  { key: 'TL', lbl: 'TL', cls: 'c-hijau' },
+  { key: 'Sakit', lbl: 'Sakit', cls: 'c-orange' },
+  { key: 'Izin', lbl: 'Izin', cls: 'c-kuning' },
+  { key: 'Alpa', lbl: 'Alpa', cls: 'c-pink' },
+  { key: 'Bolos', lbl: 'Bolos', cls: 'c-merah' },
+];
+
+function buildSesiStatsHtml(sesiList, absenRows, role) {
+  const list = (sesiList || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  if (!list.length) {
+    return '<div style="font-size:11px;color:#999;text-align:center;padding:8px">Belum ada sesi</div>';
+  }
+  const rows = (absenRows || []).filter(r => r.role === role);
+  return list.map(s => {
+    const counts = {};
+    STATUS_ORDER.forEach(st => { counts[st.key] = 0; });
+    rows.filter(r => String(r.sesi_id) === String(s.id) || r.sesi_nama === s.nama)
+      .forEach(r => {
+        const k = r.status === 'Hadir' ? 'TW' : r.status;
+        if (counts[k] != null) counts[k]++;
+        else if (STATUS_ORDER.some(x => x.key === r.status)) counts[r.status]++;
+      });
+    const boxes = STATUS_ORDER.map(st =>
+      `<div class="stat-box ${st.cls}"><div class="num">${counts[st.key] || 0}</div><div class="lbl">${st.lbl}</div></div>`
+    ).join('');
+    // 2 baris x 3 kolom per sesi
+    return `<div class="dash-sesi-row">
+      <div class="dash-sesi-label">${escapeHtml(s.nama || 'Sesi')} · ${escapeHtml((s.waktu1 || s.mulai || '').toString().slice(0,5))}–${escapeHtml((s.waktu3 || s.selesai || '').toString().slice(0,5))}</div>
+      ${boxes}
+    </div>`;
+  }).join('');
+}
+
+async function renderDashboard() {
+  const countGuru = document.getElementById('countGuru');
+  const countSiswa = document.getElementById('countSiswa');
+  const statsGuru = document.getElementById('statsGuru');
+  const statsSiswa = document.getElementById('statsSiswa');
+  if (countGuru) countGuru.textContent = (store.guru || []).length + ' guru';
+  if (countSiswa) countSiswa.textContent = (store.siswa || []).length + ' siswa';
+
+  // sesi list
+  let sesiList = getSesiList();
+  let absenRows = loadAbsenLog();
+  try {
+    if (getSession()?.token) {
+      const logRes = await apiCall('list_absen_hari_ini', {});
+      if (Array.isArray(logRes.data)) {
+        absenRows = logRes.data;
+        saveAbsenLog(absenRows);
+      }
+    }
+  } catch (_) {}
+
+  if (statsGuru) statsGuru.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'guru');
+  if (statsSiswa) statsSiswa.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'siswa');
+
+  // info sesi chips
+  const chipWrap = document.querySelector('#page-dashboard .sesi-span');
+  if (chipWrap && sesiList.length) {
+    chipWrap.innerHTML = sesiList.map(s =>
+      `<span class="sesi-chip">${escapeHtml(s.nama)} : ${escapeHtml((s.waktu1||s.mulai||'').toString().slice(0,5))} – ${escapeHtml((s.waktu3||s.selesai||'').toString().slice(0,5))}</span>`
+    ).join('');
+  }
+}
+
 /* ----- Navigation ----- */
-function navigate(page) {
+function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
@@ -1638,10 +1725,11 @@ function navigate(page) {
   if (link) link.classList.add('active');
 
   if (target === 'placeholder') {
-    const t = document.getElementById('placeholderTitle');
-    if (t) t.textContent = page.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const el = document.getElementById('placeholderTitle');
+    if (el) el.textContent = page.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
+  if (target === 'dashboard') renderDashboard();
   if (target === 'data-siswa') renderSiswa();
   if (target === 'data-guru') renderGuru();
   if (target === 'data-lulusan') renderLulusan();
@@ -1651,8 +1739,17 @@ function navigate(page) {
   if (target === 'sesi-libur') initSesiLiburPage();
   if (target !== 'scan-barcode') stopQrScanner();
 
+  // persist halaman agar refresh tidak kembali ke dashboard
+  try {
+    sessionStorage.setItem('sis_last_page', page);
+    if (!opts.fromHash) {
+      const hash = '#' + page;
+      if (location.hash !== hash) history.replaceState(null, '', hash);
+    }
+  } catch (_) {}
+
   tutupSidebar();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (!opts.noScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 document.querySelectorAll('.submenu a[data-page]').forEach(a => {
@@ -3056,7 +3153,14 @@ document.getElementById('btnHapusAbsenSesi')?.addEventListener('click', async ()
     await refreshStoreFromDb();
   }
   updatePeriodeBadges();
-  navigate('dashboard');
+  const fromHash = (location.hash || '').replace(/^#/, '');
+  const fromStore = sessionStorage.getItem('sis_last_page') || '';
+  const startPage = fromHash || fromStore || 'dashboard';
+  navigate(startPage, { fromHash: true, noScroll: true });
+  window.addEventListener('hashchange', () => {
+    const p = (location.hash || '').replace(/^#/, '') || 'dashboard';
+    navigate(p, { fromHash: true });
+  });
 })();
 </script>
 </body>
