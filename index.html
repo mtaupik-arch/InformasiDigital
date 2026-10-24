@@ -903,16 +903,16 @@
     <div class="page-title">👆 Sidik Jari Siswa <span class="periode-badge" id="badgePeriodeFp">Periode: -</span></div>
     <div class="absen-card">
       <div class="absen-icon">🔐</div>
-      <h4>Absensi dengan Sidik Jari</h4>
-      <p class="hint">Gunakan sensor sidik jari perangkat (WebAuthn). Login sebagai siswa terlebih dahulu, atau masukkan NISN untuk absen cepat.</p>
+      <h4>Absensi Sidik Jari Siswa</h4>
+      <p class="hint">Gunakan sensor sidik jari HP (WebAuthn). Login sebagai siswa, atau masukkan NISN. Logika absensi sama dengan scan barcode.</p>
       <div class="sesi-aktif-box" id="fpSesiAktif">Sesi aktif: memuat…</div>
-      <div style="max-width:280px;margin:0 auto 12px;text-align:left">
-        <label style="font-size:11px;font-weight:600;color:#555">NISN (opsional jika sudah login siswa)</label>
+      <div style="max-width:300px;margin:0 auto 12px;text-align:left">
+        <label style="font-size:11px;font-weight:600;color:#555">NISN (otomatis jika sudah login)</label>
         <input type="text" id="fpNisnInput" class="search-box" style="width:100%;max-width:none;margin-top:4px" maxlength="10" placeholder="10 digit NISN" inputmode="numeric" />
       </div>
-      <div class="absen-actions">
-        <button type="button" class="btn btn-primary" id="btnFpRegister">📝 Daftar Sidik Jari</button>
-        <button type="button" class="btn btn-success" id="btnFpAbsen">👆 Absen Sekarang</button>
+      <div class="absen-actions" style="flex-direction:column;align-items:center">
+        <button type="button" class="btn btn-danger" id="btnFpMain" style="min-width:220px;padding:12px 18px;font-size:14px">Daftarkan Sidik Jari</button>
+        <p id="fpBtnHint" style="font-size:11px;color:#888;margin-top:8px;text-align:center">Belum terdaftar di perangkat ini</p>
       </div>
       <div class="absen-result" id="fpResult"></div>
       <div class="absen-log" id="fpLog"><div class="log-item" style="color:#999">Belum ada riwayat absen hari ini</div></div>
@@ -934,6 +934,20 @@
   <!-- ========== PAGE: SCAN BARCODE / QR ========== -->
   <div class="page" id="page-scan-barcode">
     <div class="page-title">📷 Scan Barcode / QR <span class="periode-badge" id="badgePeriodeScan">Periode: -</span></div>
+
+    <!-- Sidik jari guru/admin — di atas kamera -->
+    <div class="absen-card" id="guruFpCard" style="margin-bottom:12px;border:1px solid #bbdefb;background:#f7fbff">
+      <div class="absen-icon" style="font-size:32px">👆</div>
+      <h4>Absensi Sidik Jari (Guru)</h4>
+      <p class="hint">Daftarkan sidik jari HP Anda sekali, lalu absen mandiri tanpa scan QR. Logika sama dengan barcode.</p>
+      <div class="sesi-aktif-box" id="guruFpSesiAktif">Sesi aktif: memuat…</div>
+      <div class="absen-actions" style="flex-direction:column;align-items:center">
+        <button type="button" class="btn btn-danger" id="btnGuruFpMain" style="min-width:220px;padding:12px 18px;font-size:14px">Daftarkan Sidik Jari</button>
+        <p id="guruFpBtnHint" style="font-size:11px;color:#888;margin-top:8px;text-align:center">Belum terdaftar di perangkat ini</p>
+      </div>
+      <div class="absen-result" id="guruFpResult"></div>
+    </div>
+
     <div class="absen-card">
       <div class="absen-icon">📷</div>
       <h4>Scanner QR Absensi</h4>
@@ -3000,8 +3014,12 @@ function initSidikJariPage() {
   const sess = getSession();
   if (sess && sess.role === 'siswa' && sess.user?.nisn) {
     const inp = document.getElementById('fpNisnInput');
-    if (inp) inp.value = sess.user.nisn;
+    if (inp) {
+      inp.value = sess.user.nisn;
+      inp.readOnly = true;
+    }
   }
+  updateFpMainButton('siswa');
 }
 
 let _sesiLockTimer = null;
@@ -3011,6 +3029,18 @@ function initScanPage() {
   const sess = getSession();
   const modeBtn = document.getElementById('btnScanMode');
   const modeHint = document.getElementById('scanModeHint');
+  const guruFpCard = document.getElementById('guruFpCard');
+
+  // Sidik jari guru: tampil untuk guru & admin
+  if (guruFpCard) {
+    const showFp = sess && (sess.role === 'guru' || sess.role === 'admin');
+    guruFpCard.style.display = showFp ? '' : 'none';
+    if (showFp) {
+      updateGuruFpSesiBadge();
+      updateFpMainButton('guru');
+    }
+  }
+
   if (sess && sess.role === 'admin') {
     if (modeBtn) modeBtn.style.display = '';
     if (modeHint) modeHint.style.display = '';
@@ -3030,8 +3060,19 @@ function initScanPage() {
   _sesiLockTimer = setInterval(() => {
     if (document.getElementById('page-scan-barcode')?.classList.contains('active')) {
       updateScanCameraLock();
+      updateGuruFpSesiBadge();
     }
   }, 15000);
+}
+
+function updateGuruFpSesiBadge() {
+  const st = getSesiStatusText();
+  const box = document.getElementById('guruFpSesiAktif');
+  if (box) {
+    box.textContent = st.text;
+    box.style.background = st.ok ? '#e3f2fd' : '#ffebee';
+    box.style.color = st.ok ? '#0d47a1' : '#b71c1c';
+  }
 }
 
 async function renderScanLogTable() {
@@ -3075,80 +3116,223 @@ async function renderScanLogTable() {
 }
 
 
-/* WebAuthn sederhana — daftar & absen sidik jari (device-bound) */
-async function fpRegister() {
-  const nisn = (document.getElementById('fpNisnInput')?.value || '').replace(/\D/g,'');
+/* ============================================================
+   WebAuthn — Sidik jari HP (device-bound)
+   Siswa: NISN 10 digit · Guru: PIN 6 digit
+   Tombol: merah "Daftarkan Sidik Jari" / biru "Absen Sidik Jari"
+   Absensi lewat prosesAbsen → Edge Function (sama seperti barcode)
+   ============================================================ */
+function fpLoadMap() {
+  try { return JSON.parse(localStorage.getItem(FP_KEY) || '{}'); } catch { return {}; }
+}
+function fpSaveMap(map) {
+  localStorage.setItem(FP_KEY, JSON.stringify(map));
+}
+function fpIsRegistered(identity) {
+  const m = fpLoadMap();
+  return !!(m[identity] && (m[identity] === true || m[identity].credId));
+}
+function bufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function base64ToBuffer(b64) {
+  const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+  const str = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(str);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr.buffer;
+}
+
+/** identity siswa = NISN, guru = PIN */
+function resolveFpIdentity(role) {
   const sess = getSession();
-  const id = nisn || (sess?.role === 'siswa' ? sess.user?.nisn : '');
-  if (!id || id.length !== 10) {
-    showAbsenResult('fpResult', 'err', 'Masukkan NISN 10 digit atau login sebagai siswa');
-    return;
+  if (role === 'siswa') {
+    const nisn = (document.getElementById('fpNisnInput')?.value || '').replace(/\D/g, '');
+    const id = nisn || (sess?.role === 'siswa' ? String(sess.user?.nisn || '').replace(/\D/g, '') : '');
+    if (!id || id.length !== 10) return { ok: false, msg: 'Masukkan NISN 10 digit atau login sebagai siswa' };
+    return { ok: true, identity: id, role: 'siswa', display: 'NISN ' + id };
   }
-  if (!window.PublicKeyCredential) {
-    showAbsenResult('fpResult', 'err', 'Perangkat tidak mendukung WebAuthn / sidik jari browser');
-    return;
+  // guru / admin — absen mandiri pakai PIN
+  const pin = String(sess?.user?.pin || '').replace(/\D/g, '');
+  if (!pin || pin.length !== 6) {
+    // fallback: cari di store.guru by id/nama
+    const g = (store.guru || []).find(x =>
+      String(x.id) === String(sess?.user?.id) ||
+      (sess?.user?.nama && x.nama === sess.user.nama)
+    );
+    const p2 = String(g?.pin || '').replace(/\D/g, '');
+    if (!p2 || p2.length !== 6) {
+      return { ok: false, msg: 'PIN guru tidak ditemukan. Login ulang sebagai guru.' };
+    }
+    return { ok: true, identity: p2, role: 'guru', display: sess?.user?.nama || 'Guru' };
   }
-  try {
-    const challenge = crypto.getRandomValues(new Uint8Array(32));
-    const userId = new TextEncoder().encode(id);
-    const cred = await navigator.credentials.create({
-      publicKey: {
-        challenge,
-        rp: { name: 'SIS Absensi', id: location.hostname || 'localhost' },
-        user: { id: userId, name: id, displayName: id },
-        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
-        timeout: 60000,
-      }
-    });
-    if (!cred) throw new Error('Dibatalkan');
-    const map = JSON.parse(localStorage.getItem(FP_KEY) || '{}');
-    map[id] = true;
-    localStorage.setItem(FP_KEY, JSON.stringify(map));
-    showAbsenResult('fpResult', 'ok', 'Sidik jari berhasil didaftarkan untuk NISN ' + id);
-  } catch (e) {
-    showAbsenResult('fpResult', 'err', 'Gagal daftar: ' + (e.message || e));
+  return { ok: true, identity: pin, role: 'guru', display: sess?.user?.nama || 'Guru' };
+}
+
+function updateFpMainButton(role) {
+  const isSiswa = role === 'siswa';
+  const btn = document.getElementById(isSiswa ? 'btnFpMain' : 'btnGuruFpMain');
+  const hint = document.getElementById(isSiswa ? 'fpBtnHint' : 'guruFpBtnHint');
+  if (!btn) return;
+  const info = resolveFpIdentity(isSiswa ? 'siswa' : 'guru');
+  const registered = info.ok && fpIsRegistered(info.identity);
+  if (registered) {
+    btn.textContent = 'Absen Sidik Jari';
+    btn.className = 'btn btn-primary';
+    btn.style.minWidth = '220px';
+    btn.style.padding = '12px 18px';
+    btn.style.fontSize = '14px';
+    btn.style.background = '';
+    if (hint) hint.textContent = 'Terdaftar di perangkat ini · ketuk untuk absen';
+  } else {
+    btn.textContent = 'Daftarkan Sidik Jari';
+    btn.className = 'btn btn-danger';
+    btn.style.minWidth = '220px';
+    btn.style.padding = '12px 18px';
+    btn.style.fontSize = '14px';
+    if (hint) hint.textContent = 'Belum terdaftar di perangkat ini';
   }
 }
 
-async function fpAbsen() {
-  const nisn = (document.getElementById('fpNisnInput')?.value || '').replace(/\D/g,'');
-  const sess = getSession();
-  const id = nisn || (sess?.role === 'siswa' ? sess.user?.nisn : '');
-  if (!id || id.length !== 10) {
-    showAbsenResult('fpResult', 'err', 'Masukkan NISN 10 digit atau login sebagai siswa');
+async function fpRegisterIdentity(identity, displayName) {
+  if (!window.PublicKeyCredential) {
+    throw new Error('Perangkat tidak mendukung WebAuthn / sidik jari browser');
+  }
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const userId = new TextEncoder().encode(identity);
+  const cred = await navigator.credentials.create({
+    publicKey: {
+      challenge,
+      rp: { name: 'SIS Absensi', id: location.hostname || 'localhost' },
+      user: { id: userId, name: identity, displayName: displayName || identity },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: {
+        authenticatorAttachment: 'platform',
+        userVerification: 'required',
+        residentKey: 'preferred',
+      },
+      timeout: 60000,
+    }
+  });
+  if (!cred) throw new Error('Dibatalkan');
+  const credId = bufferToBase64(cred.rawId);
+  const map = fpLoadMap();
+  map[identity] = { credId, at: Date.now() };
+  fpSaveMap(map);
+  return credId;
+}
+
+async function fpVerifyIdentity(identity) {
+  if (!window.PublicKeyCredential) {
+    throw new Error('Perangkat tidak mendukung WebAuthn / sidik jari browser');
+  }
+  const map = fpLoadMap();
+  const entry = map[identity];
+  if (!entry) throw new Error('Sidik jari belum terdaftar di perangkat ini');
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const allow = [];
+  if (entry.credId) {
+    try {
+      allow.push({ type: 'public-key', id: base64ToBuffer(entry.credId) });
+    } catch (_) {}
+  }
+  await navigator.credentials.get({
+    publicKey: {
+      challenge,
+      timeout: 60000,
+      userVerification: 'required',
+      allowCredentials: allow.length ? allow : undefined,
+    }
+  });
+  return true;
+}
+
+/** Tombol utama siswa: daftar atau absen */
+async function fpMainActionSiswa() {
+  const info = resolveFpIdentity('siswa');
+  const resultEl = 'fpResult';
+  if (!info.ok) {
+    showAbsenResult(resultEl, 'err', info.msg);
     return;
   }
-  const map = JSON.parse(localStorage.getItem(FP_KEY) || '{}');
-  // Coba verifikasi platform auth jika tersedia
-  if (window.PublicKeyCredential && map[id]) {
+  if (!fpIsRegistered(info.identity)) {
     try {
-      const challenge = crypto.getRandomValues(new Uint8Array(32));
-      await navigator.credentials.get({
-        publicKey: { challenge, timeout: 60000, userVerification: 'required' }
-      });
+      await fpRegisterIdentity(info.identity, info.display);
+      updateFpMainButton('siswa');
+      showBigPopup('ok', 'Sidik Jari Terdaftar',
+        `Sidik jari berhasil didaftarkan untuk <b>${escapeHtml(info.display)}</b>.<br>Tombol berubah menjadi <b>Absen Sidik Jari</b>.`, 2800);
     } catch (e) {
-      showAbsenResult('fpResult', 'err', 'Verifikasi sidik jari gagal / dibatalkan');
-      return;
+      showAbsenResult(resultEl, 'err', 'Gagal daftar: ' + (e.message || e));
     }
-  } else if (window.PublicKeyCredential) {
-    // Izinkan absen tanpa daftar formal (masih minta biometrics bila bisa)
-    try {
-      const challenge = crypto.getRandomValues(new Uint8Array(32));
-      await navigator.credentials.get({
-        publicKey: { challenge, timeout: 45000, userVerification: 'preferred' }
-      });
-    } catch (_) {
-      // lanjut tanpa biometrics di perangkat tanpa sensor
-    }
+    return;
   }
-  const res = await prosesAbsen(id, 'fingerprint');
-  handleAbsenResult('fpResult', res);
+  // Absen
+  try {
+    await fpVerifyIdentity(info.identity);
+  } catch (e) {
+    showAbsenResult(resultEl, 'err', 'Verifikasi sidik jari gagal / dibatalkan');
+    return;
+  }
+  // sementara set target siswa
+  const prev = scanTargetRole;
+  scanTargetRole = 'siswa';
+  const res = await prosesAbsen(info.identity, 'fingerprint');
+  scanTargetRole = prev;
+  handleAbsenResult(resultEl, res);
   if (res.ok || res.type === 'reject') renderAbsenLog('fpLog', 'siswa');
 }
 
-document.getElementById('btnFpRegister')?.addEventListener('click', fpRegister);
-document.getElementById('btnFpAbsen')?.addEventListener('click', fpAbsen);
+/** Tombol utama guru: daftar atau absen mandiri */
+async function fpMainActionGuru() {
+  const info = resolveFpIdentity('guru');
+  const resultEl = 'guruFpResult';
+  if (!info.ok) {
+    showAbsenResult(resultEl, 'err', info.msg);
+    showBigPopup('err', 'Sidik Jari', info.msg, 0);
+    return;
+  }
+  if (!fpIsRegistered(info.identity)) {
+    try {
+      await fpRegisterIdentity(info.identity, info.display);
+      updateFpMainButton('guru');
+      showBigPopup('ok', 'Sidik Jari Terdaftar',
+        `Sidik jari berhasil didaftarkan untuk <b>${escapeHtml(info.display)}</b>.<br>Tombol berubah menjadi <b>Absen Sidik Jari</b>.`, 2800);
+    } catch (e) {
+      showAbsenResult(resultEl, 'err', 'Gagal daftar: ' + (e.message || e));
+      showBigPopup('err', 'Gagal Daftar', e.message || String(e), 0);
+    }
+    return;
+  }
+  // cek sesi
+  const st = getSesiStatusText();
+  if (!st.ok) {
+    showBigPopup('warn', 'Di Luar Jam Sesi', st.text, 0);
+    return;
+  }
+  try {
+    await fpVerifyIdentity(info.identity);
+  } catch (e) {
+    showBigPopup('err', 'Verifikasi Gagal', 'Sidik jari gagal / dibatalkan', 0);
+    return;
+  }
+  const prev = scanTargetRole;
+  scanTargetRole = 'guru';
+  const res = await prosesAbsen(info.identity, 'fingerprint');
+  scanTargetRole = prev;
+  handleAbsenResult(resultEl, res);
+  if (res.ok || res.type === 'reject') {
+    if (typeof renderScanLogTable === 'function') renderScanLogTable();
+    if (typeof renderDashboard === 'function') renderDashboard();
+  }
+}
+
+document.getElementById('btnFpMain')?.addEventListener('click', fpMainActionSiswa);
+document.getElementById('btnGuruFpMain')?.addEventListener('click', fpMainActionGuru);
+document.getElementById('fpNisnInput')?.addEventListener('input', () => updateFpMainButton('siswa'));
 
 /* QR Scanner */
 async function startQrScanner() {
