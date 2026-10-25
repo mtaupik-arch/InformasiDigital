@@ -670,13 +670,32 @@
   .badge-lulus { background:#e3f2fd; color:#1565c0; }
 
   /* Status absensi — warna legend dashboard */
-  .st-tw { background:#e3f2fd; color:#1565c0; }      /* TW biru */
-  .st-tl { background:#e8f5e9; color:#2e7d32; }      /* TL hijau */
-  .st-sakit { background:#fff3e0; color:#e65100; }   /* orange */
-  .st-izin { background:#fffde7; color:#f57f17; }    /* kuning */
-  .st-alpa { background:#fce4ec; color:#ad1457; }    /* pink tua */
-  .st-bolos { background:#ffcdd2; color:#ff1744; }   /* merah lebih terang */
-  .st-hadir { background:#e3f2fd; color:#1565c0; }
+  .st-tw { background:rgba(25,118,210,.18); color:#1565c0; }
+  .st-tl { background:rgba(67,160,71,.18); color:#2e7d32; }
+  .st-sakit { background:rgba(251,140,0,.18); color:#e65100; }
+  .st-izin { background:rgba(253,216,53,.28); color:#f9a825; }
+  .st-alpa { background:rgba(194,24,91,.14); color:#ad1457; }
+  .st-bolos { background:rgba(255,82,82,.22); color:#ff1744; }
+  .st-hadir { background:rgba(25,118,210,.18); color:#1565c0; }
+
+  /* Angka status di tabel Rekap Absensi */
+  .rk-num {
+    display:inline-block; min-width:22px; padding:2px 6px; border-radius:5px;
+    font-size:11px; font-weight:800; border:1px solid transparent; text-align:center;
+  }
+  .rk-num.rk-zero { opacity:.35; font-weight:600; }
+  .rk-tw { background:rgba(25,118,210,.18); border-color:rgba(25,118,210,.45); color:#1565c0; }
+  .rk-tl { background:rgba(67,160,71,.18); border-color:rgba(67,160,71,.45); color:#2e7d32; }
+  .rk-izin { background:rgba(253,216,53,.28); border-color:rgba(249,168,37,.5); color:#f9a825; }
+  .rk-sakit { background:rgba(251,140,0,.18); border-color:rgba(251,140,0,.45); color:#e65100; }
+  .rk-alpa { background:rgba(194,24,91,.14); border-color:rgba(194,24,91,.4); color:#ad1457; }
+  .rk-bolos { background:rgba(255,82,82,.22); border-color:rgba(255,82,82,.55); color:#ff1744; }
+  #tableRekapAbsensi thead .rk-h-tw { color:#90caf9; }
+  #tableRekapAbsensi thead .rk-h-tl { color:#a5d6a7; }
+  #tableRekapAbsensi thead .rk-h-izin { color:#fff59d; }
+  #tableRekapAbsensi thead .rk-h-sakit { color:#ffcc80; }
+  #tableRekapAbsensi thead .rk-h-alpa { color:#f48fb1; }
+  #tableRekapAbsensi thead .rk-h-bolos { color:#ef9a9a; }
 
   /* Absensi pages */
   .absen-card {
@@ -6235,6 +6254,11 @@ function defaultRekapDates() {
   }
 }
 
+function rekapStatCell(val, kind) {
+  const n = Number(val) || 0;
+  return `<td class="col-stat"><span class="rk-num rk-${kind}${n ? '' : ' rk-zero'}">${n}</span></td>`;
+}
+
 function renderRekapTable(rows, tipe) {
   const tb = document.getElementById('tbodyRekapAbsensi');
   if (!tb) return;
@@ -6242,22 +6266,34 @@ function renderRekapTable(rows, tipe) {
   const thead = document.querySelector('#tableRekapAbsensi thead tr');
   if (thead) {
     thead.innerHTML = showNisn
-      ? `<th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">NISN</th><th class="col-kls">Kls</th><th class="col-stat">TW</th><th class="col-stat">TL</th><th class="col-stat">Izin</th><th class="col-stat">Sakit</th><th class="col-stat">Alpa</th><th class="col-stat">Bolos</th><th class="col-stat">Jml Sesi</th><th class="col-stat">Nilai Hadir</th><th class="col-stat">%</th>`
-      : `<th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">Kode</th><th class="col-stat">TW</th><th class="col-stat">TL</th><th class="col-stat">Izin</th><th class="col-stat">Sakit</th><th class="col-stat">Alpa</th><th class="col-stat">Bolos</th><th class="col-stat">Jml Sesi</th><th class="col-stat">Nilai Hadir</th><th class="col-stat">%</th>`;
+      ? `<th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">NISN</th><th class="col-kls">Kls</th>
+         <th class="col-stat rk-h-tw">TW</th><th class="col-stat rk-h-tl">TL</th><th class="col-stat rk-h-izin">Izin</th>
+         <th class="col-stat rk-h-sakit">Sakit</th><th class="col-stat rk-h-alpa">Alpa</th><th class="col-stat rk-h-bolos">Bolos</th>
+         <th class="col-stat">Jml Sesi</th><th class="col-stat">Nilai Hadir</th><th class="col-stat">%</th>`
+      : `<th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">Kode</th>
+         <th class="col-stat rk-h-tw">TW</th><th class="col-stat rk-h-tl">TL</th><th class="col-stat rk-h-izin">Izin</th>
+         <th class="col-stat rk-h-sakit">Sakit</th><th class="col-stat rk-h-alpa">Alpa</th><th class="col-stat rk-h-bolos">Bolos</th>
+         <th class="col-stat">Jml Sesi</th><th class="col-stat">Nilai Hadir</th><th class="col-stat">%</th>`;
   }
   if (!rows?.length) {
     tb.innerHTML = `<tr><td colspan="${showNisn ? 13 : 12}" style="padding:20px;color:#888">Tidak ada data.</td></tr>`;
     return;
   }
   tb.innerHTML = rows.map((r, i) => {
+    const stats =
+      rekapStatCell(r.tw, 'tw') +
+      rekapStatCell(r.tl, 'tl') +
+      rekapStatCell(r.izin, 'izin') +
+      rekapStatCell(r.sakit, 'sakit') +
+      rekapStatCell(r.alpa, 'alpa') +
+      rekapStatCell(r.bolos, 'bolos');
     if (showNisn) {
       return `<tr>
         <td class="col-no">${i + 1}</td>
         <td class="td-nama">${escapeHtml(r.nama || '')}</td>
         <td class="col-nisn">${escapeHtml(r.nisn || r.kode || '')}</td>
         <td class="col-kls">${escapeHtml(r.kelas || '')}</td>
-        <td class="col-stat">${r.tw || 0}</td><td class="col-stat">${r.tl || 0}</td><td class="col-stat">${r.izin || 0}</td>
-        <td class="col-stat">${r.sakit || 0}</td><td class="col-stat">${r.alpa || 0}</td><td class="col-stat">${r.bolos || 0}</td>
+        ${stats}
         <td class="col-stat"><b>${r.jml_sesi || 0}</b></td>
         <td class="col-stat"><b>${r.nilai_hadir || 0}</b></td>
         <td class="col-stat"><b>${r.persen != null ? r.persen : 0}</b></td>
@@ -6267,8 +6303,7 @@ function renderRekapTable(rows, tipe) {
       <td class="col-no">${i + 1}</td>
       <td class="td-nama">${escapeHtml(r.nama || '')}</td>
       <td class="col-nisn">${escapeHtml(r.kode || '')}</td>
-      <td class="col-stat">${r.tw || 0}</td><td class="col-stat">${r.tl || 0}</td><td class="col-stat">${r.izin || 0}</td>
-      <td class="col-stat">${r.sakit || 0}</td><td class="col-stat">${r.alpa || 0}</td><td class="col-stat">${r.bolos || 0}</td>
+      ${stats}
       <td class="col-stat"><b>${r.jml_sesi || 0}</b></td>
       <td class="col-stat"><b>${r.nilai_hadir || 0}</b></td>
       <td class="col-stat"><b>${r.persen != null ? r.persen : 0}</b></td>
