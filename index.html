@@ -1835,8 +1835,11 @@ function buildSesiStatsHtml(sesiList, absenRows, role) {
     const nums = list.length
       ? list.map(s => {
           return rows.filter(r =>
-            (String(r.sesi_id) === String(s.id) || r.sesi_nama === s.nama) &&
-            (r.status === st.key || (st.key === 'TW' && r.status === 'Hadir'))
+            matchAbsenSesi(r, s) &&
+            (r.status === st.key ||
+              (st.key === 'TW' && (r.status === 'Hadir' || r.status === 'TW')) ||
+              (st.key === 'Alpa' && (r.status === 'A' || r.status === 'Alpa')) ||
+              (st.key === 'Bolos' && (r.status === 'B' || r.status === 'Bolos')))
           ).length;
         })
       : [0];
@@ -1969,21 +1972,41 @@ function matchAbsenPerson(row, person, role) {
   return false;
 }
 
-/** Kembalikan record absensi terakhir untuk orang+sesi (status, jam, scanned_by) */
+/** Cocokkan baris absensi ke sesi (id, nama, atau pola "Sesi N") */
+function matchAbsenSesi(row, sesi) {
+  if (!sesi) return true;
+  if (row.sesi_id != null && sesi.id != null && String(row.sesi_id) === String(sesi.id)) return true;
+  const rn = String(row.sesi_nama || '').trim().toLowerCase();
+  const sn = String(sesi.nama || '').trim().toLowerCase();
+  if (rn && sn && rn === sn) return true;
+  // fallback: "Sesi 1" vs urutan 1
+  const mRow = rn.match(/sesi\s*(\d+)/i);
+  const mSesi = sn.match(/sesi\s*(\d+)/i);
+  if (mRow && mSesi && mRow[1] === mSesi[1]) return true;
+  if (mRow && sesi.urutan != null && String(sesi.urutan) === mRow[1]) return true;
+  return false;
+}
+
+/** Kembalikan record absensi untuk orang+sesi (status, jam, scanned_by) — prioritaskan TW/TL */
 function findAbsenRecord(absenRows, person, role, sesi) {
   const today = todayStr();
   const hits = (absenRows || []).filter(r => {
     if (r.tanggal && String(r.tanggal).slice(0, 10) !== today) return false;
     if (!matchAbsenPerson(r, person, role)) return false;
-    if (sesi) {
-      if (r.sesi_id != null && String(r.sesi_id) === String(sesi.id)) return true;
-      if (r.sesi_nama && sesi.nama && String(r.sesi_nama) === String(sesi.nama)) return true;
-      return false;
-    }
-    return true;
+    return matchAbsenSesi(r, sesi);
   });
   if (!hits.length) return null;
-  return hits[hits.length - 1];
+  // Prioritas: TW/TL/Hadir > Izin/Sakit > Alpa/Bolos (jangan tertimpa auto-status lain di sesi yang sama)
+  const rank = (st) => {
+    const u = String(st || '').toUpperCase();
+    if (u === 'TW' || u === 'HADIR') return 4;
+    if (u === 'TL') return 3;
+    if (u === 'IZIN' || u === 'SAKIT') return 2;
+    if (u === 'ALPA' || u === 'A' || u === 'BOLOS' || u === 'B') return 1;
+    return 0;
+  };
+  hits.sort((a, b) => rank(b.status) - rank(a.status));
+  return hits[0];
 }
 
 /** HTML sel absensi: Status + Jam + Discan oleh (desain seperti kartu ringkas) */
