@@ -567,6 +567,36 @@
   .mk-table thead tr.mk-head-kelas th { background:#00bcd4; color:#fff; }
   .mk-table thead tr.mk-head-bobot th { background:#3f51b5; color:#fff; }
   .mk-panels .mk-panel { margin-bottom:12px; }
+  /* Tabel mapel/kelas/bobot: muat di HP tanpa scroll horizontal */
+  .mk-panel .data-table-wrap { overflow-x: hidden; }
+  .mk-table.data-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: fixed;
+    font-size: 11px;
+  }
+  .mk-table th, .mk-table td {
+    padding: 6px 4px !important;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    vertical-align: middle;
+  }
+  .mk-table th:first-child,
+  .mk-table td:first-child { width: 28px; text-align: center; }
+  .mk-table th:nth-child(2),
+  .mk-table td:nth-child(2) { width: 32px; text-align: center; }
+  #mkPanelMapel .mk-table th:nth-child(3),
+  #mkPanelMapel .mk-table td:nth-child(3) { width: 22%; }
+  #mkPanelBobot .mk-table th:nth-child(4),
+  #mkPanelBobot .mk-table td:nth-child(4) { width: 22%; }
+  #mkPanelBobot .mk-table th:nth-child(5),
+  #mkPanelBobot .mk-table td:nth-child(5) { width: 18%; text-align: center; }
+  @media (max-width: 480px) {
+    .mk-tab { font-size: 11px; padding: 9px 4px; }
+    .mk-table.data-table { font-size: 10.5px; }
+    .mk-table th, .mk-table td { padding: 5px 3px !important; }
+    .mk-panel.data-card { padding: 10px 8px !important; }
+  }
   #page-scan-barcode #qr-reader {
     margin-top:14px; border-radius:6px; overflow:hidden;
     max-width:360px; margin-left:auto; margin-right:auto;
@@ -1250,9 +1280,9 @@
           <table class="data-table mk-table">
             <thead>
               <tr class="mk-head-mapel">
-                <th style="width:36px"><input type="checkbox" id="checkAllMapel" /></th>
-                <th style="width:44px">No</th>
-                <th style="width:72px">Kode</th>
+                <th ><input type="checkbox" id="checkAllMapel" /></th>
+                <th >No</th>
+                <th >Kode</th>
                 <th>Mata Pelajaran</th>
               </tr>
             </thead>
@@ -1274,8 +1304,8 @@
           <table class="data-table mk-table">
             <thead>
               <tr class="mk-head-kelas">
-                <th style="width:36px"><input type="checkbox" id="checkAllKelas" /></th>
-                <th style="width:44px">No</th>
+                <th ><input type="checkbox" id="checkAllKelas" /></th>
+                <th >No</th>
                 <th>Kelas</th>
               </tr>
             </thead>
@@ -1297,11 +1327,11 @@
           <table class="data-table mk-table">
             <thead>
               <tr class="mk-head-bobot">
-                <th style="width:36px"><input type="checkbox" id="checkAllBobot" /></th>
-                <th style="width:44px">No</th>
+                <th ><input type="checkbox" id="checkAllBobot" /></th>
+                <th >No</th>
                 <th>Jenis Nilai</th>
-                <th style="width:90px">Semester</th>
-                <th style="width:80px">Bobot %</th>
+                <th >Semester</th>
+                <th >Bobot %</th>
               </tr>
             </thead>
             <tbody id="tbodyBobot"><tr class="empty-row"><td colspan="5">Memuat…</td></tr></tbody>
