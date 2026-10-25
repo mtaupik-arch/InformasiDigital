@@ -531,6 +531,73 @@
     font-size: 11px !important;
     text-align: center;
   }
+
+  /* ===== REKAP DATA ABSENSI ===== */
+  .rekap-page-title { font-size:20px; font-weight:800; color:#1a237e; margin-bottom:14px; }
+  .rekap-tabs {
+    display:flex; border-radius:12px; overflow:hidden; border:1.5px solid #90caf9;
+    margin-bottom:14px; background:#e3f2fd;
+  }
+  .rekap-tab {
+    flex:1; border:none; padding:12px 10px; font-size:13px; font-weight:700;
+    cursor:pointer; background:transparent; color:#1565c0; transition:.15s;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .rekap-tab.active { background:#1565c0; color:#fff; }
+  .rekap-filter-card {
+    background:#fff; border-radius:14px; padding:16px 14px; margin-bottom:12px;
+    box-shadow:0 1px 8px rgba(0,0,0,.06); border:1px solid #e8eef5;
+  }
+  .rekap-field {
+    display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;
+  }
+  .rekap-field label {
+    width:110px; font-size:13px; font-weight:600; color:#333; flex-shrink:0;
+  }
+  .rekap-field input, .rekap-field select {
+    flex:1; min-width:140px; padding:10px 12px; border:1.5px solid #cfd8dc;
+    border-radius:10px; font-size:13px; outline:none; background:#fff;
+  }
+  .rekap-field input:focus, .rekap-field select:focus { border-color:#1565c0; }
+  .rekap-btn-cari {
+    width:100%; margin-top:4px; padding:12px; border:none; border-radius:12px;
+    background:#1565c0; color:#fff; font-size:14px; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .rekap-btn-cari:hover { filter:brightness(1.06); }
+  .rekap-meta { font-size:12px; color:#78909c; margin:8px 0 12px; display:flex; flex-wrap:wrap; gap:8px 16px; }
+  .rekap-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; background:#fff;
+    border-radius:10px; border:1px solid #e8eef5; }
+  table.rekap-abs-table {
+    width:100%; border-collapse:collapse; font-size:11px; min-width:720px;
+  }
+  table.rekap-abs-table thead th {
+    background:#1565c0; color:#fff; padding:8px 5px; font-size:10px; font-weight:700;
+    text-transform:uppercase; white-space:nowrap; text-align:center;
+  }
+  table.rekap-abs-table tbody td {
+    padding:6px 4px; border-bottom:1px solid #eef2f6; text-align:center; color:#333;
+  }
+  table.rekap-abs-table tbody td.td-nama { text-align:left; font-weight:600; max-width:140px;
+    white-space:normal; word-break:break-word; line-height:1.25; }
+  table.rekap-abs-table tbody tr:hover { background:#f5f9ff; }
+  .st-pill {
+    display:inline-block; min-width:28px; padding:2px 5px; border-radius:4px;
+    font-size:10px; font-weight:800;
+  }
+  .st-pill.TW { background:#e3f2fd; color:#1565c0; }
+  .st-pill.TL { background:#e8f5e9; color:#2e7d32; }
+  .st-pill.Izin { background:#fffde7; color:#f9a825; }
+  .st-pill.Sakit { background:#fff3e0; color:#e65100; }
+  .st-pill.Alpa { background:#fce4ec; color:#ad1457; }
+  .st-pill.Bolos { background:#ffcdd2; color:#ff1744; }
+  .st-pill.empty { background:#f5f5f5; color:#bbb; font-weight:500; }
+  .rekap-aksi-btn {
+    border:none; background:#e3f2fd; color:#1565c0; border-radius:6px;
+    padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer;
+  }
+  .rekap-aksi-btn:hover { background:#bbdefb; }
+
   @media (max-width: 480px) {
     .nilai-table.data-table { font-size: 10px; }
     .nilai-table .col-nisn { width: 86px; }
@@ -1622,6 +1689,81 @@
     </div>
   </div>
 
+
+  <!-- ========== PAGE: REKAP DATA ABSENSI ========== -->
+  <div class="page" id="page-rekap-data">
+    <div class="rekap-page-title">Rekap Data Absensi</div>
+
+    <div class="rekap-tabs" id="rekapTabs">
+      <button type="button" class="rekap-tab" data-rekap-tab="edit" id="rekapTabEdit">✏️ Edit Absensi</button>
+      <button type="button" class="rekap-tab active" data-rekap-tab="rekap" id="rekapTabRekap">📊 Rekap Absensi</button>
+    </div>
+
+    <div class="rekap-filter-card">
+      <div class="rekap-field">
+        <label>Dari Tanggal</label>
+        <input type="date" id="rekapDari" />
+      </div>
+      <div class="rekap-field">
+        <label>Sampai Tanggal</label>
+        <input type="date" id="rekapSampai" />
+      </div>
+      <div class="rekap-field">
+        <label>Nama / NISN</label>
+        <input type="text" id="rekapQ" placeholder="Ketik nama / NISN (kosong = semua)" />
+      </div>
+      <div class="rekap-field" id="rekapKelasWrap">
+        <label>Kelas</label>
+        <select id="rekapKelas"><option value="">Semua kelas</option></select>
+      </div>
+      <div class="rekap-field">
+        <label>Tipe</label>
+        <select id="rekapTipe">
+          <option value="siswa">Siswa</option>
+          <option value="guru">Guru</option>
+        </select>
+      </div>
+      <button type="button" class="rekap-btn-cari" id="btnRekapCari">🔍 Cari</button>
+    </div>
+
+    <div class="rekap-meta">
+      <span id="rekapModeLabel">—</span>
+      <span id="rekapMetaInfo"></span>
+    </div>
+
+    <!-- Panel Rekap -->
+    <div id="rekapPanelRekap">
+      <div class="rekap-table-wrap">
+        <table class="rekap-abs-table" id="tableRekapAbsensi">
+          <thead>
+            <tr>
+              <th>No</th><th>Nama</th><th>NISN</th><th>Kls</th>
+              <th>TW</th><th>TL</th><th>Izin</th><th>Sakit</th><th>Alpa</th><th>Bolos</th>
+              <th>Jml Sesi</th><th>Nilai Hadir</th><th>%</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyRekapAbsensi">
+            <tr><td colspan="13" style="padding:20px;color:#888">Pilih filter lalu klik Cari.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Panel Edit (admin only) -->
+    <div id="rekapPanelEdit" style="display:none">
+      <div class="rekap-table-wrap">
+        <table class="rekap-abs-table" id="tableEditAbsensi">
+          <thead id="theadEditAbsensi">
+            <tr><th>No</th><th>Nama</th><th>NISN</th><th>Kls</th><th>Tanggal</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="tbodyEditAbsensi">
+            <tr><td colspan="6" style="padding:20px;color:#888">Pilih filter lalu klik Cari.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -2633,7 +2775,7 @@ function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
 
@@ -2661,6 +2803,7 @@ function navigate(page, opts = {}) {
   if (target === 'scan-barcode') initScanPage();
   if (target === 'sesi-libur') initSesiLiburPage();
   if (target === 'input-daftar-nilai') initNilaiPage();
+  if (target === 'rekap-data') initRekapPage();
   if (target !== 'scan-barcode') stopQrScanner();
 
   // persist halaman agar refresh tidak kembali ke dashboard
@@ -5898,6 +6041,226 @@ document.getElementById('nilaiFilterKe')?.addEventListener('focus', () => {
   }
   keSel.innerHTML = html; keSel.value = cur;
 });
+
+
+/* ===== Rekap Data Absensi ===== */
+let rekapTab = 'rekap'; // rekap | edit
+
+function rekapIsAdmin() {
+  const s = getSession();
+  return s && s.role === 'admin';
+}
+
+function switchRekapTab(tab) {
+  const isAdmin = rekapIsAdmin();
+  if (tab === 'edit' && !isAdmin) {
+    tab = 'rekap';
+    toast('Edit Absensi hanya untuk admin', 'err');
+  }
+  rekapTab = tab || 'rekap';
+  document.querySelectorAll('#rekapTabs .rekap-tab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-rekap-tab') === rekapTab);
+  });
+  const pR = document.getElementById('rekapPanelRekap');
+  const pE = document.getElementById('rekapPanelEdit');
+  if (pR) pR.style.display = rekapTab === 'rekap' ? '' : 'none';
+  if (pE) pE.style.display = rekapTab === 'edit' ? '' : 'none';
+  const tabEdit = document.getElementById('rekapTabEdit');
+  if (tabEdit) tabEdit.style.display = isAdmin ? '' : 'none';
+  // jika bukan admin, pastikan tab rekap aktif penuh
+  if (!isAdmin && tabEdit) {
+    document.getElementById('rekapTabRekap')?.classList.add('active');
+  }
+}
+
+function fillRekapKelas() {
+  const sel = document.getElementById('rekapKelas');
+  if (!sel) return;
+  const cur = sel.value;
+  const set = new Set();
+  (store.kelas || []).forEach(k => { if (k.nama) set.add(String(k.nama)); });
+  (store.siswa || []).forEach(s => { if (s.kelas) set.add(String(s.kelas)); });
+  const arr = [...set].sort((a, b) => a.localeCompare(b, 'id'));
+  sel.innerHTML = '<option value="">Semua kelas</option>' +
+    arr.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+  if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+
+function defaultRekapDates() {
+  const sampai = document.getElementById('rekapSampai');
+  const dari = document.getElementById('rekapDari');
+  const today = new Date();
+  const iso = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  if (sampai && !sampai.value) sampai.value = iso(today);
+  if (dari && !dari.value) {
+    const d = new Date(today);
+    d.setMonth(d.getMonth() - 1);
+    dari.value = iso(d);
+  }
+}
+
+function renderRekapTable(rows, tipe) {
+  const tb = document.getElementById('tbodyRekapAbsensi');
+  if (!tb) return;
+  const showNisn = tipe !== 'guru';
+  // adjust header
+  const thead = document.querySelector('#tableRekapAbsensi thead tr');
+  if (thead) {
+    thead.innerHTML = showNisn
+      ? `<th>No</th><th>Nama</th><th>NISN</th><th>Kls</th><th>TW</th><th>TL</th><th>Izin</th><th>Sakit</th><th>Alpa</th><th>Bolos</th><th>Jml Sesi</th><th>Nilai Hadir</th><th>%</th>`
+      : `<th>No</th><th>Nama</th><th>Kode</th><th>TW</th><th>TL</th><th>Izin</th><th>Sakit</th><th>Alpa</th><th>Bolos</th><th>Jml Sesi</th><th>Nilai Hadir</th><th>%</th>`;
+  }
+  if (!rows?.length) {
+    tb.innerHTML = `<tr><td colspan="${showNisn ? 13 : 12}" style="padding:20px;color:#888">Tidak ada data.</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map((r, i) => {
+    if (showNisn) {
+      return `<tr>
+        <td>${i + 1}</td>
+        <td class="td-nama">${escapeHtml(r.nama || '')}</td>
+        <td>${escapeHtml(r.nisn || r.kode || '')}</td>
+        <td>${escapeHtml(r.kelas || '')}</td>
+        <td>${r.tw || 0}</td><td>${r.tl || 0}</td><td>${r.izin || 0}</td>
+        <td>${r.sakit || 0}</td><td>${r.alpa || 0}</td><td>${r.bolos || 0}</td>
+        <td><b>${r.jml_sesi || 0}</b></td>
+        <td><b>${r.nilai_hadir || 0}</b></td>
+        <td><b>${r.persen != null ? r.persen : 0}</b></td>
+      </tr>`;
+    }
+    return `<tr>
+      <td>${i + 1}</td>
+      <td class="td-nama">${escapeHtml(r.nama || '')}</td>
+      <td>${escapeHtml(r.kode || '')}</td>
+      <td>${r.tw || 0}</td><td>${r.tl || 0}</td><td>${r.izin || 0}</td>
+      <td>${r.sakit || 0}</td><td>${r.alpa || 0}</td><td>${r.bolos || 0}</td>
+      <td><b>${r.jml_sesi || 0}</b></td>
+      <td><b>${r.nilai_hadir || 0}</b></td>
+      <td><b>${r.persen != null ? r.persen : 0}</b></td>
+    </tr>`;
+  }).join('');
+}
+
+function statusPill(st) {
+  if (!st) return '<span class="st-pill empty">—</span>';
+  const s = String(st);
+  const cls = ['TW','TL','Izin','Sakit','Alpa','Bolos'].includes(s) ? s : 'empty';
+  return `<span class="st-pill ${cls}">${escapeHtml(s)}</span>`;
+}
+
+function renderEditTable(payload) {
+  const sesi = payload?.sesi || [];
+  const rows = payload?.rows || [];
+  const tipe = document.getElementById('rekapTipe')?.value || 'siswa';
+  const thead = document.getElementById('theadEditAbsensi');
+  const tb = document.getElementById('tbodyEditAbsensi');
+  if (!thead || !tb) return;
+  const showKls = tipe === 'siswa';
+  const sesiHeads = sesi.map(s => `<th title="${escapeHtml(s.nama || '')}">${escapeHtml(s.label || s.nama)}</th>`).join('');
+  thead.innerHTML = `<tr>
+    <th>No</th><th>Nama</th><th>NISN</th>${showKls ? '<th>Kls</th>' : ''}
+    <th>Tanggal</th>${sesiHeads}<th>Aksi</th>
+  </tr>`;
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="${5 + (showKls ? 1 : 0) + sesi.length}" style="padding:20px;color:#888">Tidak ada data.</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map((r, i) => {
+    const cells = sesi.map(s => {
+      const c = r.cells?.[s.key];
+      if (!c) return `<td><span class="st-pill empty">—</span></td>`;
+      return `<td>
+        <select class="edit-abs-status" data-id="${escapeHtml(c.id)}" data-source="${escapeHtml(c.source || 'absensi')}"
+          style="font-size:10px;padding:2px 3px;border-radius:4px;border:1px solid #cfd8dc;max-width:72px">
+          ${['TW','TL','Izin','Sakit','Alpa','Bolos'].map(st =>
+            `<option value="${st}" ${String(c.status) === st ? 'selected' : ''}>${st}</option>`
+          ).join('')}
+        </select>
+      </td>`;
+    }).join('');
+    return `<tr>
+      <td>${i + 1}</td>
+      <td class="td-nama">${escapeHtml(r.nama || '')}</td>
+      <td>${escapeHtml(r.nisn || '')}</td>
+      ${showKls ? `<td>${escapeHtml(r.kelas || '')}</td>` : ''}
+      <td style="white-space:nowrap">${escapeHtml(r.tanggal || '')}</td>
+      ${cells}
+      <td><button type="button" class="rekap-aksi-btn btn-save-row-abs" data-row="${i}">Simpan</button></td>
+    </tr>`;
+  }).join('');
+
+  // bind change: auto-save on select change
+  tb.querySelectorAll('.edit-abs-status').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      try {
+        await apiCall('update_absensi_status', {
+          id: sel.getAttribute('data-id'),
+          source: sel.getAttribute('data-source'),
+          status: sel.value,
+        });
+        toast('Status diperbarui', 'ok');
+      } catch (e) {
+        toast(errToText(e), 'err');
+      }
+    });
+  });
+}
+
+async function cariRekap() {
+  const dari = document.getElementById('rekapDari')?.value;
+  const sampai = document.getElementById('rekapSampai')?.value;
+  const q = document.getElementById('rekapQ')?.value || '';
+  const kelas = document.getElementById('rekapKelas')?.value || '';
+  const tipe = document.getElementById('rekapTipe')?.value || 'siswa';
+  if (!dari || !sampai) { toast('Isi rentang tanggal', 'err'); return; }
+  const meta = document.getElementById('rekapMetaInfo');
+  const mode = document.getElementById('rekapModeLabel');
+  if (mode) mode.textContent = rekapIsAdmin() ? 'Mode admin' : 'Mode lihat saja (Guru)';
+
+  try {
+    if (rekapTab === 'edit' && rekapIsAdmin()) {
+      const res = await apiCall('list_edit_absensi', { dari, sampai, q, kelas, tipe });
+      renderEditTable(res.data || {});
+      if (meta) meta.textContent = `${res.meta?.total || 0} baris · ${dari} s/d ${sampai}`;
+    } else {
+      const res = await apiCall('rekap_absensi', { dari, sampai, q, kelas, tipe });
+      renderRekapTable(res.data || [], tipe);
+      if (meta) meta.textContent = `${res.meta?.total || 0} orang · ${dari} s/d ${sampai}`;
+    }
+  } catch (e) {
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Gagal', errToText(e), 0);
+  }
+}
+
+function initRekapPage() {
+  fillRekapKelas();
+  defaultRekapDates();
+  switchRekapTab(rekapIsAdmin() ? rekapTab : 'rekap');
+  const kelasWrap = document.getElementById('rekapKelasWrap');
+  const tipe = document.getElementById('rekapTipe')?.value;
+  if (kelasWrap) kelasWrap.style.display = tipe === 'guru' ? 'none' : '';
+  const mode = document.getElementById('rekapModeLabel');
+  if (mode) mode.textContent = rekapIsAdmin() ? 'Mode admin' : 'Mode lihat saja (Guru)';
+}
+
+document.getElementById('rekapTabs')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.rekap-tab');
+  if (!btn) return;
+  switchRekapTab(btn.getAttribute('data-rekap-tab'));
+});
+document.getElementById('btnRekapCari')?.addEventListener('click', cariRekap);
+document.getElementById('rekapTipe')?.addEventListener('change', () => {
+  const kelasWrap = document.getElementById('rekapKelasWrap');
+  const tipe = document.getElementById('rekapTipe')?.value;
+  if (kelasWrap) kelasWrap.style.display = tipe === 'guru' ? 'none' : '';
+});
+
 
 /* ===== Auto-refresh status sesi (tanpa reload penuh) ===== */
 let _lastSesiKey = '';
