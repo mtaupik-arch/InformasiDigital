@@ -6243,18 +6243,21 @@ function renderEditTable(payload) {
         </select>
       </td>`;
     }).join('');
-    // kumpulkan semua cell id untuk hapus baris
+    // id sesi + identitas baris (untuk hapus seluruh hari)
     const cellItems = sesi.map(s => r.cells?.[s.key]).filter(Boolean)
       .map(c => `${c.id}|${c.source || 'absensi'}`).join(',');
-    return `<tr>
-      <td class="col-chk"><input type="checkbox" class="rekap-row-check" data-items="${escapeHtml(cellItems)}" /></td>
+    const personKey = r.person_key || r.siswa_id || '';
+    return `<tr data-tanggal="${escapeHtml(r.tanggal || '')}" data-nisn="${escapeHtml(r.nisn || '')}" data-person="${escapeHtml(String(personKey))}">
+      <td class="col-chk"><input type="checkbox" class="rekap-row-check" data-items="${escapeHtml(cellItems)}"
+        data-tanggal="${escapeHtml(r.tanggal || '')}" data-nisn="${escapeHtml(r.nisn || '')}" data-person="${escapeHtml(String(personKey))}" /></td>
       <td class="col-no">${i + 1}</td>
       <td class="td-nama">${escapeHtml(r.nama || '')}</td>
       <td class="col-nisn">${escapeHtml(r.nisn || '')}</td>
       ${showKls ? `<td class="col-kls">${escapeHtml(r.kelas || '')}</td>` : ''}
       <td class="col-tgl">${escapeHtml(r.tanggal || '')}</td>
       ${cells}
-      <td><button type="button" class="rekap-aksi-btn btn-del-row-abs" data-items="${escapeHtml(cellItems)}">Hapus</button></td>
+      <td><button type="button" class="rekap-aksi-btn btn-del-row-abs" data-items="${escapeHtml(cellItems)}"
+        data-tanggal="${escapeHtml(r.tanggal || '')}" data-nisn="${escapeHtml(r.nisn || '')}" data-person="${escapeHtml(String(personKey))}">Hapus</button></td>
     </tr>`;
   }).join('');
 
@@ -6303,13 +6306,20 @@ function renderEditTable(payload) {
   tb.querySelectorAll('.btn-del-row-abs').forEach(btn => {
     btn.addEventListener('click', async () => {
       const items = parseRekapItems(btn.getAttribute('data-items'));
-      if (!items.length) {
-        toast('Tidak ada record absensi pada baris ini (id kosong)', 'err');
+      const tanggal = btn.getAttribute('data-tanggal') || '';
+      const nisn = btn.getAttribute('data-nisn') || '';
+      const person = btn.getAttribute('data-person') || '';
+      const rows = [];
+      if (tanggal && (nisn || person)) {
+        rows.push({ tanggal, nisn, kode: nisn, ref_id: person || undefined, person_key: person || undefined, role: 'siswa' });
+      }
+      if (!items.length && !rows.length) {
+        toast('Tidak ada record absensi pada baris ini', 'err');
         return;
       }
-      if (!confirm('Hapus ' + items.length + ' record absensi baris ini dari DATABASE?')) return;
+      if (!confirm('Hapus SEMUA sesi absensi baris ini (' + tanggal + ') dari DATABASE?')) return;
       try {
-        const res = await apiCall('delete_absensi_bulk', { items });
+        const res = await apiCall('delete_absensi_bulk', { items, rows });
         if (!res.deleted) throw new Error(res.message || 'Tidak ada yang terhapus di DB');
         toast(res.message || ('Terhapus ' + res.deleted + ' dari DB'), 'ok');
         await cariRekap();
@@ -6517,11 +6527,20 @@ document.getElementById('btnRekapHapusTerpilih')?.addEventListener('click', asyn
   const checks = [...document.querySelectorAll('.rekap-row-check:checked')];
   if (!checks.length) { toast('Pilih baris terlebih dahulu', 'err'); return; }
   const items = [];
-  checks.forEach(c => { items.push(...parseRekapItems(c.getAttribute('data-items'))); });
-  if (!items.length) { toast('Tidak ada data absensi pada baris terpilih (id kosong)', 'err'); return; }
-  if (!confirm(`Hapus ${checks.length} baris (${items.length} record) dari DATABASE?`)) return;
+  const rows = [];
+  checks.forEach(c => {
+    items.push(...parseRekapItems(c.getAttribute('data-items')));
+    const tanggal = c.getAttribute('data-tanggal') || '';
+    const nisn = c.getAttribute('data-nisn') || '';
+    const person = c.getAttribute('data-person') || '';
+    if (tanggal && (nisn || person)) {
+      rows.push({ tanggal, nisn, kode: nisn, ref_id: person || undefined, person_key: person || undefined, role: 'siswa' });
+    }
+  });
+  if (!items.length && !rows.length) { toast('Tidak ada data absensi pada baris terpilih', 'err'); return; }
+  if (!confirm(`Hapus ${checks.length} baris dari DATABASE?`)) return;
   try {
-    const res = await apiCall('delete_absensi_bulk', { items });
+    const res = await apiCall('delete_absensi_bulk', { items, rows });
     if (!res.deleted) throw new Error(res.message || 'Tidak ada yang terhapus di DB');
     toast(res.message || ('Terhapus ' + res.deleted + ' dari DB'), 'ok');
     await cariRekap();
