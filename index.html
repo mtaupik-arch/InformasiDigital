@@ -604,6 +604,16 @@
     font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;
     white-space: nowrap;
   }
+  .sek-preview {
+    width: 88px; height: 88px; border: 1px dashed #90a4ae; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    background: #f5f7fa; overflow: hidden; font-size: 11px; color: #90a4ae;
+  }
+  .sek-preview img { width: 100%; height: 100%; object-fit: contain; }
+  .logo-sekolah img, .dash-avatar img {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+  }
+  .dash-avatar { overflow: hidden; }
   #page-scan-barcode #qr-reader {
     margin-top:14px; border-radius:6px; overflow:hidden;
     max-width:360px; margin-left:auto; margin-right:auto;
@@ -1348,6 +1358,54 @@
     </div>
   </div>
 
+  <!-- ========== PAGE: DATA SEKOLAH ========== -->
+  <div class="page" id="page-data-sekolah">
+    <div class="page-title">🏫 Data Sekolah</div>
+    <div class="data-card" style="padding:16px;max-width:560px">
+      <div style="background:#1565c0;color:#fff;padding:10px 14px;border-radius:6px;font-weight:700;font-size:14px;margin-bottom:16px;display:inline-block">
+        Data Sekolah
+      </div>
+      <div class="form-grid" id="formSekolah">
+        <div class="form-group full">
+          <label>Nama Sekolah</label>
+          <input type="text" id="sekNama" placeholder="SMA NEGERI 1 …" />
+        </div>
+        <div class="form-group">
+          <label>NSS</label>
+          <input type="text" id="sekNss" placeholder="NSS" />
+        </div>
+        <div class="form-group">
+          <label>NPSN</label>
+          <input type="text" id="sekNpsn" placeholder="NPSN" />
+        </div>
+        <div class="form-group">
+          <label>Tahun Berdiri</label>
+          <input type="text" id="sekTahun" placeholder="1980" />
+        </div>
+        <div class="form-group full">
+          <label>Alamat</label>
+          <input type="text" id="sekAlamat" placeholder="Jl. …" />
+        </div>
+      </div>
+      <div class="sek-upload-row" style="display:flex;gap:20px;flex-wrap:wrap;margin-top:16px">
+        <div class="sek-upload-box">
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px">Upload Logo</div>
+          <div class="sek-preview" id="sekLogoPreview">—</div>
+          <input type="file" id="sekLogoFile" accept="image/*" style="font-size:12px;margin-top:6px;max-width:160px" />
+        </div>
+        <div class="sek-upload-box">
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px">Upload TTD QR</div>
+          <div class="sek-preview" id="sekTtdPreview">—</div>
+          <input type="file" id="sekTtdFile" accept="image/*" style="font-size:12px;margin-top:6px;max-width:160px" />
+        </div>
+      </div>
+      <div style="margin-top:18px">
+        <button type="button" class="btn btn-primary" id="btnSimpanSekolah">💾 Simpan Data Sekolah</button>
+      </div>
+      <div id="sekolahMsg" style="margin-top:10px;font-size:12px"></div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -1501,6 +1559,10 @@ async function refreshStoreFromDb() {
     store.kelas = d.kelas || store.kelas || [];
     store.bobot_nilai = d.bobot_nilai || store.bobot_nilai || [];
     store.guru_ampu = d.guru_ampu || store.guru_ampu || [];
+    if (d.sekolah) {
+      store.sekolah = d.sekolah;
+      applySekolahToUI();
+    }
     // absen hari ini → format log lokal untuk tabel
     if (Array.isArray(d.absen_hari_ini)) {
       saveAbsenLog(d.absen_hari_ini);
@@ -1667,10 +1729,18 @@ function renderUserUI(session) {
       <p><b>Kelas</b> <span>: ${escapeHtml(user.kelas || '-')}</span></p>
       <p><b>Alamat</b> <span>: ${escapeHtml(user.alamat || '-')}</span></p>`;
   } else if (role === 'guru') {
+    // Mapel = kode mapel, Kelas di bawahnya (dari guru_ampu)
+    const guruRow = (store.guru || []).find(g =>
+      (user.id && String(g.id) === String(user.id)) ||
+      (user.pin && String(g.pin) === String(user.pin)) ||
+      (user.nip && String(g.nip) === String(user.nip)) ||
+      (user.nama && g.nama === user.nama)
+    );
+    const ampuHtml = formatGuruAmpuDetailHtml(guruRow?.id || user.id);
     userDetail.innerHTML = `
-      <p><b>NIP</b> <span>: ${escapeHtml(user.nip || '-')}</span></p>
-      <p><b>Jabatan</b> <span>: ${escapeHtml(user.jabatan_struktur || '-')}</span></p>
-      <p><b>Mapel</b> <span>: ${escapeHtml(user.jabatan_fungsional || '-')}</span></p>`;
+      <p><b>NIP</b> <span>: ${escapeHtml(user.nip || guruRow?.nip || '-')}</span></p>
+      <p><b>Jabatan</b> <span>: ${escapeHtml(user.jabatan_struktur || guruRow?.jabatan_struktur || '-')}</span></p>
+      ${ampuHtml}`;
   } else {
     userDetail.innerHTML = `
       <p><b>Jabatan</b> <span>: ${escapeHtml(user.jabatan || 'Administrator')}</span></p>
@@ -1900,6 +1970,7 @@ function seedStore() {
     kelas: [],
     bobot_nilai: [],
     guru_ampu: [],
+    sekolah: null,
   };
 }
 
@@ -2329,7 +2400,7 @@ function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah'];
   let target = known.includes(page) ? page : 'placeholder';
 
   const pageEl = document.getElementById('page-' + target);
@@ -2345,6 +2416,7 @@ function navigate(page, opts = {}) {
 
   if (target === 'dashboard') renderDashboard();
   if (target === 'mapel-kelas') initMapelKelasPage();
+  if (target === 'data-sekolah') initDataSekolahPage();
   if (target === 'data-siswa') renderSiswa();
   if (target === 'data-guru') renderGuru();
   if (target === 'data-lulusan') renderLulusan();
@@ -2422,6 +2494,39 @@ function sortByDuk(a, b) {
   if (aOk && !bOk) return -1;
   if (!aOk && bOk) return 1;
   return String(a.id || '').localeCompare(String(b.id || ''), 'en', { numeric: true });
+}
+
+/** Detail mapel (kode) + kelas di bawahnya untuk identitas dashboard */
+function formatGuruAmpuDetailHtml(guruId) {
+  if (!guruId) {
+    return `<p><b>Mapel</b> <span>: —</span></p><p><b>Kelas</b> <span>: —</span></p>`;
+  }
+  const aktif = getActivePeriode();
+  const ampu = (store.guru_ampu || []).filter(a =>
+    String(a.guru_id) === String(guruId) &&
+    (!aktif || !a.periode_id || String(a.periode_id) === String(aktif.id))
+  );
+  if (!ampu.length) {
+    return `<p><b>Mapel</b> <span>: —</span></p><p><b>Kelas</b> <span>: —</span></p>`;
+  }
+  const byMapel = new Map();
+  ampu.forEach(a => {
+    const mid = String(a.mapel_id);
+    if (!byMapel.has(mid)) byMapel.set(mid, new Set());
+    byMapel.get(mid).add(String(a.kelas_id));
+  });
+  let html = '';
+  byMapel.forEach((kelasSet, mid) => {
+    const m = (store.mapel || []).find(x => String(x.id) === mid);
+    const kode = m ? (m.kode || m.nama) : mid;
+    const kelasNames = [...kelasSet].map(kid => {
+      const k = (store.kelas || []).find(x => String(x.id) === kid);
+      return k ? k.nama : kid;
+    }).sort((a, b) => String(a).localeCompare(String(b), 'id'));
+    html += `<p><b>Mapel</b> <span>: ${escapeHtml(kode)}</span></p>`;
+    html += `<p><b>Kelas</b> <span>: ${escapeHtml(kelasNames.join(', '))}</span></p>`;
+  });
+  return html;
 }
 
 /** Ringkas ampu guru untuk periode aktif: { mapelText, kelasText } */
@@ -4656,6 +4761,136 @@ document.getElementById('btnSimpanIzin')?.addEventListener('click', async () => 
   }
 });
 
+/* ===== Data Sekolah ===== */
+function applySekolahToUI() {
+  const s = store.sekolah || {};
+  const nama = s.nama || 'SMA NEGERI 1 NUSANTARA';
+  document.querySelectorAll('.nama-sekolah').forEach(el => { el.textContent = nama; });
+  const schoolName = document.getElementById('schoolName');
+  if (schoolName) schoolName.textContent = nama;
+
+  const detail = document.getElementById('schoolDetail');
+  if (detail) {
+    detail.innerHTML = `
+      <p><b>NSS</b> <span>: ${escapeHtml(s.nss || '-')}</span></p>
+      <p><b>NPSN</b> <span>: ${escapeHtml(s.npsn || '-')}</span></p>
+      <p><b>Th Berdiri</b> <span>: ${escapeHtml(s.tahun_berdiri || '-')}</span></p>
+      <p><b>Alamat</b> <span>: ${escapeHtml(s.alamat || '-')}</span></p>`;
+  }
+
+  const logo = s.logo_url || '';
+  const setLogo = (el) => {
+    if (!el) return;
+    if (logo) {
+      el.innerHTML = `<img src="${logo}" alt="Logo" />`;
+      el.style.background = '#fff';
+    } else {
+      const initial = (nama || 'S').trim().charAt(0).toUpperCase();
+      el.textContent = initial;
+      el.innerHTML = initial;
+    }
+  };
+  document.querySelectorAll('.logo-sekolah').forEach(setLogo);
+  setLogo(document.getElementById('schoolAvatar'));
+
+  // Footer sekolah jika ada
+  document.querySelectorAll('.footer-sekolah-nama').forEach(el => {
+    el.textContent = nama;
+  });
+}
+
+function fileToDataUrl(file, maxSide = 320) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve('');
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => resolve(reader.result);
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function setSekPreview(elId, dataUrl) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (dataUrl) el.innerHTML = `<img src="${dataUrl}" alt="" />`;
+  else el.textContent = '—';
+}
+
+async function initDataSekolahPage() {
+  try {
+    const res = await apiCall('get_sekolah', {});
+    if (res.data) {
+      store.sekolah = res.data;
+      saveStore(store);
+      applySekolahToUI();
+    }
+  } catch (_) {}
+  const s = store.sekolah || {};
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  set('sekNama', s.nama);
+  set('sekNss', s.nss);
+  set('sekNpsn', s.npsn);
+  set('sekTahun', s.tahun_berdiri);
+  set('sekAlamat', s.alamat);
+  setSekPreview('sekLogoPreview', s.logo_url);
+  setSekPreview('sekTtdPreview', s.ttd_qr_url);
+}
+
+document.getElementById('sekLogoFile')?.addEventListener('change', async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  const url = await fileToDataUrl(f, 256);
+  setSekPreview('sekLogoPreview', url);
+  document.getElementById('sekLogoPreview').dataset.url = url;
+});
+document.getElementById('sekTtdFile')?.addEventListener('change', async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  const url = await fileToDataUrl(f, 400);
+  setSekPreview('sekTtdPreview', url);
+  document.getElementById('sekTtdPreview').dataset.url = url;
+});
+document.getElementById('btnSimpanSekolah')?.addEventListener('click', async () => {
+  const msg = document.getElementById('sekolahMsg');
+  const logoEl = document.getElementById('sekLogoPreview');
+  const ttdEl = document.getElementById('sekTtdPreview');
+  const row = {
+    nama: document.getElementById('sekNama')?.value?.trim() || '',
+    nss: document.getElementById('sekNss')?.value?.trim() || '',
+    npsn: document.getElementById('sekNpsn')?.value?.trim() || '',
+    tahun_berdiri: document.getElementById('sekTahun')?.value?.trim() || '',
+    alamat: document.getElementById('sekAlamat')?.value?.trim() || '',
+    logo_url: logoEl?.dataset?.url || store.sekolah?.logo_url || '',
+    ttd_qr_url: ttdEl?.dataset?.url || store.sekolah?.ttd_qr_url || '',
+  };
+  if (!row.nama) { toast('Nama sekolah wajib', 'err'); return; }
+  try {
+    const res = await apiCall('save_sekolah', { row });
+    store.sekolah = res.data || row;
+    saveStore(store);
+    applySekolahToUI();
+    if (msg) msg.innerHTML = '<span style="color:#2e7d32">Data sekolah tersimpan.</span>';
+    showBigPopup('ok', 'Tersimpan', 'Data sekolah berhasil disimpan.', 2200);
+  } catch (e) {
+    if (msg) msg.innerHTML = `<span style="color:#c62828">${escapeHtml(errToText(e))}</span>`;
+    showBigPopup('err', 'Gagal', errToText(e), 0);
+  }
+});
+
 /* ===== Mapel & Kelas & Bobot Nilai ===== */
 let mkActiveTab = 'mapel';
 
@@ -4929,6 +5164,9 @@ setInterval(autoRefreshSesiUI, 10000);
   // Publik: selalu muat data real dari DB (login tidak wajib untuk lihat dashboard)
   try {
     await refreshStoreFromDb();
+    applySekolahToUI();
+    // refresh identitas (mapel/kelas guru) setelah data ampu & mapel termuat
+    renderUserUI(getSession());
   } catch (e) {
     console.warn('init bootstrap', e);
   }
