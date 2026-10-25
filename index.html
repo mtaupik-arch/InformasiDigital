@@ -1834,7 +1834,7 @@
   <!-- ========== PAGE: RESET / UBAH PIN ========== -->
   <div class="page" id="page-reset-pin">
     <div class="page-title">🔑 Ubah / Reset PIN</div>
-    <p style="font-size:12px;color:#666;margin:-6px 0 14px">PIN dipakai untuk login (Admin &amp; Guru: 6 digit). PIN admin disimpan di tabel <b>admin</b>, PIN guru di tabel <b>guru</b>. Wajib verifikasi PIN lama sebelum mengganti.</p>
+    <p style="font-size:12px;color:#666;margin:-6px 0 14px">PIN dipakai untuk login (Admin &amp; Guru: 6 digit). PIN disimpan <b>ter-hash (bcrypt)</b> di tabel <b>admin</b> / <b>guru</b>. Ubah PIN sendiri wajib PIN lama; reset PIN guru oleh admin cukup PIN baru.</p>
 
     <div class="rekap-tabs" id="pinTabs" style="margin-bottom:14px">
       <button type="button" class="rekap-tab active" data-pin-tab="self">Ubah PIN Saya</button>
@@ -1874,11 +1874,7 @@
           <option value="">— ketik untuk mencari —</option>
         </select>
       </div>
-      <div class="form-group" style="margin-bottom:10px">
-        <label>PIN Admin (verifikasi)</label>
-        <input type="password" id="pinAdminVerify" inputmode="numeric" maxlength="6" placeholder="PIN admin Anda"
-          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:14px;letter-spacing:2px" />
-      </div>
+      <p style="font-size:12px;color:#666;margin:0 0 12px">Sebagai admin, cukup tentukan PIN baru guru (tanpa PIN lama guru).</p>
       <div class="form-group" style="margin-bottom:10px">
         <label>PIN Baru Guru</label>
         <input type="password" id="pinGuruNew" inputmode="numeric" maxlength="6" placeholder="6 digit"
@@ -6660,12 +6656,12 @@ function fillPinGuruSelect(q) {
   }
   list = list.slice(0, 40);
   sel.innerHTML = list.length
-    ? list.map(g => `<option value="${escapeHtml(String(g.id))}">${escapeHtml(g.nama || '')} — PIN ${escapeHtml(String(g.pin || ''))}${g.nip ? ' · ' + escapeHtml(g.nip) : ''}</option>`).join('')
+    ? list.map(g => `<option value="${escapeHtml(String(g.id))}">${escapeHtml(g.nama || '')}${g.nip ? ' · NIP ' + escapeHtml(g.nip) : ''}</option>`).join('')
     : '<option value="">— tidak ada —</option>';
 }
 function initResetPinPage() {
   switchPinTab('self');
-  ['pinOld','pinNew','pinNew2','pinAdminVerify','pinGuruNew','pinGuruNew2'].forEach(id => onlyDigit6(document.getElementById(id)));
+  ['pinOld','pinNew','pinNew2','pinGuruNew','pinGuruNew2'].forEach(id => onlyDigit6(document.getElementById(id)));
   fillPinGuruSelect('');
 }
 document.getElementById('pinTabs')?.addEventListener('click', (e) => {
@@ -6712,16 +6708,14 @@ document.getElementById('btnUbahPinSelf')?.addEventListener('click', async () =>
 
 document.getElementById('btnResetPinGuru')?.addEventListener('click', async () => {
   const guruId = document.getElementById('pinGuruSelect')?.value || '';
-  const adminPin = document.getElementById('pinAdminVerify')?.value || '';
   const n1 = document.getElementById('pinGuruNew')?.value || '';
   const n2 = document.getElementById('pinGuruNew2')?.value || '';
   const msg = document.getElementById('pinGuruMsg');
   if (!guruId) { toast('Pilih guru', 'err'); return; }
-  if (adminPin.length !== 6) { toast('PIN admin (verifikasi) 6 digit', 'err'); return; }
   if (n1.length !== 6 || n1 !== n2) { toast('PIN baru guru harus 6 digit & sama', 'err'); return; }
   try {
     const res = await apiCall('change_pin', {
-      target: 'guru', guru_id: guruId, old_pin: adminPin, new_pin: n1,
+      target: 'guru', guru_id: guruId, new_pin: n1,
     });
     if (msg) msg.textContent = res.message || 'PIN guru direset';
     toast(res.message || 'PIN guru direset', 'ok');
@@ -6731,7 +6725,7 @@ document.getElementById('btnResetPinGuru')?.addEventListener('click', async () =
       const g = await apiCall('list_guru', {});
       if (g?.data) { store.guru = g.data; saveStore(store); fillPinGuruSelect(document.getElementById('pinGuruQ')?.value || ''); }
     } catch (_) {}
-    ['pinAdminVerify','pinGuruNew','pinGuruNew2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['pinGuruNew','pinGuruNew2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   } catch (e) {
     if (msg) msg.textContent = errToText(e);
     toast(errToText(e), 'err');
