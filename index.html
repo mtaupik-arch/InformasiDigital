@@ -6277,7 +6277,8 @@ function renderEditTable(payload) {
         sel.dataset.prev = confirmed;
         if (res?.data?._source) sel.setAttribute('data-source', res.data._source);
         toast(res.message || ('Status → ' + confirmed), 'ok');
-        // tandai perlu refresh rekap agar tab Rekap & fitur lain konsisten
+        // detail singkat di console untuk debug
+        try { console.info('[update_absensi_status]', res.message, res.data); } catch (_) {}
         window._rekapNeedRefresh = true;
       } catch (e) {
         sel.value = oldStatus; // rollback
