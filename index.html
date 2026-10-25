@@ -569,28 +569,32 @@
   .rekap-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; background:#fff;
     border-radius:10px; border:1px solid #e8eef5; }
   table.rekap-abs-table {
-    width:100%; border-collapse:collapse; font-size:11px; min-width:0;
-    table-layout:fixed;
+    width:100%; border-collapse:collapse; font-size:11px;
+    min-width:780px; /* kolom status tidak bertumpuk; scroll horizontal di HP */
   }
   table.rekap-abs-table thead th {
-    background:#1565c0; color:#fff; padding:6px 3px; font-size:9.5px; font-weight:700;
+    background:#1565c0; color:#fff; padding:8px 6px; font-size:10px; font-weight:700;
     text-transform:uppercase; white-space:nowrap; text-align:center;
   }
   table.rekap-abs-table tbody td {
-    padding:5px 2px; border-bottom:1px solid #eef2f6; text-align:center; color:#333;
-    font-size:10.5px;
+    padding:7px 5px; border-bottom:1px solid #eef2f6; text-align:center; color:#333;
+    font-size:11px; white-space:nowrap;
   }
-  table.rekap-abs-table th.col-chk, table.rekap-abs-table td.col-chk { width:28px; }
-  table.rekap-abs-table th.col-no, table.rekap-abs-table td.col-no { width:28px; }
+  /* Hanya No, Nama, NISN yang dipadatkan */
+  table.rekap-abs-table th.col-chk, table.rekap-abs-table td.col-chk { width:32px; padding:4px 2px; }
+  table.rekap-abs-table th.col-no, table.rekap-abs-table td.col-no { width:30px; padding:4px 2px; }
   table.rekap-abs-table th.col-nama, table.rekap-abs-table td.td-nama {
-    width:22%; max-width:110px; text-align:left; font-weight:600;
-    white-space:normal; word-break:break-word; line-height:1.2; padding-left:4px;
+    text-align:left; font-weight:600; max-width:120px; min-width:88px;
+    white-space:normal; word-break:break-word; line-height:1.25; padding-left:6px;
   }
   table.rekap-abs-table th.col-nisn, table.rekap-abs-table td.col-nisn {
-    width:72px; max-width:78px; font-size:10px; overflow:hidden; text-overflow:ellipsis;
+    width:88px; max-width:92px; font-size:10.5px;
   }
-  table.rekap-abs-table th.col-kls, table.rekap-abs-table td.col-kls { width:36px; }
-  table.rekap-abs-table th.col-tgl, table.rekap-abs-table td.col-tgl { width:78px; font-size:10px; }
+  table.rekap-abs-table th.col-kls, table.rekap-abs-table td.col-kls { width:40px; }
+  table.rekap-abs-table th.col-tgl, table.rekap-abs-table td.col-tgl { width:90px; font-size:10.5px; }
+  table.rekap-abs-table th.col-stat, table.rekap-abs-table td.col-stat {
+    min-width:38px; padding:6px 5px;
+  }
   table.rekap-abs-table tbody tr:hover { background:#f5f9ff; }
   .rekap-edit-toolbar {
     display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px;
@@ -614,9 +618,9 @@
   .rekap-suggest-item:hover { background:#e3f2fd; }
   .rekap-suggest-item small { color:#888; display:block; margin-top:2px; }
   @media(max-width:480px){
-    table.rekap-abs-table { font-size:10px; }
-    table.rekap-abs-table th.col-nama, table.rekap-abs-table td.td-nama { width:28%; max-width:96px; font-size:10px; }
-    table.rekap-abs-table th.col-nisn, table.rekap-abs-table td.col-nisn { width:64px; max-width:68px; font-size:9px; }
+    table.rekap-abs-table { font-size:10.5px; min-width:720px; }
+    table.rekap-abs-table th.col-nama, table.rekap-abs-table td.td-nama { max-width:100px; min-width:80px; }
+    table.rekap-abs-table th.col-nisn, table.rekap-abs-table td.col-nisn { width:80px; max-width:84px; font-size:10px; }
   }
   .st-pill {
     display:inline-block; min-width:28px; padding:2px 5px; border-radius:4px;
@@ -6159,8 +6163,8 @@ function renderRekapTable(rows, tipe) {
   const thead = document.querySelector('#tableRekapAbsensi thead tr');
   if (thead) {
     thead.innerHTML = showNisn
-      ? `<th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">NISN</th><th class="col-kls">Kls</th><th>TW</th><th>TL</th><th>Izin</th><th>Sakit</th><th>Alpa</th><th>Bolos</th><th>Jml</th><th>Hadir</th><th>%</th>`
-      : `<th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">Kode</th><th>TW</th><th>TL</th><th>Izin</th><th>Sakit</th><th>Alpa</th><th>Bolos</th><th>Jml</th><th>Hadir</th><th>%</th>`;
+      ? `<th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">NISN</th><th class="col-kls">Kls</th><th class="col-stat">TW</th><th class="col-stat">TL</th><th class="col-stat">Izin</th><th class="col-stat">Sakit</th><th class="col-stat">Alpa</th><th class="col-stat">Bolos</th><th class="col-stat">Jml Sesi</th><th class="col-stat">Nilai Hadir</th><th class="col-stat">%</th>`
+      : `<th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">Kode</th><th class="col-stat">TW</th><th class="col-stat">TL</th><th class="col-stat">Izin</th><th class="col-stat">Sakit</th><th class="col-stat">Alpa</th><th class="col-stat">Bolos</th><th class="col-stat">Jml Sesi</th><th class="col-stat">Nilai Hadir</th><th class="col-stat">%</th>`;
   }
   if (!rows?.length) {
     tb.innerHTML = `<tr><td colspan="${showNisn ? 13 : 12}" style="padding:20px;color:#888">Tidak ada data.</td></tr>`;
@@ -6173,22 +6177,22 @@ function renderRekapTable(rows, tipe) {
         <td class="td-nama">${escapeHtml(r.nama || '')}</td>
         <td class="col-nisn">${escapeHtml(r.nisn || r.kode || '')}</td>
         <td class="col-kls">${escapeHtml(r.kelas || '')}</td>
-        <td>${r.tw || 0}</td><td>${r.tl || 0}</td><td>${r.izin || 0}</td>
-        <td>${r.sakit || 0}</td><td>${r.alpa || 0}</td><td>${r.bolos || 0}</td>
-        <td><b>${r.jml_sesi || 0}</b></td>
-        <td><b>${r.nilai_hadir || 0}</b></td>
-        <td><b>${r.persen != null ? r.persen : 0}</b></td>
+        <td class="col-stat">${r.tw || 0}</td><td class="col-stat">${r.tl || 0}</td><td class="col-stat">${r.izin || 0}</td>
+        <td class="col-stat">${r.sakit || 0}</td><td class="col-stat">${r.alpa || 0}</td><td class="col-stat">${r.bolos || 0}</td>
+        <td class="col-stat"><b>${r.jml_sesi || 0}</b></td>
+        <td class="col-stat"><b>${r.nilai_hadir || 0}</b></td>
+        <td class="col-stat"><b>${r.persen != null ? r.persen : 0}</b></td>
       </tr>`;
     }
     return `<tr>
       <td class="col-no">${i + 1}</td>
       <td class="td-nama">${escapeHtml(r.nama || '')}</td>
       <td class="col-nisn">${escapeHtml(r.kode || '')}</td>
-      <td>${r.tw || 0}</td><td>${r.tl || 0}</td><td>${r.izin || 0}</td>
-      <td>${r.sakit || 0}</td><td>${r.alpa || 0}</td><td>${r.bolos || 0}</td>
-      <td><b>${r.jml_sesi || 0}</b></td>
-      <td><b>${r.nilai_hadir || 0}</b></td>
-      <td><b>${r.persen != null ? r.persen : 0}</b></td>
+      <td class="col-stat">${r.tw || 0}</td><td class="col-stat">${r.tl || 0}</td><td class="col-stat">${r.izin || 0}</td>
+      <td class="col-stat">${r.sakit || 0}</td><td class="col-stat">${r.alpa || 0}</td><td class="col-stat">${r.bolos || 0}</td>
+      <td class="col-stat"><b>${r.jml_sesi || 0}</b></td>
+      <td class="col-stat"><b>${r.nilai_hadir || 0}</b></td>
+      <td class="col-stat"><b>${r.persen != null ? r.persen : 0}</b></td>
     </tr>`;
   }).join('');
 }
