@@ -45,6 +45,10 @@
     width:100%; height:100%; object-fit:contain; border-radius:0;
     background:transparent !important; background-color:transparent !important;
     box-shadow:none !important; display:block;
+    mix-blend-mode: multiply;
+  }
+  .logo-sekolah {
+    background:#fff !important;
   }
 
   .topbar-center { flex:1; text-align:center; line-height:1.25; padding:0 5px; overflow:hidden; }
@@ -154,7 +158,7 @@
     display:flex; flex-direction:column; align-items:center; text-align:center;
     width:42%; max-width:180px; flex-shrink:0;
   }
-  /* Logo sekolah di dashboard: tanpa bingkai / tanpa background hitam */
+  /* Logo sekolah: hilangkan kotak hitam dengan multiply di atas bg putih */
   .dash-avatar {
     width:88px; height:88px; border-radius:0;
     background:transparent !important; background-color:transparent !important;
@@ -166,24 +170,38 @@
     width:100%; height:100%; object-fit:contain; border-radius:0;
     background:transparent !important; background-color:transparent !important;
     box-shadow:none !important; display:block;
-    /* Hilangkan bg hitam dari PNG/JPEG yang sempat ter-render */
-    mix-blend-mode: normal;
   }
-  .dash-avatar.logo-only {
+  .dash-avatar.logo-only,
+  #schoolAvatar {
+    background:#ffffff !important;
+    background-color:#ffffff !important;
+    isolation: isolate;
+  }
+  .dash-avatar.logo-only img,
+  #schoolAvatar img {
     background:transparent !important;
+    /* Hitam murni pada logo jadi transparan di atas putih */
+    mix-blend-mode: multiply !important;
   }
-  .dash-avatar.logo-only img {
-    background:transparent !important;
-    /* Jika logo putih di atas hitam, coba normal; user bisa re-upload PNG transparan */
-  }
-  /* Foto profil user: lingkaran, diperbesar */
-  .dash-avatar.user {
-    width:80px; height:80px; border-radius:50%;
-    background:linear-gradient(135deg,#1565c0,#1e88e5);
-    color:#fff; font-size:22px;
+  /* Foto profil user: selalu tampil (lingkaran) */
+  .dash-avatar.user,
+  #userPhoto {
+    width:80px !important; height:80px !important; min-width:80px; min-height:80px;
+    border-radius:50% !important;
+    background:linear-gradient(135deg,#1565c0,#1e88e5) !important;
+    color:#fff !important; font-size:22px; font-weight:700;
     box-shadow:0 3px 10px rgba(25,118,210,.3);
+    display:flex !important; align-items:center; justify-content:center;
+    overflow:hidden; margin-bottom:8px; flex-shrink:0;
+    mix-blend-mode: normal !important;
   }
-  .dash-avatar.user img { object-fit:cover; border-radius:50%; }
+  .dash-avatar.user img,
+  #userPhoto img {
+    width:100% !important; height:100% !important;
+    object-fit:cover !important; border-radius:50% !important;
+    mix-blend-mode: normal !important;
+    display:block;
+  }
   .dash-name {
     font-size:11px; font-weight:700; color:#1a237e;
     text-transform:uppercase; letter-spacing:.3px; line-height:1.3;
@@ -259,7 +277,7 @@
     .dash-panel { padding:16px; }
     .dash-left { width:auto; max-width:none; flex:1; align-items:flex-start; text-align:left; }
     .dash-avatar { width:96px; height:96px; font-size:28px; }
-    .dash-avatar.user { width:84px; height:84px; font-size:22px; }
+    .dash-avatar.user, #userPhoto { width:84px !important; height:84px !important; min-width:84px; min-height:84px; font-size:22px; }
     .dash-name { font-size:13px; text-align:left; }
     .dash-detail p { font-size:13px; }
     .dash-detail p b { min-width:90px; }
@@ -272,7 +290,7 @@
   }
   @media(max-width:480px){
     .dash-avatar { width:80px; height:80px; font-size:24px; }
-    .dash-avatar.user { width:72px; height:72px; font-size:20px; }
+    .dash-avatar.user, #userPhoto { width:72px !important; height:72px !important; min-width:72px; min-height:72px; font-size:20px; }
     .dash-name { font-size:10px; }
     .dash-detail p { font-size:10px; }
     .dash-detail p b { min-width:54px; }
@@ -1923,32 +1941,29 @@
   <div class="page" id="page-naik-kelas">
     <div class="page-title">⬆️ Naik Kelas &amp; Kelulusan <span class="periode-badge" id="badgePeriodeNaik">—</span></div>
 
-    <!-- TAB switch -->
     <div class="rekap-tabs" id="nkTabs" style="margin-bottom:14px">
       <button type="button" class="rekap-tab active" data-nk-tab="naik">⬆️ Naik Kelas</button>
       <button type="button" class="rekap-tab" data-nk-tab="lulus">🎓 Kelulusan</button>
     </div>
 
-    <!-- ===== PANEL NAIK KELAS ===== -->
+    <!-- ===== PANEL NAIK KELAS (kelas 7–8 / bukan kelas akhir) ===== -->
     <div id="nkPanelNaik">
-      <div class="crud-toolbar" style="margin-bottom:10px">
+      <div class="crud-toolbar" style="margin-bottom:10px;flex-wrap:wrap">
         <button type="button" class="btn" id="btnNaikkan" style="background:#1565c0;color:#fff">Naikkan</button>
-        <button type="button" class="btn btn-success" id="btnUbahStatusNaik">Ubah Status</button>
-        <span class="spacer"></span>
-        <select id="nkFilterKelas" class="search-box" style="max-width:140px;min-width:100px">
-          <option value="">Semua Kelas</option>
-        </select>
-        <select id="nkFilterStatus" class="search-box" style="max-width:160px;min-width:120px">
-          <option value="">Semua Status</option>
+        <select id="btnUbahStatusNaik" class="btn btn-success" title="Ubah status massal (siswa terpilih)"
+          style="appearance:auto;padding:6px 10px;border:none;border-radius:3px;background:#2e7d32;color:#fff;font-size:11px;font-weight:600;cursor:pointer">
+          <option value="">Ubah Status ▾</option>
           <option value="Belum ditentukan">Belum ditentukan</option>
           <option value="Tinggal Kelas">Tinggal Kelas</option>
           <option value="Naik Kelas">Naik Kelas</option>
         </select>
+        <span class="spacer"></span>
         <input type="search" id="nkSearchNaik" class="search-box" placeholder="Cari nama / NISN…" />
       </div>
       <p style="font-size:12px;color:#555;margin:0 0 10px;line-height:1.45">
         <b>Jika di Klik Naikkan</b><br>
-        Siswa dengan status naik semua datanya dipindahkan ke kelas tujuan.
+        Siswa dengan status naik semua datanya dipindahkan ke kelas tujuan.<br>
+        <span style="color:#888">Kelas akhir (IX / 9) tidak tampil di sini — masuk menu Kelulusan.</span>
       </p>
       <div class="data-card">
         <div class="data-table-wrap">
@@ -1974,35 +1989,33 @@
       <p id="nkMetaNaik" style="font-size:12px;color:#78909c;margin-top:8px"></p>
     </div>
 
-    <!-- ===== PANEL KELULUSAN ===== -->
+    <!-- ===== PANEL KELULUSAN (kelas akhir saja) ===== -->
     <div id="nkPanelLulus" style="display:none">
-      <div class="crud-toolbar" style="margin-bottom:10px">
+      <div class="crud-toolbar" style="margin-bottom:10px;flex-wrap:wrap">
         <button type="button" class="btn" id="btnLuluskan" style="background:#1565c0;color:#fff">Luluskan</button>
-        <button type="button" class="btn btn-success" id="btnUbahStatusLulus">Ubah Status</button>
-        <button type="button" class="btn" id="btnUbahPredikat" style="background:#FFC107;color:#222">Ubah Predikat</button>
-        <span class="spacer"></span>
-        <select id="nkFilterKelasLulus" class="search-box" style="max-width:140px;min-width:100px">
-          <option value="">Semua Kelas</option>
-        </select>
-        <select id="nkFilterStatusLulus" class="search-box" style="max-width:160px;min-width:120px">
-          <option value="">Semua Status</option>
+        <select id="btnUbahStatusLulus" class="btn btn-success" title="Ubah status kelulusan massal"
+          style="appearance:auto;padding:6px 10px;border:none;border-radius:3px;background:#2e7d32;color:#fff;font-size:11px;font-weight:600;cursor:pointer">
+          <option value="">Ubah Status ▾</option>
           <option value="Belum ditentukan">Belum ditentukan</option>
           <option value="Lulus">Lulus</option>
           <option value="Ditangguhkan">Ditangguhkan</option>
           <option value="Tidak Lulus">Tidak Lulus</option>
         </select>
-        <select id="nkFilterPredikat" class="search-box" style="max-width:140px;min-width:100px">
-          <option value="">Semua Predikat</option>
+        <select id="btnUbahPredikat" title="Ubah predikat massal"
+          style="appearance:auto;padding:6px 10px;border:none;border-radius:3px;background:#FFC107;color:#222;font-size:11px;font-weight:600;cursor:pointer">
+          <option value="">Ubah Predikat ▾</option>
           <option value="Memuaskan">Memuaskan</option>
           <option value="Baik">Baik</option>
           <option value="Cukup">Cukup</option>
           <option value="Kurang">Kurang</option>
         </select>
+        <span class="spacer"></span>
         <input type="search" id="nkSearchLulus" class="search-box" placeholder="Cari nama / NISN…" />
       </div>
       <p style="font-size:12px;color:#555;margin:0 0 10px;line-height:1.45">
         <b>Jika di Klik Luluskan</b><br>
-        Seluruh Data Lulusan semua status datanya dipindahkan ke menu/tabel "Data Lulusan".
+        Siswa berstatus <b>Lulus</b> dipindahkan ke menu/tabel "Data Lulusan".<br>
+        <span style="color:#888">Hanya kelas akhir (IX / 9). Pilih baris lalu gunakan dropdown Status / Predikat untuk ubah massal.</span>
       </p>
       <div class="data-card">
         <div class="data-table-wrap">
@@ -2353,18 +2366,22 @@ function renderUserUI(session) {
   const fotoKey = role === 'siswa' ? String(user.nisn || '') : role === 'guru' ? String(user.pin || '') : 'admin';
   const fotoRec = (store.user_foto || []).find(f => f.role === (role === 'admin' ? 'admin' : role) && String(f.ref_key) === fotoKey);
   const fotoUrl = fotoRec?.foto_url || user.foto_url || '';
-  if (fotoUrl) {
-    if (userPhoto) {
-      userPhoto.classList.add('user');
-      userPhoto.innerHTML = `<img src="${fotoUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%" />`;
+  // Selalu tampilkan kotak foto user (lingkaran) di panel rekap siswa
+  if (userPhoto) {
+    userPhoto.classList.add('user');
+    userPhoto.style.display = 'flex';
+    userPhoto.style.visibility = 'visible';
+    userPhoto.style.opacity = '1';
+    if (fotoUrl) {
+      userPhoto.innerHTML = `<img src="${fotoUrl}" alt="" onerror="this.remove();this.parentElement.textContent='${avatarCode.replace(/'/g, '')}'" />`;
+    } else {
+      userPhoto.textContent = avatarCode || initial || 'AD';
     }
-    if (avatar) avatar.innerHTML = `<img src="${fotoUrl}" alt="" />`;
-  } else {
-    if (userPhoto) {
-      userPhoto.classList.add('user');
-      userPhoto.textContent = avatarCode;
-    }
-    if (avatar) avatar.textContent = initial;
+  }
+  if (fotoUrl && avatar) {
+    avatar.innerHTML = `<img src="${fotoUrl}" alt="" />`;
+  } else if (avatar) {
+    avatar.textContent = initial;
   }
 
   if (role === 'siswa') {
@@ -3042,6 +3059,9 @@ async function renderDashboard() {
   // Rekap kehadiran guru & siswa (nama dari DB, status dari absensi hari ini)
   renderRekapKehadiran('guru', sesiList, absenRows);
   renderRekapKehadiran('siswa', sesiList, absenRows);
+  // Pastikan foto user / logo tetap tampil setelah re-render stats
+  try { renderUserUI(getSession()); } catch (_) {}
+  try { applySekolahToUI(); } catch (_) {}
 }
 
 /* ----- Navigation ----- */
@@ -5588,15 +5608,16 @@ function applySekolahToUI() {
   const logo = s.logo_url || '';
   const setLogo = (el, isDashSchool) => {
     if (!el) return;
-    el.style.background = 'transparent';
-    el.style.backgroundColor = 'transparent';
+    // Jangan sentuh foto user
+    if (el.id === 'userPhoto' || el.classList.contains('user')) return;
+    el.style.background = '#ffffff';
+    el.style.backgroundColor = '#ffffff';
     el.style.boxShadow = 'none';
     el.style.border = 'none';
     el.classList.add('logo-only');
     if (logo) {
-      // cache-bust ringan agar logo baru (PNG transparan) langsung tampil
-      const src = logo + (logo.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(String(s.updated_at || Date.now()).slice(0, 19));
-      el.innerHTML = `<img src="${src}" alt="Logo" style="background:transparent!important;background-color:transparent!important;display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:normal" onerror="this.style.display='none'" />`;
+      const src = logo + (logo.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(String(s.updated_at || Date.now()).slice(0, 16));
+      el.innerHTML = `<img src="${src}" alt="Logo" style="display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply;background:transparent" />`;
     } else {
       const initial = (nama || 'S').trim().charAt(0).toUpperCase();
       el.textContent = initial;
@@ -6958,6 +6979,17 @@ function nkIsAdmin() {
   return s && s.role === 'admin';
 }
 
+/** Kelas akhir (IX / 9) → kelulusan, bukan naik kelas */
+function nkIsKelasAkhir(kelas) {
+  const k = String(kelas || '').trim().toUpperCase().replace(/\s+/g, ' ');
+  if (!k) return false;
+  // IX, IX A, IX-1, 9, 9A, 9.1, Kelas 9, IX.1 dll
+  if (/\bIX\b/.test(k) || /^IX[\s\-.]/.test(k) || /[\s\-.]IX$/.test(k)) return true;
+  if (/(^|[\s\-_.])9([A-Z0-9\s\-_.]|$)/.test(k)) return true;
+  if (/KELAS\s*9\b/.test(k)) return true;
+  return false;
+}
+
 function switchNkTab(tab) {
   nkTab = tab || 'naik';
   document.querySelectorAll('#nkTabs .rekap-tab').forEach(b => {
@@ -6973,39 +7005,23 @@ function switchNkTab(tab) {
 
 function nkKelasOptionsHtml(selected) {
   const set = new Set();
-  (store.kelas || []).forEach(k => { if (k.nama) set.add(String(k.nama)); });
-  (store.siswa || []).forEach(s => { if (s.kelas) set.add(String(s.kelas)); });
+  (store.kelas || []).forEach(k => { if (k.nama && !nkIsKelasAkhir(k.nama)) set.add(String(k.nama)); });
+  (store.siswa || []).forEach(s => { if (s.kelas && !nkIsKelasAkhir(s.kelas)) set.add(String(s.kelas)); });
+  // tetap tampilkan selected meski kelas akhir (edge)
+  if (selected) set.add(String(selected));
   const arr = [...set].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
   return '<option value="">— pilih —</option>' + arr.map(k =>
     `<option value="${escapeHtml(k)}" ${selected === k ? 'selected' : ''}>${escapeHtml(k)}</option>`
   ).join('');
 }
 
-function fillNkKelasFilters() {
-  const set = new Set();
-  (store.kelas || []).forEach(k => { if (k.nama) set.add(String(k.nama)); });
-  (store.siswa || []).forEach(s => { if (s.kelas) set.add(String(s.kelas)); });
-  const arr = [...set].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
-  const html = '<option value="">Semua Kelas</option>' + arr.map(k =>
-    `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`
-  ).join('');
-  ['nkFilterKelas', 'nkFilterKelasLulus'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const cur = el.value;
-    el.innerHTML = html;
-    if (cur && [...el.options].some(o => o.value === cur)) el.value = cur;
-  });
-}
-
 function nkSuggestTujuan(kelas) {
   const k = String(kelas || '').trim();
   if (!k) return '';
-  // Coba pola angka di nama kelas: X → XI, XI → XII, 7 → 8, dll
-  const mapRoman = { 'X': 'XI', 'XI': 'XII', 'VII': 'VIII', 'VIII': 'IX', 'IX': 'X' };
+  const mapRoman = { 'VII': 'VIII', 'VIII': 'IX', 'X': 'XI', 'XI': 'XII' };
   for (const [a, b] of Object.entries(mapRoman)) {
-    if (k === a || k.startsWith(a + ' ') || k.startsWith(a + '-')) {
-      return k.replace(a, b);
+    if (k === a || k.toUpperCase().startsWith(a + ' ') || k.toUpperCase().startsWith(a + '-') || k.toUpperCase().startsWith(a + '.')) {
+      return k.replace(new RegExp(a, 'i'), b);
     }
   }
   const m = k.match(/(\d+)/);
@@ -7027,25 +7043,19 @@ function renderNaikKelasTable() {
   const tb = document.getElementById('tbodyNaikKelas');
   if (!tb) return;
   const q = String(document.getElementById('nkSearchNaik')?.value || '').toLowerCase().trim();
-  const fKelas = document.getElementById('nkFilterKelas')?.value || '';
-  const fStatus = document.getElementById('nkFilterStatus')?.value || '';
-  let rows = nkAktifSiswa();
-  if (fKelas) rows = rows.filter(s => String(s.kelas || '') === fKelas);
-  if (fStatus) rows = rows.filter(s => String(s.naik_status || 'Belum ditentukan') === fStatus);
+  // Hanya non-kelas-akhir
+  let rows = nkAktifSiswa().filter(s => !nkIsKelasAkhir(s.kelas));
   if (q) {
-    rows = rows.filter(s => {
-      const hay = `${s.nama || ''} ${s.nisn || ''}`.toLowerCase();
-      return hay.includes(q);
-    });
+    rows = rows.filter(s => `${s.nama || ''} ${s.nisn || ''}`.toLowerCase().includes(q));
   }
   rows = rows.slice().sort((a, b) =>
     String(a.kelas || '').localeCompare(String(b.kelas || ''), 'id', { numeric: true }) ||
     String(a.nama || '').localeCompare(String(b.nama || ''), 'id')
   );
   const meta = document.getElementById('nkMetaNaik');
-  if (meta) meta.textContent = `${rows.length} siswa · filter aktif`;
+  if (meta) meta.textContent = `${rows.length} siswa (kelas non-akhir)`;
   if (!rows.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="8">Tidak ada data siswa aktif.</td></tr>';
+    tb.innerHTML = '<tr class="empty-row"><td colspan="8">Tidak ada data siswa naik kelas (kelas 7–8).</td></tr>';
     return;
   }
   const canEdit = nkIsAdmin();
@@ -7079,10 +7089,7 @@ function renderNaikKelasTable() {
     sel.addEventListener('change', async () => {
       if (!nkIsAdmin()) return;
       try {
-        await apiCall('update_naik_fields', {
-          id: sel.getAttribute('data-id'),
-          kelas_tujuan: sel.value || null,
-        });
+        await apiCall('update_naik_fields', { id: sel.getAttribute('data-id'), kelas_tujuan: sel.value || null });
         const row = (store.siswa || []).find(x => String(x.id) === String(sel.getAttribute('data-id')));
         if (row) row.kelas_tujuan = sel.value || null;
         toast('Kelas tujuan disimpan', 'ok');
@@ -7093,10 +7100,7 @@ function renderNaikKelasTable() {
     sel.addEventListener('change', async () => {
       if (!nkIsAdmin()) return;
       try {
-        await apiCall('update_naik_fields', {
-          id: sel.getAttribute('data-id'),
-          naik_status: sel.value,
-        });
+        await apiCall('update_naik_fields', { id: sel.getAttribute('data-id'), naik_status: sel.value });
         const row = (store.siswa || []).find(x => String(x.id) === String(sel.getAttribute('data-id')));
         if (row) row.naik_status = sel.value;
         toast('Status naik disimpan', 'ok');
@@ -7116,27 +7120,19 @@ function renderKelulusanTable() {
   const tb = document.getElementById('tbodyKelulusan');
   if (!tb) return;
   const q = String(document.getElementById('nkSearchLulus')?.value || '').toLowerCase().trim();
-  const fKelas = document.getElementById('nkFilterKelasLulus')?.value || '';
-  const fStatus = document.getElementById('nkFilterStatusLulus')?.value || '';
-  const fPred = document.getElementById('nkFilterPredikat')?.value || '';
-  let rows = nkAktifSiswa();
-  if (fKelas) rows = rows.filter(s => String(s.kelas || '') === fKelas);
-  if (fStatus) rows = rows.filter(s => String(s.status_kelulusan || 'Belum ditentukan') === fStatus);
-  if (fPred) rows = rows.filter(s => String(s.predikat || '') === fPred);
+  // Hanya kelas akhir (IX / 9)
+  let rows = nkAktifSiswa().filter(s => nkIsKelasAkhir(s.kelas));
   if (q) {
-    rows = rows.filter(s => {
-      const hay = `${s.nama || ''} ${s.nisn || ''}`.toLowerCase();
-      return hay.includes(q);
-    });
+    rows = rows.filter(s => `${s.nama || ''} ${s.nisn || ''}`.toLowerCase().includes(q));
   }
   rows = rows.slice().sort((a, b) =>
     String(a.kelas || '').localeCompare(String(b.kelas || ''), 'id', { numeric: true }) ||
     String(a.nama || '').localeCompare(String(b.nama || ''), 'id')
   );
   const meta = document.getElementById('nkMetaLulus');
-  if (meta) meta.textContent = `${rows.length} siswa · kandidat kelulusan`;
+  if (meta) meta.textContent = `${rows.length} siswa kelas akhir (kandidat kelulusan)`;
   if (!rows.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="8">Tidak ada data siswa aktif.</td></tr>';
+    tb.innerHTML = '<tr class="empty-row"><td colspan="8">Tidak ada siswa kelas akhir (IX/9).</td></tr>';
     return;
   }
   const canEdit = nkIsAdmin();
@@ -7171,10 +7167,7 @@ function renderKelulusanTable() {
     sel.addEventListener('change', async () => {
       if (!nkIsAdmin()) return;
       try {
-        await apiCall('update_naik_fields', {
-          id: sel.getAttribute('data-id'),
-          status_kelulusan: sel.value,
-        });
+        await apiCall('update_naik_fields', { id: sel.getAttribute('data-id'), status_kelulusan: sel.value });
         const row = (store.siswa || []).find(x => String(x.id) === String(sel.getAttribute('data-id')));
         if (row) row.status_kelulusan = sel.value;
         toast('Status kelulusan disimpan', 'ok');
@@ -7185,10 +7178,7 @@ function renderKelulusanTable() {
     sel.addEventListener('change', async () => {
       if (!nkIsAdmin()) return;
       try {
-        await apiCall('update_naik_fields', {
-          id: sel.getAttribute('data-id'),
-          predikat: sel.value || null,
-        });
+        await apiCall('update_naik_fields', { id: sel.getAttribute('data-id'), predikat: sel.value || null });
         const row = (store.siswa || []).find(x => String(x.id) === String(sel.getAttribute('data-id')));
         if (row) row.predikat = sel.value || null;
         toast('Predikat disimpan', 'ok');
@@ -7209,12 +7199,10 @@ async function initNaikKelasPage() {
   const badge = document.getElementById('badgePeriodeNaik');
   const aktif = getActivePeriode();
   if (badge) badge.textContent = aktif ? `${aktif.tahun_ajaran || ''} · ${aktif.semester || ''}` : '—';
-  if (!(store.siswa || []).length || !(store.kelas || []).length) {
+  if (!(store.siswa || []).length) {
     try { await refreshStoreFromDb(); } catch (_) {}
   }
-  fillNkKelasFilters();
   switchNkTab(nkTab || 'naik');
-  // non-admin: tombol aksi disabled
   const admin = nkIsAdmin();
   ['btnNaikkan', 'btnUbahStatusNaik', 'btnLuluskan', 'btnUbahStatusLulus', 'btnUbahPredikat'].forEach(id => {
     const el = document.getElementById(id);
@@ -7226,21 +7214,18 @@ document.getElementById('nkTabs')?.addEventListener('click', (e) => {
   const b = e.target.closest('.rekap-tab');
   if (b) switchNkTab(b.getAttribute('data-nk-tab'));
 });
-['nkFilterKelas', 'nkFilterStatus', 'nkSearchNaik'].forEach(id => {
-  document.getElementById(id)?.addEventListener('input', () => renderNaikKelasTable());
-  document.getElementById(id)?.addEventListener('change', () => renderNaikKelasTable());
-});
-['nkFilterKelasLulus', 'nkFilterStatusLulus', 'nkFilterPredikat', 'nkSearchLulus'].forEach(id => {
-  document.getElementById(id)?.addEventListener('input', () => renderKelulusanTable());
-  document.getElementById(id)?.addEventListener('change', () => renderKelulusanTable());
-});
+document.getElementById('nkSearchNaik')?.addEventListener('input', () => renderNaikKelasTable());
+document.getElementById('nkSearchLulus')?.addEventListener('input', () => renderKelulusanTable());
 
-document.getElementById('btnUbahStatusNaik')?.addEventListener('click', async () => {
+// Dropdown massal: Ubah Status (Naik)
+document.getElementById('btnUbahStatusNaik')?.addEventListener('change', async (e) => {
+  const st = e.target.value;
+  e.target.value = '';
+  if (!st) return;
   if (!nkIsAdmin()) { toast('Hanya admin', 'err'); return; }
   const checks = [...document.querySelectorAll('.nk-check-naik:checked')];
   if (!checks.length) { toast('Pilih siswa terlebih dahulu', 'err'); return; }
-  const st = prompt('Status naik untuk ' + checks.length + ' siswa:\n- Belum ditentukan\n- Tinggal Kelas\n- Naik Kelas', 'Naik Kelas');
-  if (!st || !NK_STATUS_NAIK.includes(st)) { toast('Status tidak valid', 'err'); return; }
+  if (!NK_STATUS_NAIK.includes(st)) return;
   try {
     const ids = checks.map(c => c.getAttribute('data-id'));
     const res = await apiCall('update_naik_fields_bulk', { ids, naik_status: st });
@@ -7248,50 +7233,40 @@ document.getElementById('btnUbahStatusNaik')?.addEventListener('click', async ()
       const row = (store.siswa || []).find(x => String(x.id) === String(id));
       if (row) row.naik_status = st;
     });
-    toast(res.message || 'Status diperbarui', 'ok');
+    toast(res.message || `Status → ${st} (${ids.length} siswa)`, 'ok');
     renderNaikKelasTable();
-  } catch (e) { toast(errToText(e), 'err'); showBigPopup('err', 'Gagal', errToText(e), 0); }
+  } catch (err) { toast(errToText(err), 'err'); showBigPopup('err', 'Gagal', errToText(err), 0); }
 });
 
 document.getElementById('btnNaikkan')?.addEventListener('click', async () => {
   if (!nkIsAdmin()) { toast('Hanya admin', 'err'); return; }
-  // Ambil semua yang status Naik Kelas (atau terpilih)
-  let checks = [...document.querySelectorAll('.nk-check-naik:checked')];
-  let ids = checks.map(c => c.getAttribute('data-id'));
+  let ids = [...document.querySelectorAll('.nk-check-naik:checked')].map(c => c.getAttribute('data-id'));
   if (!ids.length) {
-    // default: semua yang status Naik Kelas di tabel
-    ids = (store.siswa || []).filter(s => String(s.naik_status || '') === 'Naik Kelas').map(s => String(s.id));
+    ids = (store.siswa || []).filter(s => !nkIsKelasAkhir(s.kelas) && String(s.naik_status || '') === 'Naik Kelas').map(s => String(s.id));
   } else {
-    // pastikan hanya yang status Naik Kelas
     ids = ids.filter(id => {
       const row = (store.siswa || []).find(x => String(x.id) === String(id));
       return row && String(row.naik_status || '') === 'Naik Kelas';
     });
   }
   if (!ids.length) {
-    toast('Tidak ada siswa berstatus "Naik Kelas". Ubah status dulu.', 'err');
+    toast('Tidak ada siswa berstatus "Naik Kelas". Ubah status dulu (centang + dropdown Ubah Status).', 'err');
     return;
   }
-  // sync tujuan dari select UI
   const payloadRows = ids.map(id => {
     const sel = document.querySelector(`.nk-tujuan[data-id="${CSS.escape(String(id))}"]`);
     const row = (store.siswa || []).find(x => String(x.id) === String(id));
-    return {
-      id,
-      kelas_tujuan: sel?.value || row?.kelas_tujuan || null,
-      naik_status: 'Naik Kelas',
-    };
+    return { id, kelas_tujuan: sel?.value || row?.kelas_tujuan || null, naik_status: 'Naik Kelas' };
   });
-  const missing = payloadRows.filter(r => !r.kelas_tujuan);
-  if (missing.length) {
-    toast(missing.length + ' siswa belum punya kelas tujuan', 'err');
+  if (payloadRows.some(r => !r.kelas_tujuan)) {
+    toast('Ada siswa belum punya kelas tujuan', 'err');
     return;
   }
-  if (!confirm(`Naikkan ${payloadRows.length} siswa ke kelas tujuan?\nData kelas akan diganti sesuai kolom Tujuan.`)) return;
+  if (!confirm(`Naikkan ${payloadRows.length} siswa ke kelas tujuan?`)) return;
   try {
     const res = await apiCall('apply_naik_kelas', { rows: payloadRows });
     toast(res.message || 'Siswa dinaikkan', 'ok');
-    showBigPopup('ok', 'Naik Kelas', res.message || `${payloadRows.length} siswa dipindah ke kelas tujuan.`, 2800);
+    showBigPopup('ok', 'Naik Kelas', res.message || `${payloadRows.length} siswa dipindah.`, 2800);
     await refreshStoreFromDb();
     renderNaikKelasTable();
   } catch (e) {
@@ -7300,12 +7275,15 @@ document.getElementById('btnNaikkan')?.addEventListener('click', async () => {
   }
 });
 
-document.getElementById('btnUbahStatusLulus')?.addEventListener('click', async () => {
+// Dropdown massal: Ubah Status (Lulus)
+document.getElementById('btnUbahStatusLulus')?.addEventListener('change', async (e) => {
+  const st = e.target.value;
+  e.target.value = '';
+  if (!st) return;
   if (!nkIsAdmin()) { toast('Hanya admin', 'err'); return; }
   const checks = [...document.querySelectorAll('.nk-check-lulus:checked')];
   if (!checks.length) { toast('Pilih siswa terlebih dahulu', 'err'); return; }
-  const st = prompt('Status kelulusan untuk ' + checks.length + ' siswa:\n- Belum ditentukan\n- Lulus\n- Ditangguhkan\n- Tidak Lulus', 'Lulus');
-  if (!st || !NK_STATUS_LULUS.includes(st)) { toast('Status tidak valid', 'err'); return; }
+  if (!NK_STATUS_LULUS.includes(st)) return;
   try {
     const ids = checks.map(c => c.getAttribute('data-id'));
     const res = await apiCall('update_naik_fields_bulk', { ids, status_kelulusan: st });
@@ -7313,17 +7291,20 @@ document.getElementById('btnUbahStatusLulus')?.addEventListener('click', async (
       const row = (store.siswa || []).find(x => String(x.id) === String(id));
       if (row) row.status_kelulusan = st;
     });
-    toast(res.message || 'Status diperbarui', 'ok');
+    toast(res.message || `Status → ${st} (${ids.length})`, 'ok');
     renderKelulusanTable();
-  } catch (e) { toast(errToText(e), 'err'); }
+  } catch (err) { toast(errToText(err), 'err'); }
 });
 
-document.getElementById('btnUbahPredikat')?.addEventListener('click', async () => {
+// Dropdown massal: Ubah Predikat
+document.getElementById('btnUbahPredikat')?.addEventListener('change', async (e) => {
+  const pred = e.target.value;
+  e.target.value = '';
+  if (!pred) return;
   if (!nkIsAdmin()) { toast('Hanya admin', 'err'); return; }
   const checks = [...document.querySelectorAll('.nk-check-lulus:checked')];
   if (!checks.length) { toast('Pilih siswa terlebih dahulu', 'err'); return; }
-  const pred = prompt('Predikat untuk ' + checks.length + ' siswa:\n- Memuaskan\n- Baik\n- Cukup\n- Kurang', 'Baik');
-  if (!pred || !NK_PREDIKAT.includes(pred)) { toast('Predikat tidak valid', 'err'); return; }
+  if (!NK_PREDIKAT.includes(pred)) return;
   try {
     const ids = checks.map(c => c.getAttribute('data-id'));
     const res = await apiCall('update_naik_fields_bulk', { ids, predikat: pred });
@@ -7331,17 +7312,16 @@ document.getElementById('btnUbahPredikat')?.addEventListener('click', async () =
       const row = (store.siswa || []).find(x => String(x.id) === String(id));
       if (row) row.predikat = pred;
     });
-    toast(res.message || 'Predikat diperbarui', 'ok');
+    toast(res.message || `Predikat → ${pred} (${ids.length})`, 'ok');
     renderKelulusanTable();
-  } catch (e) { toast(errToText(e), 'err'); }
+  } catch (err) { toast(errToText(err), 'err'); }
 });
 
 document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
   if (!nkIsAdmin()) { toast('Hanya admin', 'err'); return; }
-  let checks = [...document.querySelectorAll('.nk-check-lulus:checked')];
-  let ids = checks.map(c => c.getAttribute('data-id'));
+  let ids = [...document.querySelectorAll('.nk-check-lulus:checked')].map(c => c.getAttribute('data-id'));
   if (!ids.length) {
-    ids = (store.siswa || []).filter(s => String(s.status_kelulusan || '') === 'Lulus').map(s => String(s.id));
+    ids = (store.siswa || []).filter(s => nkIsKelasAkhir(s.kelas) && String(s.status_kelulusan || '') === 'Lulus').map(s => String(s.id));
   } else {
     ids = ids.filter(id => {
       const row = (store.siswa || []).find(x => String(x.id) === String(id));
@@ -7349,14 +7329,14 @@ document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
     });
   }
   if (!ids.length) {
-    toast('Tidak ada siswa berstatus "Lulus". Ubah status dulu.', 'err');
+    toast('Tidak ada siswa berstatus "Lulus". Centang siswa + dropdown Ubah Status → Lulus.', 'err');
     return;
   }
-  if (!confirm(`Luluskan ${ids.length} siswa?\nData dipindah ke tabel Data Lulusan dan status siswa menjadi Lulus.`)) return;
+  if (!confirm(`Luluskan ${ids.length} siswa?\nData dipindah ke Data Lulusan.`)) return;
   try {
     const res = await apiCall('apply_kelulusan', { ids });
     toast(res.message || 'Kelulusan diterapkan', 'ok');
-    showBigPopup('ok', 'Kelulusan', res.message || `${ids.length} siswa dipindah ke Data Lulusan.`, 2800);
+    showBigPopup('ok', 'Kelulusan', res.message || `${ids.length} siswa dipindah.`, 2800);
     await refreshStoreFromDb();
     renderKelulusanTable();
     if (typeof renderLulusan === 'function') renderLulusan();
