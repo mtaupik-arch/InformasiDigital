@@ -38,17 +38,14 @@
     width:40px; height:40px; border-radius:0;
     background:transparent !important; background-color:transparent !important;
     display:flex; align-items:center; justify-content:center; font-weight:bold;
-    color:var(--primary); font-size:16px; flex-shrink:0; overflow:hidden;
+    color:#fff; font-size:16px; flex-shrink:0; overflow:hidden;
     box-shadow:none !important; border:none !important;
   }
   .logo-sekolah img {
     width:100%; height:100%; object-fit:contain; border-radius:0;
     background:transparent !important; background-color:transparent !important;
     box-shadow:none !important; display:block;
-    mix-blend-mode: multiply;
-  }
-  .logo-sekolah {
-    background:#fff !important;
+    mix-blend-mode: normal !important;
   }
 
   .topbar-center { flex:1; text-align:center; line-height:1.25; padding:0 5px; overflow:hidden; }
@@ -173,15 +170,13 @@
   }
   .dash-avatar.logo-only,
   #schoolAvatar {
-    background:#ffffff !important;
-    background-color:#ffffff !important;
-    isolation: isolate;
+    background:transparent !important;
+    background-color:transparent !important;
   }
   .dash-avatar.logo-only img,
   #schoolAvatar img {
     background:transparent !important;
-    /* Hitam murni pada logo jadi transparan di atas putih */
-    mix-blend-mode: multiply !important;
+    mix-blend-mode: normal !important;
   }
   /* Foto profil user: selalu tampil (lingkaran) */
   .dash-avatar.user,
@@ -5606,22 +5601,124 @@ function applySekolahToUI() {
   }
 
   const logo = s.logo_url || '';
+  /** Hapus pixel putih/hitam solid dari logo → PNG transparan */
+  function stripLogoBackground(src) {
+    return new Promise(async (resolve) => {
+      if (!src) return resolve('');
+      if (String(src).startsWith('data:image/png') && String(src).length > 100) {
+        // data URL PNG hasil upload sudah dibersihkan — pakai langsung
+        // tetap proses sekali untuk jaga-jaga
+      }
+      const processImg = (img) => {
+        try {
+          const maxSide = 280;
+          const scale = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1));
+          const w = Math.max(1, Math.round((img.width || 1) * scale));
+          const h = Math.max(1, Math.round((img.height || 1) * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          ctx.clearRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          let id;
+          try { id = ctx.getImageData(0, 0, w, h); }
+          catch (err) {
+            console.warn('canvas tainted, pakai URL asli', err);
+            return resolve(src);
+          }
+          const d = id.data;
+          const corners = [0, (w - 1) * 4, (h - 1) * w * 4, ((h - 1) * w + (w - 1)) * 4];
+          let bgR = 0, bgG = 0, bgB = 0, n = 0;
+          for (const ci of corners) {
+            if (d[ci + 3] > 180) { bgR += d[ci]; bgG += d[ci + 1]; bgB += d[ci + 2]; n++; }
+          }
+          if (n) { bgR = Math.round(bgR / n); bgG = Math.round(bgG / n); bgB = Math.round(bgB / n); }
+          const bgAvg = n ? (bgR + bgG + bgB) / 3 : 255;
+          for (let i = 0; i < d.length; i += 4) {
+            const r = d[i], g = d[i + 1], b = d[i + 2], a = d[i + 3];
+            if (a < 8) { d[i + 3] = 0; continue; }
+            const maxc = Math.max(r, g, b);
+            const minc = Math.min(r, g, b);
+            const avg = (r + g + b) / 3;
+            const sat = maxc - minc;
+            // putih
+            if (r >= 235 && g >= 235 && b >= 235) { d[i + 3] = 0; continue; }
+            // hitam
+            if (r <= 22 && g <= 22 && b <= 22) { d[i + 3] = 0; continue; }
+            // dekat warna sudut (kotak bg)
+            if (n) {
+              const dr = Math.abs(r - bgR), dg = Math.abs(g - bgG), db = Math.abs(b - bgB);
+              if (dr <= 32 && dg <= 32 && db <= 32 && sat < 35) { d[i + 3] = 0; continue; }
+            }
+            // abu netral ekstrem
+            if (sat < 16 && (avg > 230 || avg < 28)) { d[i + 3] = 0; continue; }
+            // soft edge ke bg terang
+            if (bgAvg > 200 && avg > 215 && sat < 28) {
+              d[i + 3] = Math.min(a, Math.max(0, Math.round((250 - avg) * 10)));
+            }
+            if (bgAvg < 50 && avg < 40 && sat < 28) {
+              d[i + 3] = Math.min(a, Math.max(0, Math.round(avg * 5)));
+            }
+          }
+          ctx.putImageData(id, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } catch (e) {
+          console.warn('stripLogoBackground', e);
+          resolve(src);
+        }
+      };
+      try {
+        // Ambil via fetch+blob agar canvas tidak tainted (CORS storage)
+        let objectUrl = '';
+        if (!String(src).startsWith('data:')) {
+          try {
+            const bust = src + (src.includes('?') ? '&' : '?') + 'cb=' + Date.now();
+            const res = await fetch(bust, { mode: 'cors', cache: 'reload' });
+            if (res.ok) {
+              const blob = await res.blob();
+              objectUrl = URL.createObjectURL(blob);
+            }
+          } catch (_) {}
+        }
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          processImg(img);
+          if (objectUrl) try { URL.revokeObjectURL(objectUrl); } catch (_) {}
+        };
+        img.onerror = () => resolve(src);
+        img.src = objectUrl || (String(src).startsWith('data:') ? src : src + (src.includes('?') ? '&' : '?') + 'cb=' + Date.now());
+      } catch (e) {
+        resolve(src);
+      }
+    });
+  }
+
   const setLogo = (el, isDashSchool) => {
     if (!el) return;
-    // Jangan sentuh foto user
     if (el.id === 'userPhoto' || el.classList.contains('user')) return;
-    el.style.background = '#ffffff';
-    el.style.backgroundColor = '#ffffff';
+    el.style.background = 'transparent';
+    el.style.backgroundColor = 'transparent';
     el.style.boxShadow = 'none';
     el.style.border = 'none';
+    el.style.overflow = 'hidden';
     el.classList.add('logo-only');
-    if (logo) {
-      const src = logo + (logo.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(String(s.updated_at || Date.now()).slice(0, 16));
-      el.innerHTML = `<img src="${src}" alt="Logo" style="display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply;background:transparent" />`;
-    } else {
+    if (!logo) {
       const initial = (nama || 'S').trim().charAt(0).toUpperCase();
       el.textContent = initial;
+      return;
     }
+    // placeholder ringkas sambil proses
+    el.innerHTML = '<span style="opacity:.4;font-size:12px">…</span>';
+    stripLogoBackground(logo).then((clean) => {
+      if (!el.isConnected) return;
+      el.innerHTML = '';
+      const im = document.createElement('img');
+      im.alt = 'Logo';
+      im.src = clean;
+      im.style.cssText = 'display:block;width:100%;height:100%;object-fit:contain;background:transparent!important;border:none;box-shadow:none';
+      el.appendChild(im);
+    });
   };
   document.querySelectorAll('.logo-sekolah').forEach(el => setLogo(el, false));
   setLogo(document.getElementById('schoolAvatar'), true);
@@ -5635,6 +5732,7 @@ function fileToDataUrl(file, maxSide = 320, opts = {}) {
   return new Promise((resolve, reject) => {
     if (!file) return resolve('');
     const preferPng = opts.preserveAlpha === true || (file.type && file.type.includes('png'));
+    const removeBg = opts.removeBg === true || opts.preserveAlpha === true;
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
@@ -5645,13 +5743,34 @@ function fileToDataUrl(file, maxSide = 320, opts = {}) {
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
-        // Jangan isi hitam — biarkan transparan agar logo PNG tidak jadi background hitam
         ctx.clearRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
-        if (preferPng) {
+        // Hapus background putih/hitam solid pada logo (pixel hampir putih/hitam → transparan)
+        if (removeBg) {
+          try {
+            const id = ctx.getImageData(0, 0, w, h);
+            const d = id.data;
+            for (let i = 0; i < d.length; i += 4) {
+              const r = d[i], g = d[i + 1], b = d[i + 2], a = d[i + 3];
+              if (a === 0) continue;
+              const maxc = Math.max(r, g, b);
+              const minc = Math.min(r, g, b);
+              // hampir putih (kotak putih di PNG)
+              if (r > 245 && g > 245 && b > 245) { d[i + 3] = 0; continue; }
+              // hampir hitam solid (kotak hitam di PNG)
+              if (r < 18 && g < 18 && b < 18) { d[i + 3] = 0; continue; }
+              // abu sangat terang / sangat gelap netral (bukan bagian emblem berwarna)
+              if (maxc - minc < 12) {
+                if (maxc > 240) { d[i + 3] = 0; continue; }
+                if (maxc < 22) { d[i + 3] = 0; continue; }
+              }
+            }
+            ctx.putImageData(id, 0, 0);
+          } catch (_) { /* ignore CORS/tainted */ }
+        }
+        if (preferPng || removeBg) {
           resolve(canvas.toDataURL('image/png'));
         } else {
-          // JPEG tidak support alpha → isi putih dulu agar tidak hitam
           const c2 = document.createElement('canvas');
           c2.width = w; c2.height = h;
           const x2 = c2.getContext('2d');
@@ -5699,9 +5818,14 @@ async function initDataSekolahPage() {
 document.getElementById('sekLogoFile')?.addEventListener('change', async (e) => {
   const f = e.target.files?.[0];
   if (!f) return;
-  const url = await fileToDataUrl(f, 256, { preserveAlpha: true });
+  // proses hapus bg putih/hitam → simpan sebagai PNG transparan
+  const url = await fileToDataUrl(f, 320, { preserveAlpha: true, removeBg: true });
   setSekPreview('sekLogoPreview', url);
-  document.getElementById('sekLogoPreview').dataset.url = url;
+  const prev = document.getElementById('sekLogoPreview');
+  if (prev) {
+    prev.dataset.url = url;
+    prev.style.background = 'transparent';
+  }
 });
 document.getElementById('sekTtdFile')?.addEventListener('change', async (e) => {
   const f = e.target.files?.[0];
