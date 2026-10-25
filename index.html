@@ -497,6 +497,46 @@
   .data-table tbody td {
     padding:6px; border-bottom:1px solid #e8edf3; color:#333; white-space:nowrap;
   }
+  /* Tabel Input/Daftar Nilai — rapat, tanpa scroll horizontal di layar kecil */
+  .nilai-panel .data-table-wrap { overflow-x: auto; }
+  .nilai-table.data-table {
+    min-width: 0 !important;
+    width: 100%;
+    table-layout: fixed;
+    font-size: 11px;
+  }
+  .nilai-table.data-table thead th,
+  .nilai-table.data-table tbody td {
+    padding: 5px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .nilai-table .col-no { width: 32px; text-align: center; }
+  .nilai-table .col-nisn { width: 96px; }
+  .nilai-table .col-nama {
+    width: auto;
+    white-space: normal !important;
+    word-break: break-word;
+    line-height: 1.25;
+  }
+  .nilai-table .col-lp { width: 32px; text-align: center; }
+  .nilai-table .col-nilai { width: 72px; text-align: center; }
+  .nilai-table .col-nr { width: 48px; text-align: center; }
+  .nilai-table .col-score { width: 44px; text-align: center; }
+  .nilai-table .nilai-input-cell {
+    width: 56px !important;
+    max-width: 56px;
+    padding: 3px 4px !important;
+    font-size: 11px !important;
+    text-align: center;
+  }
+  @media (max-width: 480px) {
+    .nilai-table.data-table { font-size: 10px; }
+    .nilai-table .col-nisn { width: 86px; }
+    .nilai-table .col-nilai { width: 64px; }
+    .nilai-table .nilai-input-cell { width: 50px !important; max-width: 50px; }
+  }
   .data-table tbody tr:hover { background:#f5f9ff; }
   .data-table tbody tr.selected { background:#e3f2fd; }
   .data-table input[type=checkbox] { width:14px; height:14px; cursor:pointer; }
@@ -1548,10 +1588,13 @@
         <span id="nilaiInputCount" style="font-size:11px;color:#666"></span>
       </div>
       <div class="data-table-wrap">
-        <table class="data-table" style="min-width:520px">
+        <table class="data-table nilai-table">
           <thead><tr>
-            <th style="width:40px">No</th><th style="width:110px">NISN</th><th>Nama</th>
-            <th style="width:40px">L/P</th><th style="width:100px">Nilai</th>
+            <th class="col-no">No</th>
+            <th class="col-nisn">NISN</th>
+            <th class="col-nama">Nama</th>
+            <th class="col-lp">L/P</th>
+            <th class="col-nilai">Nilai</th>
           </tr></thead>
           <tbody id="tbodyNilaiInput"><tr class="empty-row"><td colspan="5">Pilih mapel, kelas, jenis &amp; penilaian ke, lalu Muat Data.</td></tr></tbody>
         </table>
@@ -1564,10 +1607,13 @@
         <span id="nilaiDaftarCount" style="font-size:11px;color:#666"></span>
       </div>
       <div class="data-table-wrap">
-        <table class="data-table" style="min-width:480px">
+        <table class="data-table nilai-table">
           <thead id="theadNilaiDaftar"><tr>
-            <th style="width:40px">No</th><th style="width:110px">NISN</th><th>Nama</th>
-            <th style="width:40px">L/P</th><th style="width:60px">NR</th>
+            <th class="col-no">No</th>
+            <th class="col-nisn">NISN</th>
+            <th class="col-nama">Nama</th>
+            <th class="col-lp">L/P</th>
+            <th class="col-nr">NR</th>
           </tr></thead>
           <tbody id="tbodyNilaiDaftar"><tr class="empty-row"><td colspan="5">Pilih mapel &amp; kelas, lalu Muat Data.</td></tr></tbody>
         </table>
@@ -5606,12 +5652,12 @@ function renderNilaiInputTable(rows) {
   tb.innerHTML = rows.map((r, i) => {
     const val = r.nilai != null && r.nilai !== '' ? String(r.nilai) : '';
     return `<tr data-siswa-id="${escapeHtml(String(r.siswa_id || ''))}" data-nisn="${escapeHtml(String(r.nisn || ''))}">
-      <td style="text-align:center">${i + 1}</td>
-      <td>${escapeHtml(String(r.nisn || ''))}</td>
-      <td>${escapeHtml(r.nama || '')}</td>
-      <td style="text-align:center">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
-      <td><input type="number" class="nilai-input-cell" min="0" max="100" step="0.01" placeholder="1-100"
-        value="${escapeHtml(val)}" style="width:72px;padding:4px 6px;border:1px solid #c5d0e0;border-radius:3px;font-size:12px;text-align:center" /></td>
+      <td class="col-no">${i + 1}</td>
+      <td class="col-nisn">${escapeHtml(String(r.nisn || ''))}</td>
+      <td class="col-nama">${escapeHtml(r.nama || '')}</td>
+      <td class="col-lp">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
+      <td class="col-nilai"><input type="number" class="nilai-input-cell" min="0" max="100" step="0.01" placeholder="1-100"
+        value="${escapeHtml(val)}" style="border:1px solid #c5d0e0;border-radius:3px" /></td>
     </tr>`;
   }).join('');
 }
@@ -5670,22 +5716,24 @@ function renderNilaiDaftar(payload) {
   const cnt = document.getElementById('nilaiDaftarCount');
   if (!thead || !tb) return;
   if (cnt) cnt.textContent = (rows.length || 0) + ' siswa';
-  const colHeads = columns.map(c => `<th style="text-align:center;min-width:48px">${escapeHtml(c.key)}</th>`).join('');
-  thead.innerHTML = `<tr><th style="width:40px">No</th><th style="width:110px">NISN</th><th>Nama</th><th style="width:40px">L/P</th>${colHeads}<th style="width:60px;text-align:center">NR</th></tr>`;
+  const colHeads = columns.map(c => `<th class="col-score">${escapeHtml(c.key)}</th>`).join('');
+  thead.innerHTML = `<tr>
+    <th class="col-no">No</th><th class="col-nisn">NISN</th><th class="col-nama">Nama</th><th class="col-lp">L/P</th>
+    ${colHeads}<th class="col-nr">NR</th></tr>`;
   if (!rows.length) { tb.innerHTML = `<tr class="empty-row"><td colspan="${5 + columns.length}">Tidak ada data.</td></tr>`; return; }
   tb.innerHTML = rows.map((r, i) => {
     const cells = columns.map(c => {
       const v = r.scores?.[c.key];
-      return `<td style="text-align:center">${v != null ? escapeHtml(String(v)) : '—'}</td>`;
+      return `<td class="col-score">${v != null ? escapeHtml(String(v)) : '—'}</td>`;
     }).join('');
     const nr = r.nr != null ? (Math.round(Number(r.nr) * 100) / 100) : '—';
     return `<tr>
-      <td style="text-align:center">${i + 1}</td>
-      <td>${escapeHtml(String(r.nisn || ''))}</td>
-      <td>${escapeHtml(r.nama || '')}</td>
-      <td style="text-align:center">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
+      <td class="col-no">${i + 1}</td>
+      <td class="col-nisn">${escapeHtml(String(r.nisn || ''))}</td>
+      <td class="col-nama">${escapeHtml(r.nama || '')}</td>
+      <td class="col-lp">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
       ${cells}
-      <td style="text-align:center;font-weight:700">${escapeHtml(String(nr))}</td>
+      <td class="col-nr" style="font-weight:700">${escapeHtml(String(nr))}</td>
     </tr>`;
   }).join('');
 }
