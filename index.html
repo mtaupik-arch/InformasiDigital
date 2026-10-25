@@ -35,14 +35,14 @@
   .hamburger:hover { background:rgba(255,255,255,.3); }
   .hamburger span { display:block; width:20px; height:2.5px; background:#fff; border-radius:2px; }
   .logo-sekolah {
-    width:40px; height:40px; border-radius:0;
+    width:40px; height:40px; border-radius:50%;
     background:transparent !important; background-color:transparent !important;
     display:flex; align-items:center; justify-content:center; font-weight:bold;
     color:#fff; font-size:16px; flex-shrink:0; overflow:hidden;
     box-shadow:none !important; border:none !important;
   }
   .logo-sekolah img {
-    width:100%; height:100%; object-fit:contain; border-radius:0;
+    width:100%; height:100%; object-fit:cover; border-radius:50%;
     background:transparent !important; background-color:transparent !important;
     box-shadow:none !important; display:block;
     mix-blend-mode: normal !important;
@@ -172,11 +172,15 @@
   #schoolAvatar {
     background:transparent !important;
     background-color:transparent !important;
+    border-radius:50% !important;
+    overflow:hidden !important;
   }
   .dash-avatar.logo-only img,
   #schoolAvatar img {
     background:transparent !important;
     mix-blend-mode: normal !important;
+    border-radius:50% !important;
+    object-fit:cover !important;
   }
   /* Foto profil user: selalu tampil (lingkaran) */
   .dash-avatar.user,
