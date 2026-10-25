@@ -6303,13 +6303,20 @@ function renderEditTable(payload) {
   tb.querySelectorAll('.btn-del-row-abs').forEach(btn => {
     btn.addEventListener('click', async () => {
       const items = parseRekapItems(btn.getAttribute('data-items'));
-      if (!items.length) return;
-      if (!confirm('Hapus semua sesi absensi baris ini?')) return;
+      if (!items.length) {
+        toast('Tidak ada record absensi pada baris ini (id kosong)', 'err');
+        return;
+      }
+      if (!confirm('Hapus ' + items.length + ' record absensi baris ini dari DATABASE?')) return;
       try {
         const res = await apiCall('delete_absensi_bulk', { items });
-        toast(res.message || 'Dihapus', 'ok');
+        if (!res.deleted) throw new Error(res.message || 'Tidak ada yang terhapus di DB');
+        toast(res.message || ('Terhapus ' + res.deleted + ' dari DB'), 'ok');
         await cariRekap();
-      } catch (e) { toast(errToText(e), 'err'); }
+      } catch (e) {
+        toast(errToText(e), 'err');
+        showBigPopup('err', 'Gagal Hapus', errToText(e), 0);
+      }
     });
   });
   updateRekapSelectedCount();
@@ -6399,10 +6406,11 @@ function updateRekapSelectedCount() {
 }
 function parseRekapItems(raw) {
   if (!raw) return [];
-  return String(raw).split(',').filter(Boolean).map(s => {
-    const [id, source] = s.split('|');
-    return { id, source: source || 'absensi' };
-  });
+  return String(raw).split(',').map(s => s.trim()).filter(Boolean).map(s => {
+    const idx = s.indexOf('|');
+    if (idx < 0) return { id: s, source: 'absensi' };
+    return { id: s.slice(0, idx), source: s.slice(idx + 1) || 'absensi' };
+  }).filter(it => it.id && it.id !== 'null' && it.id !== 'undefined');
 }
 function rekapSearchList(q, tipe) {
   const qq = String(q || '').toLowerCase().trim();
@@ -6510,13 +6518,17 @@ document.getElementById('btnRekapHapusTerpilih')?.addEventListener('click', asyn
   if (!checks.length) { toast('Pilih baris terlebih dahulu', 'err'); return; }
   const items = [];
   checks.forEach(c => { items.push(...parseRekapItems(c.getAttribute('data-items'))); });
-  if (!items.length) { toast('Tidak ada data absensi pada baris terpilih', 'err'); return; }
-  if (!confirm(`Hapus ${checks.length} baris (${items.length} record absensi)?`)) return;
+  if (!items.length) { toast('Tidak ada data absensi pada baris terpilih (id kosong)', 'err'); return; }
+  if (!confirm(`Hapus ${checks.length} baris (${items.length} record) dari DATABASE?`)) return;
   try {
     const res = await apiCall('delete_absensi_bulk', { items });
-    toast(res.message || 'Dihapus', 'ok');
+    if (!res.deleted) throw new Error(res.message || 'Tidak ada yang terhapus di DB');
+    toast(res.message || ('Terhapus ' + res.deleted + ' dari DB'), 'ok');
     await cariRekap();
-  } catch (e) { toast(errToText(e), 'err'); }
+  } catch (e) {
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Gagal Hapus', errToText(e), 0);
+  }
 });
 
 /* ===== Auto-refresh status sesi (tanpa reload penuh) ===== */
