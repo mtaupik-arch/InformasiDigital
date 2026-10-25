@@ -6290,26 +6290,47 @@ function renderEditTable(payload) {
   updateRekapSelectedCount();
 }
 
+function matchNamaNisn(row, q) {
+  const qq = String(q || '').trim().toLowerCase();
+  if (!qq) return true;
+  const digits = qq.replace(/\D/g, '');
+  const tokens = qq.split(/\s+/).filter(Boolean);
+  const hay = `${row.nama || ''} ${row.nisn || ''} ${row.kode || ''}`.toLowerCase();
+  if (hay.includes(qq)) return true;
+  if (digits && String(row.nisn || row.kode || '').includes(digits)) return true;
+  return tokens.every(t => hay.includes(t));
+}
+
 async function cariRekap() {
   const dari = document.getElementById('rekapDari')?.value;
   const sampai = document.getElementById('rekapSampai')?.value;
-  const q = document.getElementById('rekapQ')?.value || '';
+  const q = String(document.getElementById('rekapQ')?.value || '').trim();
   const kelas = document.getElementById('rekapKelas')?.value || '';
   const tipe = document.getElementById('rekapTipe')?.value || 'siswa';
   if (!dari || !sampai) { toast('Isi rentang tanggal', 'err'); return; }
   const meta = document.getElementById('rekapMetaInfo');
   const mode = document.getElementById('rekapModeLabel');
   if (mode) mode.textContent = rekapIsAdmin() ? 'Mode admin' : 'Mode lihat saja (Guru)';
+  const box = document.getElementById('rekapSuggest');
+  if (box) box.style.display = 'none';
 
   try {
     if (rekapTab === 'edit' && rekapIsAdmin()) {
       const res = await apiCall('list_edit_absensi', { dari, sampai, q, kelas, tipe });
-      renderEditTable(res.data || {});
-      if (meta) meta.textContent = `${res.meta?.total || 0} baris · ${dari} s/d ${sampai}`;
+      let payload = res.data || { sesi: [], rows: [] };
+      // cadangan filter client
+      if (q && payload.rows) {
+        payload = { ...payload, rows: payload.rows.filter(r => matchNamaNisn(r, q)) };
+      }
+      renderEditTable(payload);
+      if (meta) meta.textContent = `${payload.rows?.length || 0} baris · ${dari} s/d ${sampai}` + (q ? ` · filter: ${q}` : '');
     } else {
       const res = await apiCall('rekap_absensi', { dari, sampai, q, kelas, tipe });
-      renderRekapTable(res.data || [], tipe);
-      if (meta) meta.textContent = `${res.meta?.total || 0} orang · ${dari} s/d ${sampai}`;
+      let rows = res.data || [];
+      // cadangan filter client
+      if (q) rows = rows.filter(r => matchNamaNisn(r, q));
+      renderRekapTable(rows, tipe);
+      if (meta) meta.textContent = `${rows.length} orang · ${dari} s/d ${sampai}` + (q ? ` · filter: ${q}` : '');
     }
   } catch (e) {
     toast(errToText(e), 'err');
@@ -6348,17 +6369,23 @@ function parseRekapItems(raw) {
 }
 function rekapSearchList(q, tipe) {
   const qq = String(q || '').toLowerCase().trim();
-  if (!qq || qq.length < 1) return [];
+  if (!qq) return [];
+  const dig = qq.replace(/\D/g, '');
   if (tipe === 'guru') {
     return (store.guru || []).filter(g => {
       const hay = ((g.nama || '') + ' ' + (g.pin || '') + ' ' + (g.nip || '')).toLowerCase();
-      return hay.includes(qq) || String(g.pin || '').includes(qq.replace(/\D/g, ''));
+      return hay.includes(qq) || (dig && String(g.pin || g.nip || '').includes(dig));
     }).slice(0, 12).map(g => ({ label: g.nama, meta: g.nip || g.pin || '', value: g.nama }));
   }
   return (store.siswa || []).filter(s => {
     const hay = ((s.nama || '') + ' ' + (s.nisn || '') + ' ' + (s.kelas || '')).toLowerCase();
-    return hay.includes(qq) || String(s.nisn || '').includes(qq.replace(/\D/g, ''));
-  }).slice(0, 12).map(s => ({ label: s.nama, meta: (s.nisn || '') + (s.kelas ? ' · ' + s.kelas : ''), value: s.nama, nisn: s.nisn }));
+    return hay.includes(qq) || (dig && String(s.nisn || '').includes(dig));
+  }).slice(0, 12).map(s => ({
+    label: s.nama,
+    meta: (s.nisn || '') + (s.kelas ? ' · ' + s.kelas : ''),
+    value: s.nama,
+    nisn: s.nisn
+  }));
 }
 function showRekapSuggest(items) {
   const box = document.getElementById('rekapSuggest');
