@@ -551,6 +551,22 @@
   }
   .izin-suggest-item:hover, .izin-suggest-item.active { background:#e3f2fd; }
   .izin-suggest-item small { color:#888; display:block; margin-top:2px; }
+
+  /* Mapel & Kelas */
+  .mk-switch {
+    display:flex; gap:0; margin:0 0 12px; border-radius:10px; overflow:hidden;
+    border:1.5px solid #c5cae9; background:#e8eaf6;
+  }
+  .mk-tab {
+    flex:1; padding:10px 8px; border:none; background:transparent; cursor:pointer;
+    font-size:12px; font-weight:700; color:#3949ab; transition:.15s;
+  }
+  .mk-tab.active { background:#1565c0; color:#fff; }
+  .mk-tab:not(.active):hover { background:#c5cae9; }
+  .mk-table thead tr.mk-head-mapel th { background:#c8e6c9; color:#1b5e20; }
+  .mk-table thead tr.mk-head-kelas th { background:#00bcd4; color:#fff; }
+  .mk-table thead tr.mk-head-bobot th { background:#3f51b5; color:#fff; }
+  .mk-panels .mk-panel { margin-bottom:12px; }
   #page-scan-barcode #qr-reader {
     margin-top:14px; border-radius:6px; overflow:hidden;
     max-width:360px; margin-left:auto; margin-right:auto;
@@ -1209,6 +1225,92 @@
     </div>
   </div>
 
+  <!-- ========== PAGE: MAPEL & KELAS ========== -->
+  <div class="page" id="page-mapel-kelas">
+    <div class="page-title">📖 Mapel & Kelas <span class="periode-badge" id="badgePeriodeMapel">Periode: -</span></div>
+
+    <!-- Switch tab -->
+    <div class="mk-switch" id="mkSwitch">
+      <button type="button" class="mk-tab active" data-mk="mapel">Mata Pelajaran</button>
+      <button type="button" class="mk-tab" data-mk="kelas">Kelas</button>
+      <button type="button" class="mk-tab" data-mk="bobot">Bobot Nilai</button>
+    </div>
+
+    <div class="mk-panels">
+      <!-- MAPEL -->
+      <div class="data-card mk-panel active" id="mkPanelMapel" style="padding:12px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <b style="font-size:13px;color:#1565c0">Daftar Mata Pelajaran</b>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-primary btn-sm" id="btnMapelTambah">+ Tambah</button>
+          <button type="button" class="btn btn-success btn-sm" id="btnMapelEdit">✎ Edit</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnMapelHapus" style="color:#c62828;border-color:#ef9a9a">🗑</button>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table mk-table">
+            <thead>
+              <tr class="mk-head-mapel">
+                <th style="width:36px"><input type="checkbox" id="checkAllMapel" /></th>
+                <th style="width:44px">No</th>
+                <th style="width:72px">Kode</th>
+                <th>Mata Pelajaran</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyMapel"><tr class="empty-row"><td colspan="4">Memuat…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- KELAS -->
+      <div class="data-card mk-panel" id="mkPanelKelas" style="padding:12px;display:none">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <b style="font-size:13px;color:#00838f">Daftar Kelas</b>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-primary btn-sm" id="btnKelasTambah">+ Tambah</button>
+          <button type="button" class="btn btn-success btn-sm" id="btnKelasEdit">✎ Edit</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnKelasHapus" style="color:#c62828;border-color:#ef9a9a">🗑</button>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table mk-table">
+            <thead>
+              <tr class="mk-head-kelas">
+                <th style="width:36px"><input type="checkbox" id="checkAllKelas" /></th>
+                <th style="width:44px">No</th>
+                <th>Kelas</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyKelas"><tr class="empty-row"><td colspan="3">Memuat…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- BOBOT -->
+      <div class="data-card mk-panel" id="mkPanelBobot" style="padding:12px;display:none">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <b style="font-size:13px;color:#283593">Bobot Nilai</b>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-primary btn-sm" id="btnBobotTambah">+ Tambah</button>
+          <button type="button" class="btn btn-success btn-sm" id="btnBobotEdit">✎ Edit</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnBobotHapus" style="color:#c62828;border-color:#ef9a9a">🗑</button>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table mk-table">
+            <thead>
+              <tr class="mk-head-bobot">
+                <th style="width:36px"><input type="checkbox" id="checkAllBobot" /></th>
+                <th style="width:44px">No</th>
+                <th>Jenis Nilai</th>
+                <th style="width:90px">Semester</th>
+                <th style="width:80px">Bobot %</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyBobot"><tr class="empty-row"><td colspan="5">Memuat…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -1358,6 +1460,9 @@ async function refreshStoreFromDb() {
     store.periode = d.periode || [];
     store.sesi = d.sesi || [];
     store.hari_libur = d.hari_libur || [];
+    store.mapel = d.mapel || store.mapel || [];
+    store.kelas = d.kelas || store.kelas || [];
+    store.bobot_nilai = d.bobot_nilai || store.bobot_nilai || [];
     // absen hari ini → format log lokal untuk tabel
     if (Array.isArray(d.absen_hari_ini)) {
       saveAbsenLog(d.absen_hari_ini);
@@ -1753,6 +1858,9 @@ function seedStore() {
     lulusan: [],
     sesi: [],
     hari_libur: [],
+    mapel: [],
+    kelas: [],
+    bobot_nilai: [],
   };
 }
 
@@ -2182,7 +2290,7 @@ function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas'];
   let target = known.includes(page) ? page : 'placeholder';
 
   const pageEl = document.getElementById('page-' + target);
@@ -2197,6 +2305,7 @@ function navigate(page, opts = {}) {
   }
 
   if (target === 'dashboard') renderDashboard();
+  if (target === 'mapel-kelas') initMapelKelasPage();
   if (target === 'data-siswa') renderSiswa();
   if (target === 'data-guru') renderGuru();
   if (target === 'data-lulusan') renderLulusan();
@@ -4095,6 +4204,7 @@ async function saveFormSesiLiburHook() {
 
 document.getElementById('crudModalSave').onclick = function () {
   if (crudState.entity === 'sesi' || crudState.entity === 'hari_libur') saveFormSesiLiburHook();
+  else if (['mapel', 'kelas', 'bobot_nilai'].includes(crudState.entity)) saveMapelKelasHook();
   else saveForm();
 };
 
@@ -4355,6 +4465,242 @@ document.getElementById('btnSimpanIzin')?.addEventListener('click', async () => 
     if (out) out.innerHTML = `<span style="color:#c62828">${escapeHtml(errToText(e))}</span>`;
     showBigPopup('err', 'Gagal', errToText(e), 0);
   }
+});
+
+/* ===== Mapel & Kelas & Bobot Nilai ===== */
+let mkActiveTab = 'mapel';
+
+function switchMkTab(tab) {
+  mkActiveTab = tab || 'mapel';
+  document.querySelectorAll('.mk-tab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-mk') === mkActiveTab);
+  });
+  document.querySelectorAll('.mk-panel').forEach(p => { p.style.display = 'none'; p.classList.remove('active'); });
+  const map = { mapel: 'mkPanelMapel', kelas: 'mkPanelKelas', bobot: 'mkPanelBobot' };
+  const el = document.getElementById(map[mkActiveTab]);
+  if (el) { el.style.display = ''; el.classList.add('active'); }
+}
+
+document.getElementById('mkSwitch')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.mk-tab');
+  if (!btn) return;
+  switchMkTab(btn.getAttribute('data-mk'));
+});
+
+function renderMapelTable() {
+  const tb = document.getElementById('tbodyMapel');
+  if (!tb) return;
+  const rows = (store.mapel || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0) || String(a.kode || '').localeCompare(String(b.kode || '')));
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada mata pelajaran. Klik + Tambah.</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((r, i) => `
+    <tr data-id="${escapeHtml(String(r.id))}">
+      <td><input type="checkbox" class="row-check-mapel" value="${escapeHtml(String(r.id))}" /></td>
+      <td>${i + 1}</td>
+      <td><b>${escapeHtml(r.kode || '')}</b></td>
+      <td>${escapeHtml(r.nama || '')}</td>
+    </tr>`).join('');
+}
+
+function renderKelasTable() {
+  const tb = document.getElementById('tbodyKelas');
+  if (!tb) return;
+  const rows = (store.kelas || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0) || String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="3">Belum ada kelas. Klik + Tambah.</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((r, i) => `
+    <tr data-id="${escapeHtml(String(r.id))}">
+      <td><input type="checkbox" class="row-check-kelas" value="${escapeHtml(String(r.id))}" /></td>
+      <td>${i + 1}</td>
+      <td><b>${escapeHtml(r.nama || '')}</b></td>
+    </tr>`).join('');
+}
+
+function renderBobotTable() {
+  const tb = document.getElementById('tbodyBobot');
+  if (!tb) return;
+  const rows = (store.bobot_nilai || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  if (!rows.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="5">Belum ada bobot nilai. Klik + Tambah.</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((r, i) => `
+    <tr data-id="${escapeHtml(String(r.id))}">
+      <td><input type="checkbox" class="row-check-bobot" value="${escapeHtml(String(r.id))}" /></td>
+      <td>${i + 1}</td>
+      <td><b>${escapeHtml(r.jenis || '')}</b></td>
+      <td>${escapeHtml(r.semester || '')}</td>
+      <td>${r.bobot != null && r.bobot !== '' ? escapeHtml(String(r.bobot)) : ''}</td>
+    </tr>`).join('');
+}
+
+async function initMapelKelasPage() {
+  const lab = document.getElementById('badgePeriodeMapel');
+  if (lab) lab.textContent = 'Periode: ' + periodeLabel();
+  switchMkTab(mkActiveTab || 'mapel');
+  try {
+    const res = await apiCall('list_mapel_kelas', {});
+    if (res.data) {
+      store.mapel = res.data.mapel || [];
+      store.kelas = res.data.kelas || [];
+      store.bobot_nilai = res.data.bobot_nilai || [];
+      saveStore(store);
+    }
+  } catch (e) {
+    console.warn('list_mapel_kelas', e);
+  }
+  renderMapelTable();
+  renderKelasTable();
+  renderBobotTable();
+}
+
+function openMapelForm(id) {
+  const row = id ? (store.mapel || []).find(r => String(r.id) === String(id)) : null;
+  crudState = { entity: 'mapel', id: row ? row.id : null };
+  document.getElementById('crudModalTitle').textContent = row ? 'Edit Mata Pelajaran' : 'Tambah Mata Pelajaran';
+  document.getElementById('crudModalBody').innerHTML = `
+    <div class="form-grid">
+      <div class="form-group"><label>Kode *</label><input name="kode" value="${escapeHtml(row?.kode || '')}" required placeholder="PAI" maxlength="12" style="text-transform:uppercase" /></div>
+      <div class="form-group"><label>Urutan</label><input type="number" name="urutan" value="${row?.urutan ?? ((store.mapel||[]).length + 1)}" /></div>
+      <div class="form-group full"><label>Mata Pelajaran *</label><input name="nama" value="${escapeHtml(row?.nama || '')}" required placeholder="Pendidikan Agama Islam" /></div>
+    </div>`;
+  document.getElementById('crudModal').classList.add('active');
+}
+
+function openKelasForm(id) {
+  const row = id ? (store.kelas || []).find(r => String(r.id) === String(id)) : null;
+  crudState = { entity: 'kelas', id: row ? row.id : null };
+  document.getElementById('crudModalTitle').textContent = row ? 'Edit Kelas' : 'Tambah Kelas';
+  document.getElementById('crudModalBody').innerHTML = `
+    <div class="form-grid">
+      <div class="form-group"><label>Nama Kelas *</label><input name="nama" value="${escapeHtml(row?.nama || '')}" required placeholder="7A" /></div>
+      <div class="form-group"><label>Urutan</label><input type="number" name="urutan" value="${row?.urutan ?? ((store.kelas||[]).length + 1)}" /></div>
+    </div>`;
+  document.getElementById('crudModal').classList.add('active');
+}
+
+function openBobotForm(id) {
+  const row = id ? (store.bobot_nilai || []).find(r => String(r.id) === String(id)) : null;
+  crudState = { entity: 'bobot_nilai', id: row ? row.id : null };
+  const jenisOpts = ['NH', 'TGS', 'PTS', 'ASAS', 'ASAJ', 'ASAT'];
+  document.getElementById('crudModalTitle').textContent = row ? 'Edit Bobot Nilai' : 'Tambah Bobot Nilai';
+  document.getElementById('crudModalBody').innerHTML = `
+    <div class="form-grid">
+      <div class="form-group"><label>Jenis Nilai *</label>
+        <select name="jenis">${jenisOpts.map(j => `<option value="${j}" ${row?.jenis === j ? 'selected' : ''}>${j}</option>`).join('')}</select>
+      </div>
+      <div class="form-group"><label>Semester</label><input name="semester" value="${escapeHtml(row?.semester || '')}" placeholder="opsional" /></div>
+      <div class="form-group"><label>Bobot %</label><input type="number" name="bobot" value="${row?.bobot != null ? escapeHtml(String(row.bobot)) : ''}" min="0" max="100" step="1" placeholder="60" /></div>
+      <div class="form-group"><label>Urutan</label><input type="number" name="urutan" value="${row?.urutan ?? ((store.bobot_nilai||[]).length + 1)}" /></div>
+    </div>
+    <p style="font-size:11px;color:#666;margin-top:8px">NH = Nilai Harian · TGS = Tugas · PTS = Penilaian Tengah Semester · ASAS/ASAJ/ASAT = Asesmen</p>`;
+  document.getElementById('crudModal').classList.add('active');
+}
+
+async function saveMapelKelasHook() {
+  const { entity, id } = crudState;
+  const data = collectForm();
+  if (entity === 'mapel') {
+    if (!data.kode || !data.nama) { toast('Kode & nama wajib', 'err'); return; }
+    data.kode = String(data.kode).trim().toUpperCase();
+    data.urutan = Number(data.urutan) || 1;
+    if (id) data.id = id;
+    try {
+      await apiCall('save_mapel', { row: data });
+      await initMapelKelasPage();
+      closeForm();
+      toast('Mapel tersimpan', 'ok');
+    } catch (e) { toast(errToText(e), 'err'); }
+    return;
+  }
+  if (entity === 'kelas') {
+    if (!data.nama) { toast('Nama kelas wajib', 'err'); return; }
+    data.urutan = Number(data.urutan) || 1;
+    if (id) data.id = id;
+    try {
+      await apiCall('save_kelas', { row: data });
+      await initMapelKelasPage();
+      closeForm();
+      toast('Kelas tersimpan', 'ok');
+    } catch (e) { toast(errToText(e), 'err'); }
+    return;
+  }
+  if (entity === 'bobot_nilai') {
+    if (!data.jenis) { toast('Jenis nilai wajib', 'err'); return; }
+    data.urutan = Number(data.urutan) || 1;
+    data.bobot = data.bobot === '' || data.bobot == null ? null : Number(data.bobot);
+    if (id) data.id = id;
+    try {
+      await apiCall('save_bobot_nilai', { row: data });
+      await initMapelKelasPage();
+      closeForm();
+      toast('Bobot tersimpan', 'ok');
+    } catch (e) { toast(errToText(e), 'err'); }
+  }
+}
+
+document.getElementById('btnMapelTambah')?.addEventListener('click', () => openMapelForm());
+document.getElementById('btnMapelEdit')?.addEventListener('click', () => {
+  const c = document.querySelectorAll('.row-check-mapel:checked');
+  if (c.length !== 1) { toast('Pilih tepat 1 baris', 'err'); return; }
+  openMapelForm(c[0].value);
+});
+document.getElementById('btnMapelHapus')?.addEventListener('click', async () => {
+  const ids = [...document.querySelectorAll('.row-check-mapel:checked')].map(c => c.value);
+  if (!ids.length) { toast('Pilih data', 'err'); return; }
+  if (!confirm('Hapus ' + ids.length + ' mata pelajaran?')) return;
+  try {
+    await apiCall('delete_rows', { entity: 'mapel', ids });
+    await initMapelKelasPage();
+    toast('Terhapus', 'ok');
+  } catch (e) { toast(errToText(e), 'err'); }
+});
+document.getElementById('checkAllMapel')?.addEventListener('change', (e) => {
+  document.querySelectorAll('.row-check-mapel').forEach(c => { c.checked = e.target.checked; });
+});
+
+document.getElementById('btnKelasTambah')?.addEventListener('click', () => openKelasForm());
+document.getElementById('btnKelasEdit')?.addEventListener('click', () => {
+  const c = document.querySelectorAll('.row-check-kelas:checked');
+  if (c.length !== 1) { toast('Pilih tepat 1 baris', 'err'); return; }
+  openKelasForm(c[0].value);
+});
+document.getElementById('btnKelasHapus')?.addEventListener('click', async () => {
+  const ids = [...document.querySelectorAll('.row-check-kelas:checked')].map(c => c.value);
+  if (!ids.length) { toast('Pilih data', 'err'); return; }
+  if (!confirm('Hapus ' + ids.length + ' kelas?')) return;
+  try {
+    await apiCall('delete_rows', { entity: 'kelas', ids });
+    await initMapelKelasPage();
+    toast('Terhapus', 'ok');
+  } catch (e) { toast(errToText(e), 'err'); }
+});
+document.getElementById('checkAllKelas')?.addEventListener('change', (e) => {
+  document.querySelectorAll('.row-check-kelas').forEach(c => { c.checked = e.target.checked; });
+});
+
+document.getElementById('btnBobotTambah')?.addEventListener('click', () => openBobotForm());
+document.getElementById('btnBobotEdit')?.addEventListener('click', () => {
+  const c = document.querySelectorAll('.row-check-bobot:checked');
+  if (c.length !== 1) { toast('Pilih tepat 1 baris', 'err'); return; }
+  openBobotForm(c[0].value);
+});
+document.getElementById('btnBobotHapus')?.addEventListener('click', async () => {
+  const ids = [...document.querySelectorAll('.row-check-bobot:checked')].map(c => c.value);
+  if (!ids.length) { toast('Pilih data', 'err'); return; }
+  if (!confirm('Hapus ' + ids.length + ' bobot nilai?')) return;
+  try {
+    await apiCall('delete_rows', { entity: 'bobot_nilai', ids });
+    await initMapelKelasPage();
+    toast('Terhapus', 'ok');
+  } catch (e) { toast(errToText(e), 'err'); }
+});
+document.getElementById('checkAllBobot')?.addEventListener('change', (e) => {
+  document.querySelectorAll('.row-check-bobot').forEach(c => { c.checked = e.target.checked; });
 });
 
 /* ===== Auto-refresh status sesi (tanpa reload penuh) ===== */
