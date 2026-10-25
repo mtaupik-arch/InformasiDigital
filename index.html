@@ -2160,13 +2160,12 @@ async function renderDashboard() {
   let absenRows = loadAbsenLog().filter(r =>
     !r.tanggal || String(r.tanggal).slice(0, 10) === todayStr()
   );
+  // Publik: ambil absensi hari ini dari DB (tanpa login)
   try {
-    if (getSession()?.token) {
-      const logRes = await apiCall('list_absen_hari_ini', {});
-      if (Array.isArray(logRes.data)) {
-        absenRows = logRes.data;
-        saveAbsenLog(absenRows);
-      }
+    const logRes = await apiCall('list_absen_hari_ini', {});
+    if (Array.isArray(logRes.data)) {
+      absenRows = logRes.data;
+      saveAbsenLog(absenRows);
     }
   } catch (_) {}
 
@@ -3401,10 +3400,8 @@ async function renderScanLogTable(opts = {}) {
   if (!tb) return;
   if (!opts.skipFetch) {
     try {
-      if (getSession()?.token) {
-        const logRes = await apiCall('list_absen_hari_ini', {});
-        if (Array.isArray(logRes.data)) saveAbsenLog(logRes.data);
-      }
+      const logRes = await apiCall('list_absen_hari_ini', {});
+      if (Array.isArray(logRes.data)) saveAbsenLog(logRes.data);
     } catch (_) {}
     buildScanLogSesiFilterButtons();
   }
@@ -4394,8 +4391,13 @@ setInterval(autoRefreshSesiUI, 10000);
 (async function init() {
   const session = getSession();
   renderUserUI(session);
-  if (session?.token) {
+  // Publik: selalu muat data real dari DB (login tidak wajib untuk lihat dashboard)
+  try {
     await refreshStoreFromDb();
+  } catch (e) {
+    console.warn('init bootstrap', e);
+  }
+  if (session?.token) {
     try { await apiCall('apply_ab_status', {}); } catch (_) {}
   }
   updatePeriodeBadges();
