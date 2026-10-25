@@ -56,8 +56,18 @@
     position:absolute; top:46px; right:0; background:#fff; color:#333; border-radius:10px;
     box-shadow:0 6px 20px rgba(0,0,0,.2); min-width:190px; overflow:hidden;
     opacity:0; visibility:hidden; transform:translateY(-8px); transition:.2s; z-index:1001;
+    pointer-events:none;
   }
-  .profile-wrap:hover .profile-menu { opacity:1; visibility:visible; transform:translateY(0); }
+  .profile-wrap:hover .profile-menu,
+  .profile-wrap.open .profile-menu,
+  .profile-menu.open {
+    opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto;
+  }
+  /* Setelah logout paksa tutup (override hover residual di mobile) */
+  .profile-wrap.force-close .profile-menu,
+  .profile-wrap.force-close:hover .profile-menu {
+    opacity:0 !important; visibility:hidden !important; pointer-events:none !important;
+  }
   .profile-menu .pm-header { padding:12px 14px; background:#f8f9fa; border-bottom:1px solid #eee; font-size:12px; color:#666; }
   .profile-menu a { display:flex; align-items:center; gap:10px; padding:10px 14px; color:#333;
     text-decoration:none; font-size:13.5px; transition:.15s; cursor:pointer; }
@@ -173,11 +183,12 @@
 
   .dash-stats {
     display:grid; grid-template-columns:repeat(3, 1fr); gap:5px;
-    max-width:168px; width:100%;
+    width:168px; max-width:168px; min-width:168px;
+    align-self:flex-start;
   }
   .stat-box {
     border-radius:5px; padding:6px 2px 5px; text-align:center;
-    min-height:52px; height:100%;
+    min-height:58px;
     display:flex; flex-direction:column;
     align-items:center; justify-content:center;
     border:1px solid transparent;
@@ -186,6 +197,7 @@
   .stat-box .nums {
     display:flex; flex-direction:column; align-items:center;
     gap:3px; font-weight:400; line-height:1.25;
+    min-height:1.25em;
   }
   .stat-box .nums span { font-size:12px; font-weight:400; }
   .stat-box .nums span.num-zero { opacity:.45; font-weight:400; }
@@ -198,8 +210,10 @@
   .stat-box.c-hijau { background:rgba(67,160,71,.18); border-color:rgba(67,160,71,.45); color:#2e7d32; }
   .stat-box.c-orange { background:rgba(251,140,0,.18); border-color:rgba(251,140,0,.45); color:#e65100; }
   .stat-box.c-kuning { background:rgba(253,216,53,.28); border-color:rgba(249,168,37,.5); color:#f9a825; }
-  .stat-box.c-pink { background:rgba(236,64,122,.16); border-color:rgba(236,64,122,.4); color:#c2185b; }
-  .stat-box.c-merah { background:rgba(229,57,53,.16); border-color:rgba(229,57,53,.45); color:#c62828; }
+  /* Alpa = pink tua */
+  .stat-box.c-pink { background:rgba(194,24,91,.14); border-color:rgba(194,24,91,.4); color:#ad1457; }
+  /* Bolos = merah lebih terang */
+  .stat-box.c-merah { background:rgba(255,82,82,.22); border-color:rgba(255,82,82,.55); color:#ff1744; }
 
   /* kiri lebih lebar agar NIP panjang muat */
   .dash-left { width:52%; max-width:none; flex:1; }
@@ -214,7 +228,7 @@
     .dash-detail p { font-size:13px; }
     .dash-detail p b { min-width:90px; }
     .dash-rekap-title { font-size:14px; }
-    .dash-stats { max-width:200px; gap:8px; }
+    .dash-stats { width:180px; max-width:180px; min-width:180px; gap:8px; }
     .stat-box { min-height:64px; padding:8px 4px 6px; }
     .stat-box .nums { gap:4px; }
     .stat-box .nums span { font-size:14px; font-weight:400; }
@@ -225,8 +239,8 @@
     .dash-name { font-size:10px; }
     .dash-detail p { font-size:10px; }
     .dash-detail p b { min-width:54px; }
-    .dash-stats { max-width:148px; gap:4px; }
-    .stat-box { min-height:48px; padding:4px 1px 3px; }
+    .dash-stats { width:148px; max-width:148px; min-width:148px; gap:4px; }
+    .stat-box { min-height:52px; padding:4px 1px 3px; }
     .stat-box .nums { gap:2px; }
     .stat-box .nums span { font-size:11px; font-weight:400; }
     .stat-box .lbl { font-size:9px; margin-top:3px; }
@@ -304,8 +318,8 @@
   .absen-cell.st-tl { background:rgba(67,160,71,.1); border-radius:4px; }
   .absen-cell.st-sakit { background:rgba(251,140,0,.1); border-radius:4px; }
   .absen-cell.st-izin { background:rgba(253,216,53,.15); border-radius:4px; }
-  .absen-cell.st-alpa,
-  .absen-cell.st-bolos { background:rgba(229,57,53,.08); border-radius:4px; }
+  .absen-cell.st-alpa { background:rgba(194,24,91,.08); border-radius:4px; }
+  .absen-cell.st-bolos { background:rgba(255,82,82,.12); border-radius:4px; }
   .absen-cell.st-tw .ac-status { color:#1565c0; }
   .absen-cell.st-tw .ac-jam { color:#1976d2; }
   .absen-cell.st-tw .ac-by { color:#42a5f5; }
@@ -318,12 +332,12 @@
   .absen-cell.st-izin .ac-status { color:#f9a825; }
   .absen-cell.st-izin .ac-jam { color:#fbc02d; }
   .absen-cell.st-izin .ac-by { color:#fdd835; }
-  .absen-cell.st-alpa .ac-status,
-  .absen-cell.st-bolos .ac-status { color:#c62828; }
-  .absen-cell.st-alpa .ac-jam,
-  .absen-cell.st-bolos .ac-jam { color:#e53935; }
-  .absen-cell.st-alpa .ac-by,
-  .absen-cell.st-bolos .ac-by { color:#ef5350; }
+  .absen-cell.st-alpa .ac-status { color:#ad1457; }
+  .absen-cell.st-alpa .ac-jam { color:#c2185b; }
+  .absen-cell.st-alpa .ac-by { color:#ec407a; }
+  .absen-cell.st-bolos .ac-status { color:#ff1744; }
+  .absen-cell.st-bolos .ac-jam { color:#ff5252; }
+  .absen-cell.st-bolos .ac-by { color:#ff8a80; }
   @media(max-width:480px){
     .rekap-table { font-size:10px; }
     .rekap-table thead th { padding:5px 2px; font-size:9.5px; }
@@ -470,8 +484,8 @@
   .st-tl { background:#e8f5e9; color:#2e7d32; }      /* TL hijau */
   .st-sakit { background:#fff3e0; color:#e65100; }   /* orange */
   .st-izin { background:#fffde7; color:#f57f17; }    /* kuning */
-  .st-alpa { background:#fce4ec; color:#c2185b; }    /* pink */
-  .st-bolos { background:#ffebee; color:#c62828; }   /* merah */
+  .st-alpa { background:#fce4ec; color:#ad1457; }    /* pink tua */
+  .st-bolos { background:#ffcdd2; color:#ff1744; }   /* merah lebih terang */
   .st-hadir { background:#e3f2fd; color:#1565c0; }
 
   /* Absensi pages */
@@ -518,6 +532,25 @@
   .scan-mode-chip.mode-guru {
     border-color:#2e7d32; background:#e8f5e9; color:#1b5e20;
   }
+  .scan-sesi-filter .scan-sesi-btn {
+    padding:4px 10px; font-size:11px; border-radius:16px;
+    border:1px solid #c5cae9; background:#f5f7fa; color:#3949ab;
+    cursor:pointer;
+  }
+  .scan-sesi-filter .scan-sesi-btn.active {
+    background:#1565c0; color:#fff; border-color:#1565c0;
+  }
+  .izin-suggest {
+    position:absolute; left:0; right:0; top:100%; z-index:40;
+    background:#fff; border:1px solid #cfd8dc; border-radius:6px;
+    max-height:220px; overflow:auto; box-shadow:0 6px 16px rgba(0,0,0,.12);
+  }
+  .izin-suggest-item {
+    padding:9px 12px; cursor:pointer; font-size:12.5px;
+    border-bottom:1px solid #f0f2f5;
+  }
+  .izin-suggest-item:hover, .izin-suggest-item.active { background:#e3f2fd; }
+  .izin-suggest-item small { color:#888; display:block; margin-top:2px; }
   #page-scan-barcode #qr-reader {
     margin-top:14px; border-radius:6px; overflow:hidden;
     max-width:360px; margin-left:auto; margin-right:auto;
@@ -809,7 +842,7 @@
   </div>
 
   <!-- REKAP KEHADIRAN GURU -->
-  <div class="card">
+  <div class="card" id="cardRekapGuru">
     <h3>📋 Rekap Kehadiran Guru <small style="font-weight:500;color:#666;font-size:11px" id="labelRekapGuruHari"></small></h3>
     <div class="table-scroll rekap-scroll">
       <table id="tableRekapGuru" class="rekap-table">
@@ -824,7 +857,7 @@
   </div>
 
   <!-- REKAP KEHADIRAN SISWA -->
-  <div class="card">
+  <div class="card" id="cardRekapSiswa">
     <h3>📋 Rekap Kehadiran Siswa <small style="font-weight:500;color:#666;font-size:11px" id="labelRekapSiswaHari"></small></h3>
     <div class="table-scroll rekap-scroll">
       <table id="tableRekapSiswa" class="rekap-table">
@@ -1022,13 +1055,18 @@
         <span class="spacer"></span>
         <span style="font-size:11px;color:#888" id="scanLogCount">0 data</span>
       </div>
+      <div id="scanLogSesiFilter" class="scan-sesi-filter" style="padding:8px 12px;border-bottom:1px solid #eef2f7;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:11px;color:#888;margin-right:2px">Filter:</span>
+        <button type="button" class="btn btn-sm scan-sesi-btn active" data-sesi="all">Semua</button>
+      </div>
       <div class="data-table-wrap">
-        <table class="data-table" id="tableScanLog" style="min-width:720px">
+        <table class="data-table" id="tableScanLog" style="min-width:780px">
           <thead>
             <tr>
               <th>No</th>
               <th>NISN / NIP</th>
               <th>Nama</th>
+              <th>Kelas</th>
               <th>Jam Scan</th>
               <th>Sesi</th>
               <th>Status</th>
@@ -1036,7 +1074,7 @@
             </tr>
           </thead>
           <tbody id="tbodyScanLog">
-            <tr class="empty-row"><td colspan="7">Belum ada scan hari ini</td></tr>
+            <tr class="empty-row"><td colspan="8">Belum ada scan hari ini</td></tr>
           </tbody>
         </table>
       </div>
@@ -1156,9 +1194,12 @@
             <option value="Sakit">Sakit</option>
           </select>
         </div>
-        <div class="form-group full">
-          <label id="izinKodeLabel">NISN (10 digit)</label>
-          <input type="text" id="izinKode" class="search-box" style="width:100%;max-width:none" maxlength="20" placeholder="NISN atau PIN" inputmode="numeric" />
+        <div class="form-group full" style="position:relative">
+          <label id="izinKodeLabel">Cari Nama / NISN</label>
+          <input type="text" id="izinKode" class="search-box" style="width:100%;max-width:none" autocomplete="off" placeholder="Ketik nama atau NISN…" />
+          <input type="hidden" id="izinKodeResolved" value="" />
+          <div id="izinSuggest" class="izin-suggest" style="display:none"></div>
+          <div id="izinSelected" style="font-size:12px;color:#1565c0;margin-top:6px;display:none"></div>
         </div>
       </div>
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
@@ -1586,6 +1627,7 @@ async function doLogin() {
     saveSession(session);
     renderUserUI(session);
     closeLogin();
+    closeProfileMenu();
     btnDoLogin.textContent = 'Memuat data…';
     await refreshStoreFromDb();
     // refresh halaman aktif
@@ -1596,7 +1638,10 @@ async function doLogin() {
     if (active?.id === 'page-periode') renderPeriode();
     if (active?.id === 'page-sesi-libur') initSesiLiburPage();
     if (active?.id === 'page-scan-barcode') { initScanPage(); }
-    toast('Terhubung ke database', 'ok');
+    if (active?.id === 'page-dashboard' || !active) renderDashboard();
+    const roleLabel = session.role === 'siswa' ? 'Siswa' : session.role === 'guru' ? 'Guru' : 'Administrator';
+    showBigPopup('ok', 'Login Berhasil',
+      `Selamat datang, <b>${escapeHtml(session.user?.nama || '')}</b><br>Masuk sebagai ${roleLabel}.`, 2800);
   } catch (err) {
     console.error(err);
     showLoginError(err.message || 'Tidak dapat terhubung ke server. Pastikan Edge Function login & api sudah di-deploy.');
@@ -1650,13 +1695,43 @@ function demoLogin(id) {
   };
 }
 
+function closeProfileMenu() {
+  const wrap = document.querySelector('.profile-wrap');
+  const menu = document.getElementById('profileMenu');
+  if (menu) menu.classList.remove('open');
+  if (wrap) {
+    wrap.classList.remove('open');
+    wrap.classList.add('force-close');
+    // lepas force-close setelah hover/touch selesai
+    setTimeout(() => wrap.classList.remove('force-close'), 400);
+  }
+}
+
 /* ===== Logout ===== */
 document.getElementById('btnLogout').addEventListener('click', (e) => {
   e.preventDefault();
+  e.stopPropagation();
   clearSession();
+  closeProfileMenu();
   renderUserUI(null);
   navigate('dashboard');
   tutupSidebar();
+  showBigPopup('ok', 'Logout Berhasil', 'Anda telah keluar dari sistem.<br>Silakan login kembali untuk mengakses fitur.', 2800);
+});
+
+// Tutup menu profil saat klik di luar
+document.addEventListener('click', (e) => {
+  const wrap = document.querySelector('.profile-wrap');
+  if (!wrap) return;
+  if (!wrap.contains(e.target)) closeProfileMenu();
+});
+// Toggle menu profil saat ketuk avatar (mobile tidak punya hover stabil)
+document.getElementById('avatarInitial')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const wrap = document.querySelector('.profile-wrap');
+  if (!wrap) return;
+  wrap.classList.remove('force-close');
+  wrap.classList.toggle('open');
 });
 
 /* ============================================================
@@ -1665,110 +1740,58 @@ document.getElementById('btnLogout').addEventListener('click', (e) => {
    ============================================================ */
 const STORE_KEY = 'sis_master_v1';
 
+function saveStore(store) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+}
+
+/** Store kosong — data hanya dari database (tanpa dummy) */
+function seedStore() {
+  return {
+    periode: [],
+    siswa: [],
+    guru: [],
+    lulusan: [],
+    sesi: [],
+    hari_libur: [],
+  };
+}
+
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) {
       const s = JSON.parse(raw);
-      if (!s.sesi) s.sesi = seedStore().sesi;
-      if (!s.hari_libur) s.hari_libur = seedStore().hari_libur;
+      // Buang data dummy lama (id lokal s-abi, g-budi, dll.)
+      const isDummyId = (id) => {
+        const x = String(id || '');
+        return x.startsWith('s-') || x.startsWith('g-') || x.startsWith('sesi-') ||
+          x.startsWith('lib-') || x === 'p1' || x.startsWith('id-');
+      };
+      if (Array.isArray(s.siswa)) s.siswa = s.siswa.filter(r => r && !isDummyId(r.id));
+      if (Array.isArray(s.guru)) s.guru = s.guru.filter(r => r && !isDummyId(r.id));
+      if (Array.isArray(s.periode)) s.periode = s.periode.filter(r => r && !isDummyId(r.id));
+      if (Array.isArray(s.sesi)) s.sesi = s.sesi.filter(r => r && !isDummyId(r.id));
+      if (Array.isArray(s.hari_libur)) s.hari_libur = s.hari_libur.filter(r => r && !isDummyId(r.id));
+      if (!s.lulusan) s.lulusan = [];
+      if (!s.sesi) s.sesi = [];
+      if (!s.hari_libur) s.hari_libur = [];
       return s;
     }
   } catch (_) {}
   return seedStore();
 }
 
-function saveStore(store) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
-}
-
-function seedStore() {
-  const periodeId = 'p1';
-  const store = {
-    periode: [{
-      id: periodeId,
-      tahun_ajaran: '2026/2027',
-      semester: 'Ganjil',
-      tgl_mulai: '2026-07-13',
-      tgl_akhir: '2026-12-20',
-      tgl_kelulusan: '',
-      tgl_naik_kelas: '',
-      sk_kelulusan: '',
-      sk_naik_kelas: '',
-      status: 'Aktif',
-    }],
-    siswa: [{
-      id: 's-abi',
-      periode_id: periodeId,
-      nama: 'Abi Mahmudin',
-      jenis_kelamin: 'L',
-      nisn: '0123764559',
-      kelas: '7A',
-      tmp_lahir: 'Lebak',
-      tgl_lahir: '2011-09-07',
-      status_awal: 'Siswa Baru',
-      status: 'Aktif',
-      mulai_sekolah: '2024-07-13',
-      asal_sekolah: 'SDN 1 Majasari',
-      alamat: 'Kp. Ciparasi',
-    }, {
-      id: 's-ahmad',
-      periode_id: periodeId,
-      nama: 'Ahmad Fauzi',
-      jenis_kelamin: 'L',
-      nisn: '0051234567',
-      kelas: 'XII IPA 1',
-      tmp_lahir: 'Nusantara',
-      tgl_lahir: '2008-01-15',
-      status_awal: 'Siswa Baru',
-      status: 'Aktif',
-      mulai_sekolah: '2022-07-15',
-      asal_sekolah: 'SMPN 1 Nusantara',
-      alamat: 'Jl. Merdeka No. 10',
-    }],
-    guru: [{
-      id: 'g-budi',
-      periode_id: periodeId,
-      duk: 1,
-      nama: 'Budi Santoso',
-      jenis_kelamin: 'L',
-      nip: '197602031995021001',
-      jabatan_struktur: 'Kepala Sekolah',
-      jabatan_fungsional: 'Kepala Sekolah',
-      pangkat_gol: 'Pembina / Iva',
-      status: 'Aktif',
-      no_hp: '',
-      pin: '123456',
-    }, {
-      id: 'g-sutrisno',
-      periode_id: periodeId,
-      duk: 2,
-      nama: 'Drs. H. Sutrisno, M.Pd',
-      jenis_kelamin: 'L',
-      nip: '',
-      jabatan_struktur: 'Wakil Kepala',
-      jabatan_fungsional: 'Guru Matematika',
-      pangkat_gol: '',
-      status: 'Aktif',
-      no_hp: '',
-      pin: '111111',
-    }],
-    lulusan: [],
-    sesi: [
-      { id: 'sesi-1', nama: 'Sesi 1', urutan: 1, waktu1: '06:15', waktu2: '07:30', waktu3: '08:00', aktif: true },
-      { id: 'sesi-2', nama: 'Sesi 2', urutan: 2, waktu1: '09:45', waktu2: '12:45', waktu3: '13:00', aktif: true },
-    ],
-    hari_libur: [
-      { id: 'lib-1', tanggal: '2026-10-17', keterangan: 'Libur Hari Sabtu' },
-      { id: 'lib-2', tanggal: '2026-10-18', keterangan: 'Libur Hari Minggu' },
-      { id: 'lib-3', tanggal: '2026-10-24', keterangan: 'Libur Hari Sabtu' },
-    ],
-  };
-  saveStore(store);
-  return store;
-}
-
 let store = loadStore();
+// Bersihkan cache dummy di localStorage sekali
+try {
+  saveStore(store);
+  // Hapus juga flag seed lama jika pernah disimpan penuh
+  const hadDummy = localStorage.getItem('sis_dummy_cleared_v1');
+  if (!hadDummy) {
+    localStorage.setItem('sis_dummy_cleared_v1', '1');
+    // pastikan absen log dummy tidak menumpuk
+  }
+} catch (_) {}
 
 function uid() {
   return 'id-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -2108,7 +2131,35 @@ async function renderDashboard() {
 
   // sesi list
   let sesiList = getSesiList();
-  let absenRows = loadAbsenLog();
+  const showRekap = shouldShowRekapHariIni();
+
+  // info sesi: selalu tampil (aktif / berikutnya / selesai)
+  const chipWrap = document.getElementById('dashSesiChips') || document.querySelector('#page-dashboard .sesi-span');
+  if (chipWrap) {
+    chipWrap.innerHTML = buildDashSesiInfoHtml(sesiList);
+  }
+
+  // Struktur Organisasi tetap tampil
+  renderStrukturOrganisasi();
+
+  const cardGuru = document.getElementById('cardRekapGuru');
+  const cardSiswa = document.getElementById('cardRekapSiswa');
+
+  if (!showRekap) {
+    // Setelah 00:00 s/d sebelum sesi 1: statistik kosong, rekap disembunyikan
+    if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
+    if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
+    if (cardGuru) cardGuru.style.display = 'none';
+    if (cardSiswa) cardSiswa.style.display = 'none';
+    return;
+  }
+
+  if (cardGuru) cardGuru.style.display = '';
+  if (cardSiswa) cardSiswa.style.display = '';
+
+  let absenRows = loadAbsenLog().filter(r =>
+    !r.tanggal || String(r.tanggal).slice(0, 10) === todayStr()
+  );
   try {
     if (getSession()?.token) {
       const logRes = await apiCall('list_absen_hari_ini', {});
@@ -2122,15 +2173,7 @@ async function renderDashboard() {
   if (statsGuru) statsGuru.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'guru');
   if (statsSiswa) statsSiswa.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'siswa');
 
-  // info sesi: hanya sesi aktif (biru) ATAU "Sesi X selesai · berikutnya Sesi Y" (merah)
-  const chipWrap = document.getElementById('dashSesiChips') || document.querySelector('#page-dashboard .sesi-span');
-  if (chipWrap) {
-    chipWrap.innerHTML = buildDashSesiInfoHtml(sesiList);
-  }
-
-  // Struktur Organisasi dari data guru
-  renderStrukturOrganisasi();
-  // Rekap kehadiran guru & siswa (nama dari DB, status dari absensi)
+  // Rekap kehadiran guru & siswa (nama dari DB, status dari absensi hari ini)
   renderRekapKehadiran('guru', sesiList, absenRows);
   renderRekapKehadiran('siswa', sesiList, absenRows);
 }
@@ -2902,6 +2945,7 @@ function saveAbsenLog(list) {
   localStorage.setItem(ABSEN_KEY, JSON.stringify(list.slice(-500)));
 }
 function todayStr() {
+  // Tanggal lokal perangkat (WIB jika HP diset WIB)
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
@@ -2912,6 +2956,34 @@ function nowHM() {
 function hmToMin(hm) {
   const [h,m] = String(hm).split(':').map(Number);
   return h * 60 + m;
+}
+
+/**
+ * Rekap & statistik tampil mulai jam sesi 1 s/d 23:59 hari yang sama.
+ * Setelah 00:00 sampai sesi 1 tiba → disembunyikan (bersih).
+ */
+function shouldShowRekapHariIni() {
+  const list = getSesiList();
+  if (!list.length) return false;
+  const nowM = hmToMin(nowHM());
+  const starts = list.map(s => hmToMin(String(s.waktu1 || s.mulai || '06:00').slice(0, 5)));
+  const firstStart = Math.min(...starts);
+  // Dari mulai sesi pertama hingga sebelum tengah malam (23:59)
+  return nowM >= firstStart;
+}
+
+/** Legend statistik kosong (semua strip) */
+function buildEmptySesiStatsHtml(sesiList) {
+  const n = Math.max(1, (sesiList || []).length || 1);
+  return STATUS_ORDER.map(st => {
+    const numsHtml = Array.from({ length: n }, () =>
+      `<span class="num-zero">–</span>`
+    ).join('');
+    return `<div class="stat-box ${st.cls}">
+      <div class="nums">${numsHtml}</div>
+      <div class="lbl">${st.lbl}</div>
+    </div>`;
+  }).join('');
 }
 /** Sesi aktif berdasarkan jam sekarang (toleransi 5 menit sebelum mulai) */
 /** Sesi yang sedang berjalan (null jika di luar semua jam sesi) */
@@ -3291,38 +3363,123 @@ function updateGuruFpSesiBadge() {
   updateScanCameraLock();
 }
 
-async function renderScanLogTable() {
+let scanLogSesiFilter = 'all'; // 'all' | sesi id | sesi nama
+
+function buildScanLogSesiFilterButtons() {
+  const wrap = document.getElementById('scanLogSesiFilter');
+  if (!wrap) return;
+  const list = getSesiList();
+  let html = `<span style="font-size:11px;color:#888;margin-right:2px">Filter:</span>
+    <button type="button" class="btn btn-sm scan-sesi-btn ${scanLogSesiFilter === 'all' ? 'active' : ''}" data-sesi="all">Semua</button>`;
+  list.forEach(s => {
+    const key = String(s.id);
+    const active = scanLogSesiFilter === key || scanLogSesiFilter === String(s.nama);
+    html += `<button type="button" class="btn btn-sm scan-sesi-btn ${active ? 'active' : ''}" data-sesi="${escapeHtml(key)}" data-nama="${escapeHtml(s.nama || '')}">${escapeHtml(s.nama || 'Sesi')}</button>`;
+  });
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.scan-sesi-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      scanLogSesiFilter = btn.getAttribute('data-sesi') || 'all';
+      wrap.querySelectorAll('.scan-sesi-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderScanLogTable({ skipFetch: true });
+    });
+  });
+}
+
+function kelasSortKey(kelas) {
+  const s = String(kelas || '').trim().toUpperCase();
+  // 7A, 10 IPA 1, XII-1, dll.
+  const m = s.match(/(\d+)/);
+  const num = m ? parseInt(m[1], 10) : 999;
+  return [num, s];
+}
+
+async function renderScanLogTable(opts = {}) {
   const tb = document.getElementById('tbodyScanLog');
   const cnt = document.getElementById('scanLogCount');
   if (!tb) return;
-  // sinkron dari DB dulu
-  try {
-    if (getSession()?.token) {
-      const logRes = await apiCall('list_absen_hari_ini', {});
-      if (Array.isArray(logRes.data)) saveAbsenLog(logRes.data);
-    }
-  } catch (_) {}
+  if (!opts.skipFetch) {
+    try {
+      if (getSession()?.token) {
+        const logRes = await apiCall('list_absen_hari_ini', {});
+        if (Array.isArray(logRes.data)) saveAbsenLog(logRes.data);
+      }
+    } catch (_) {}
+    buildScanLogSesiFilterButtons();
+  }
   const today = todayStr();
-  let rows = loadAbsenLog().filter(r => !r.tanggal || String(r.tanggal).slice(0,10) === today);
-  if (!rows.length) rows = loadAbsenLog(); // tampilkan semua cache jika filter kosong
-  rows = rows.slice().reverse();
-  if (cnt) cnt.textContent = rows.length + ' data';
-  if (!rows.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="7">Belum ada scan hari ini</td></tr>';
+  let rows = loadAbsenLog().filter(r => !r.tanggal || String(r.tanggal).slice(0, 10) === today);
+  if (!rows.length) rows = loadAbsenLog();
+
+  // Filter sesi
+  if (scanLogSesiFilter && scanLogSesiFilter !== 'all') {
+    const sesi = (store.sesi || []).find(s => String(s.id) === String(scanLogSesiFilter));
+    rows = rows.filter(r => {
+      if (String(r.sesi_id) === String(scanLogSesiFilter)) return true;
+      if (sesi && r.sesi_nama && String(r.sesi_nama) === String(sesi.nama)) return true;
+      return false;
+    });
+  }
+
+  // Enrich + sort: guru by duk, siswa by kelas
+  const enriched = rows.map(r => {
+    let idShow = r.kode || '-';
+    let kelas = r.kelas || '';
+    let duk = 9999;
+    if (r.role === 'guru') {
+      const g = (store.guru || []).find(x =>
+        (r.ref_id && String(x.id) === String(r.ref_id)) ||
+        String(x.pin) === String(r.kode) ||
+        String(x.nip) === String(r.kode) ||
+        x.nama === r.nama
+      );
+      if (g) {
+        if (g.nip) idShow = g.nip;
+        duk = Number(g.duk) || 9999;
+        kelas = g.jabatan || '-';
+      } else {
+        kelas = '-';
+      }
+    } else {
+      const s = (store.siswa || []).find(x =>
+        (r.ref_id && String(x.id) === String(r.ref_id)) ||
+        String(x.nisn) === String(r.kode) ||
+        x.nama === r.nama
+      );
+      if (s) kelas = s.kelas || '-';
+      else if (!kelas) kelas = '-';
+    }
+    return { ...r, _idShow: idShow, _kelas: kelas, _duk: duk };
+  });
+
+  enriched.sort((a, b) => {
+    // Guru dulu, lalu siswa
+    if (a.role !== b.role) return a.role === 'guru' ? -1 : 1;
+    if (a.role === 'guru') {
+      if (a._duk !== b._duk) return a._duk - b._duk;
+      return String(a.nama || '').localeCompare(String(b.nama || ''), 'id');
+    }
+    // siswa: kelas lalu nama
+    const ka = kelasSortKey(a._kelas);
+    const kb = kelasSortKey(b._kelas);
+    if (ka[0] !== kb[0]) return ka[0] - kb[0];
+    if (ka[1] !== kb[1]) return ka[1].localeCompare(kb[1], 'id');
+    return String(a.nama || '').localeCompare(String(b.nama || ''), 'id');
+  });
+
+  if (cnt) cnt.textContent = enriched.length + ' data';
+  if (!enriched.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="8">Belum ada data untuk filter ini</td></tr>';
     return;
   }
-  tb.innerHTML = rows.map((r, i) => {
-    // NISN/NIP: kode for siswa is NISN; for guru try NIP from store else kode (PIN)
-    let idShow = r.kode || '-';
-    if (r.role === 'guru') {
-      const g = (store.guru || []).find(x => String(x.pin) === String(r.kode) || x.nama === r.nama);
-      if (g && g.nip) idShow = g.nip;
-    }
+  tb.innerHTML = enriched.map((r, i) => {
     const scanner = r.scanned_by || r.operator || '-';
     return `<tr>
       <td>${i + 1}</td>
-      <td>${escapeHtml(idShow)}</td>
+      <td>${escapeHtml(r._idShow)}</td>
       <td>${escapeHtml(r.nama || '-')}</td>
+      <td>${escapeHtml(r._kelas || '-')}</td>
       <td>${escapeHtml(r.jam || '-')}</td>
       <td>${escapeHtml(r.sesi_nama || '-')}</td>
       <td><span class="badge-status ${statusClass(r.status)}">${escapeHtml(r.status || '-')}</span></td>
@@ -4075,26 +4232,119 @@ document.getElementById('btnHapusAbsenSesi')?.addEventListener('click', async ()
 });
 
 
-/* ===== Input Izin / Sakit ===== */
+/* ===== Input Izin / Sakit — pencarian Nama / NISN ===== */
+function izinSearchList(q, role) {
+  const needle = String(q || '').trim().toLowerCase();
+  if (!needle || needle.length < 1) return [];
+  if (role === 'guru') {
+    return (store.guru || []).filter(g => {
+      const nama = String(g.nama || '').toLowerCase();
+      const pin = String(g.pin || '');
+      const nip = String(g.nip || '');
+      return nama.includes(needle) || pin.includes(needle) || nip.includes(needle);
+    }).slice(0, 12);
+  }
+  return (store.siswa || []).filter(s => {
+    const nama = String(s.nama || '').toLowerCase();
+    const nisn = String(s.nisn || '');
+    const kelas = String(s.kelas || '').toLowerCase();
+    return nama.includes(needle) || nisn.includes(needle) || kelas.includes(needle);
+  }).slice(0, 12);
+}
+
+function showIzinSuggest(items, role) {
+  const box = document.getElementById('izinSuggest');
+  if (!box) return;
+  if (!items.length) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  box.innerHTML = items.map((p, i) => {
+    if (role === 'guru') {
+      return `<div class="izin-suggest-item" data-idx="${i}" data-kode="${escapeHtml(p.pin || p.nip || '')}">
+        <b>${escapeHtml(p.nama || '')}</b>
+        <small>PIN: ${escapeHtml(p.pin || '-')} · NIP: ${escapeHtml(p.nip || '-')}</small>
+      </div>`;
+    }
+    return `<div class="izin-suggest-item" data-idx="${i}" data-kode="${escapeHtml(p.nisn || '')}">
+      <b>${escapeHtml(p.nama || '')}</b>
+      <small>NISN: ${escapeHtml(p.nisn || '-')} · Kelas: ${escapeHtml(p.kelas || '-')}</small>
+    </div>`;
+  }).join('');
+  box.style.display = 'block';
+  box.querySelectorAll('.izin-suggest-item').forEach(el => {
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      selectIzinPerson(el.getAttribute('data-kode'), el.querySelector('b')?.textContent || '');
+    });
+  });
+}
+
+function selectIzinPerson(kode, nama) {
+  const inp = document.getElementById('izinKode');
+  const hid = document.getElementById('izinKodeResolved');
+  const sel = document.getElementById('izinSelected');
+  const box = document.getElementById('izinSuggest');
+  if (hid) hid.value = kode || '';
+  if (inp) inp.value = nama ? `${nama} (${kode})` : kode;
+  if (sel) {
+    sel.style.display = '';
+    sel.innerHTML = `Terpilih: <b>${escapeHtml(nama || kode)}</b> · kode <code>${escapeHtml(kode)}</code>`;
+  }
+  if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+}
+
 document.getElementById('izinRole')?.addEventListener('change', () => {
   const role = document.getElementById('izinRole')?.value;
   const lab = document.getElementById('izinKodeLabel');
   const inp = document.getElementById('izinKode');
+  const hid = document.getElementById('izinKodeResolved');
+  const sel = document.getElementById('izinSelected');
   if (role === 'guru') {
-    if (lab) lab.textContent = 'PIN (6 digit) / NIP';
-    if (inp) { inp.placeholder = 'PIN atau NIP'; inp.maxLength = 20; }
+    if (lab) lab.textContent = 'Cari Nama / PIN / NIP';
+    if (inp) { inp.placeholder = 'Ketik nama, PIN, atau NIP…'; inp.value = ''; }
   } else {
-    if (lab) lab.textContent = 'NISN (10 digit)';
-    if (inp) { inp.placeholder = '10 digit NISN'; inp.maxLength = 10; }
+    if (lab) lab.textContent = 'Cari Nama / NISN';
+    if (inp) { inp.placeholder = 'Ketik nama atau NISN…'; inp.value = ''; }
+  }
+  if (hid) hid.value = '';
+  if (sel) { sel.style.display = 'none'; sel.innerHTML = ''; }
+  document.getElementById('izinSuggest').style.display = 'none';
+});
+
+document.getElementById('izinKode')?.addEventListener('input', () => {
+  const role = document.getElementById('izinRole')?.value || 'siswa';
+  const q = document.getElementById('izinKode')?.value || '';
+  document.getElementById('izinKodeResolved').value = '';
+  const items = izinSearchList(q, role);
+  showIzinSuggest(items, role);
+});
+document.getElementById('izinKode')?.addEventListener('blur', () => {
+  setTimeout(() => {
+    const box = document.getElementById('izinSuggest');
+    if (box) box.style.display = 'none';
+  }, 180);
+});
+document.getElementById('izinKode')?.addEventListener('focus', () => {
+  const role = document.getElementById('izinRole')?.value || 'siswa';
+  const q = document.getElementById('izinKode')?.value || '';
+  if (q && !document.getElementById('izinKodeResolved')?.value) {
+    showIzinSuggest(izinSearchList(q, role), role);
   }
 });
+
 document.getElementById('btnSimpanIzin')?.addEventListener('click', async () => {
   const role = document.getElementById('izinRole')?.value || 'siswa';
   const status = document.getElementById('izinStatus')?.value || 'Izin';
-  const kode = (document.getElementById('izinKode')?.value || '').replace(/\D/g, '');
+  let kode = (document.getElementById('izinKodeResolved')?.value || '').replace(/\D/g, '');
+  if (!kode) {
+    // fallback: ambil digit dari input (NISN/PIN diketik langsung)
+    kode = (document.getElementById('izinKode')?.value || '').replace(/\D/g, '');
+  }
   const out = document.getElementById('izinResult');
-  if (!kode) { toast('Isi NISN / PIN', 'err'); return; }
-  if (role === 'siswa' && kode.length !== 10) { toast('NISN harus 10 digit', 'err'); return; }
+  if (!kode) { toast('Pilih dari daftar pencarian atau ketik NISN/PIN', 'err'); return; }
+  if (role === 'siswa' && kode.length !== 10) { toast('NISN harus 10 digit — pilih dari hasil pencarian', 'err'); return; }
   try {
     const sess = getSession();
     const res = await apiCall('input_izin_sakit', {
