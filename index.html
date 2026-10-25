@@ -6121,9 +6121,13 @@ function switchRekapTab(tab) {
   if (pE) pE.style.display = rekapTab === 'edit' ? '' : 'none';
   const tabEdit = document.getElementById('rekapTabEdit');
   if (tabEdit) tabEdit.style.display = isAdmin ? '' : 'none';
-  // jika bukan admin, pastikan tab rekap aktif penuh
   if (!isAdmin && tabEdit) {
     document.getElementById('rekapTabRekap')?.classList.add('active');
+  }
+  // Setelah edit status, muat ulang rekap agar angka TW/TL sinkron
+  if (rekapTab === 'rekap' && window._rekapNeedRefresh) {
+    window._rekapNeedRefresh = false;
+    cariRekap();
   }
 }
 
@@ -6255,15 +6259,33 @@ function renderEditTable(payload) {
   }).join('');
 
   tb.querySelectorAll('.edit-abs-status').forEach(sel => {
+    const prev = sel.value;
+    sel.dataset.prev = prev;
     sel.addEventListener('change', async () => {
+      const newStatus = sel.value;
+      const oldStatus = sel.dataset.prev || prev;
+      sel.disabled = true;
       try {
-        await apiCall('update_absensi_status', {
+        const res = await apiCall('update_absensi_status', {
           id: sel.getAttribute('data-id'),
           source: sel.getAttribute('data-source'),
-          status: sel.value,
+          status: newStatus,
         });
-        toast('Status diperbarui', 'ok');
-      } catch (e) { toast(errToText(e), 'err'); }
+        // pastikan nilai UI = nilai yang dikonfirmasi server
+        const confirmed = res?.data?.status || newStatus;
+        sel.value = confirmed;
+        sel.dataset.prev = confirmed;
+        if (res?.data?._source) sel.setAttribute('data-source', res.data._source);
+        toast(res.message || ('Status → ' + confirmed), 'ok');
+        // tandai perlu refresh rekap agar tab Rekap & fitur lain konsisten
+        window._rekapNeedRefresh = true;
+      } catch (e) {
+        sel.value = oldStatus; // rollback
+        toast(errToText(e), 'err');
+        showBigPopup('err', 'Gagal Ubah Status', errToText(e), 0);
+      } finally {
+        sel.disabled = false;
+      }
     });
   });
   const checkAll = document.getElementById('rekapCheckAll');
