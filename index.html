@@ -597,6 +597,13 @@
     .mk-table th, .mk-table td { padding: 5px 3px !important; }
     .mk-panel.data-card { padding: 10px 8px !important; }
   }
+  .ampu-kelas-grid {
+    display: flex; flex-wrap: wrap; gap: 4px 10px;
+  }
+  .ampu-kelas-chk {
+    font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;
+    white-space: nowrap;
+  }
   #page-scan-barcode #qr-reader {
     margin-top:14px; border-radius:6px; overflow:hidden;
     max-width:360px; margin-left:auto; margin-right:auto;
@@ -965,7 +972,7 @@
               <th><input type="checkbox" id="checkAllGuru" /></th>
               <th>No</th><th>DUK</th><th>Nama</th><th>L/P</th><th>NIP</th>
               <th>Jabatan Struktural</th><th>Jabatan Fungsional</th>
-              <th>Pangkat/Gol</th><th>Status</th><th>No HP</th><th>PIN</th><th>Aksi</th>
+              <th>Pangkat/Gol</th><th>Mapel</th><th>Kelas</th><th>Status</th><th>No HP</th><th>PIN</th><th>Aksi</th>
             </tr>
           </thead>
           <tbody id="tbodyGuru"></tbody>
@@ -1493,6 +1500,7 @@ async function refreshStoreFromDb() {
     store.mapel = d.mapel || store.mapel || [];
     store.kelas = d.kelas || store.kelas || [];
     store.bobot_nilai = d.bobot_nilai || store.bobot_nilai || [];
+    store.guru_ampu = d.guru_ampu || store.guru_ampu || [];
     // absen hari ini → format log lokal untuk tabel
     if (Array.isArray(d.absen_hari_ini)) {
       saveAbsenLog(d.absen_hari_ini);
@@ -1891,6 +1899,7 @@ function seedStore() {
     mapel: [],
     kelas: [],
     bobot_nilai: [],
+    guru_ampu: [],
   };
 }
 
@@ -2415,6 +2424,30 @@ function sortByDuk(a, b) {
   return String(a.id || '').localeCompare(String(b.id || ''), 'en', { numeric: true });
 }
 
+/** Ringkas ampu guru untuk periode aktif: { mapelText, kelasText } */
+function formatGuruAmpu(guruId) {
+  const aktif = getActivePeriode();
+  const ampu = (store.guru_ampu || []).filter(a =>
+    String(a.guru_id) === String(guruId) &&
+    (!aktif || !a.periode_id || String(a.periode_id) === String(aktif.id))
+  );
+  if (!ampu.length) return { mapel: '—', kelas: '—' };
+  const mapelIds = [...new Set(ampu.map(a => String(a.mapel_id)))];
+  const kelasIds = [...new Set(ampu.map(a => String(a.kelas_id)))];
+  const mapelNames = mapelIds.map(id => {
+    const m = (store.mapel || []).find(x => String(x.id) === id);
+    return m ? (m.kode || m.nama) : id;
+  });
+  const kelasNames = kelasIds.map(id => {
+    const k = (store.kelas || []).find(x => String(x.id) === id);
+    return k ? k.nama : id;
+  }).sort((a, b) => String(a).localeCompare(String(b), 'id'));
+  return {
+    mapel: mapelNames.join(', ') || '—',
+    kelas: kelasNames.join(', ') || '—',
+  };
+}
+
 function renderGuru(filter) {
   updatePeriodeBadges();
   const q = (filter || document.getElementById('searchGuru')?.value || '').toLowerCase();
@@ -2430,10 +2463,12 @@ function renderGuru(filter) {
   rows = rows.slice().sort(sortByDuk);
   const tb = document.getElementById('tbodyGuru');
   if (!rows.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="13">Belum ada data guru</td></tr>';
+    tb.innerHTML = '<tr class="empty-row"><td colspan="15">Belum ada data guru</td></tr>';
     return;
   }
-  tb.innerHTML = rows.map((g, i) => `
+  tb.innerHTML = rows.map((g, i) => {
+    const am = formatGuruAmpu(g.id);
+    return `
     <tr data-id="${g.id}">
       <td><input type="checkbox" class="row-check" value="${g.id}" /></td>
       <td>${i + 1}</td>
@@ -2444,6 +2479,8 @@ function renderGuru(filter) {
       <td>${escapeHtml(g.jabatan_struktur || '-')}</td>
       <td>${escapeHtml(g.jabatan_fungsional || '-')}</td>
       <td>${escapeHtml(g.pangkat_gol || '-')}</td>
+      <td style="font-size:10.5px;max-width:120px;white-space:normal">${escapeHtml(am.mapel)}</td>
+      <td style="font-size:10.5px;max-width:120px;white-space:normal">${escapeHtml(am.kelas)}</td>
       <td>${statusBadge(g.status)}</td>
       <td>${escapeHtml(g.no_hp || '-')}</td>
       <td>${escapeHtml(g.pin || '-')}</td>
@@ -2451,7 +2488,8 @@ function renderGuru(filter) {
         <button type="button" class="btn btn-outline btn-sm" data-edit="guru" data-id="${g.id}">✏️</button>
         <button type="button" class="btn btn-danger btn-sm" data-del="guru" data-id="${g.id}">🗑️</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 function renderLulusan(filter) {
@@ -2601,8 +2639,114 @@ function openForm(entity, id) {
         return `<div class="${cls}"><label>${f.label}${f.required?' *':''}</label>
           <input type="${f.type||'text'}" name="${f.key}" value="${escapeHtml(String(val))}" ${f.required?'required':''} /></div>`;
       }).join('')}
-    </div>`;
+    </div>
+    ${entity === 'guru' ? buildGuruAmpuEditorHtml(id) : ''}`;
   document.getElementById('crudModal').classList.add('active');
+  if (entity === 'guru') bindGuruAmpuEditor(id);
+}
+
+/** Editor multi mapel × kelas (terikat periode aktif) */
+function buildGuruAmpuEditorHtml(guruId) {
+  const aktif = getActivePeriode();
+  const periodeLabel = aktif ? `${aktif.tahun_ajaran} ${aktif.semester}` : '—';
+  return `
+    <div class="guru-ampu-box" id="guruAmpuBox" style="margin-top:14px;padding:12px;border:1px solid #c5cae9;border-radius:8px;background:#f5f7ff">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <b style="font-size:13px;color:#1565c0">Mapel &amp; Kelas yang Diampu</b>
+        <span style="font-size:11px;color:#666">Periode: <b>${escapeHtml(periodeLabel)}</b></span>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-primary btn-sm" id="btnAmpuAdd">+ Tambah baris</button>
+      </div>
+      <p style="font-size:11px;color:#666;margin-bottom:8px;line-height:1.4">
+        Satu guru bisa mengampu beberapa mapel, tiap mapel bisa ke kelas yang sama atau berbeda.
+      </p>
+      <div id="ampuRows"></div>
+    </div>`;
+}
+
+function getAmpuRowsForGuru(guruId) {
+  const aktif = getActivePeriode();
+  const ampu = (store.guru_ampu || []).filter(a =>
+    String(a.guru_id) === String(guruId) &&
+    (!aktif || !a.periode_id || String(a.periode_id) === String(aktif.id))
+  );
+  // group by mapel_id
+  const map = new Map();
+  ampu.forEach(a => {
+    const mid = String(a.mapel_id);
+    if (!map.has(mid)) map.set(mid, new Set());
+    map.get(mid).add(String(a.kelas_id));
+  });
+  const rows = [...map.entries()].map(([mapel_id, kelasSet]) => ({
+    mapel_id,
+    kelas_ids: [...kelasSet],
+  }));
+  return rows.length ? rows : [{ mapel_id: '', kelas_ids: [] }];
+}
+
+function renderAmpuRowsUI(rows) {
+  const wrap = document.getElementById('ampuRows');
+  if (!wrap) return;
+  const mapelOpts = (store.mapel || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  const kelasOpts = (store.kelas || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  if (!mapelOpts.length || !kelasOpts.length) {
+    wrap.innerHTML = '<p style="font-size:12px;color:#c62828">Isi dulu data di menu <b>Mapel &amp; Kelas</b>.</p>';
+    return;
+  }
+  wrap.innerHTML = rows.map((row, idx) => {
+    const mapelSel = mapelOpts.map(m =>
+      `<option value="${escapeHtml(String(m.id))}" ${String(m.id) === String(row.mapel_id) ? 'selected' : ''}>${escapeHtml(m.kode)} — ${escapeHtml(m.nama)}</option>`
+    ).join('');
+    const kelasChecks = kelasOpts.map(k => {
+      const checked = (row.kelas_ids || []).includes(String(k.id)) ? 'checked' : '';
+      return `<label class="ampu-kelas-chk"><input type="checkbox" data-ampu-kelas="${idx}" value="${escapeHtml(String(k.id))}" ${checked} /> ${escapeHtml(k.nama)}</label>`;
+    }).join('');
+    return `<div class="ampu-row" data-idx="${idx}" style="border:1px solid #e0e0e0;border-radius:6px;padding:10px;margin-bottom:8px;background:#fff">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <label style="font-size:11px;font-weight:600">Mapel</label>
+        <select data-ampu-mapel="${idx}" style="flex:1;min-width:160px;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px">
+          <option value="">— pilih —</option>
+          ${mapelSel}
+        </select>
+        <button type="button" class="btn btn-outline btn-sm ampu-remove" data-idx="${idx}" style="color:#c62828;border-color:#ef9a9a">Hapus</button>
+      </div>
+      <div style="font-size:11px;font-weight:600;margin-bottom:4px">Kelas</div>
+      <div class="ampu-kelas-grid">${kelasChecks}</div>
+    </div>`;
+  }).join('');
+
+  wrap.querySelectorAll('.ampu-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = Number(btn.getAttribute('data-idx'));
+      const current = collectAmpuFromUI();
+      current.splice(i, 1);
+      if (!current.length) current.push({ mapel_id: '', kelas_ids: [] });
+      renderAmpuRowsUI(current);
+    });
+  });
+}
+
+function collectAmpuFromUI() {
+  const wrap = document.getElementById('ampuRows');
+  if (!wrap) return [];
+  const rows = [];
+  wrap.querySelectorAll('.ampu-row').forEach(rowEl => {
+    const idx = rowEl.getAttribute('data-idx');
+    const mapel = rowEl.querySelector(`[data-ampu-mapel="${idx}"]`)?.value || '';
+    const kelas_ids = [...rowEl.querySelectorAll(`[data-ampu-kelas="${idx}"]:checked`)].map(c => c.value);
+    rows.push({ mapel_id: mapel, kelas_ids });
+  });
+  return rows;
+}
+
+function bindGuruAmpuEditor(guruId) {
+  const initial = guruId ? getAmpuRowsForGuru(guruId) : [{ mapel_id: '', kelas_ids: [] }];
+  renderAmpuRowsUI(initial);
+  document.getElementById('btnAmpuAdd')?.addEventListener('click', () => {
+    const current = collectAmpuFromUI();
+    current.push({ mapel_id: '', kelas_ids: [] });
+    renderAmpuRowsUI(current);
+  });
 }
 
 function closeForm() {
@@ -2642,6 +2786,14 @@ async function saveForm() {
   if (entity !== 'periode' && aktif) data.periode_id = data.periode_id || aktif.id;
   if (id) data.id = id;
 
+  // Ampu mapel×kelas (hanya guru)
+  if (entity === 'guru') {
+    const ampuRows = collectAmpuFromUI().filter(r => r.mapel_id && r.kelas_ids?.length);
+    data.ampu = ampuRows.flatMap(r =>
+      r.kelas_ids.map(kid => ({ mapel_id: r.mapel_id, kelas_id: kid }))
+    );
+  }
+
   const actionMap = {
     siswa: 'save_siswa', guru: 'save_guru', lulusan: 'save_lulusan', periode: 'save_periode'
   };
@@ -2658,6 +2810,13 @@ async function saveForm() {
     const idx = store[entity].findIndex(r => (r.id && row.id && r.id === row.id) || (keyFn(r) && keyFn(r) === keyFn(row)));
     if (idx >= 0) store[entity][idx] = { ...store[entity][idx], ...row };
     else store[entity].push(row);
+    if (entity === 'guru' && Array.isArray(res.ampu)) {
+      const gid = row.id;
+      const aktifId = aktif?.id;
+      store.guru_ampu = (store.guru_ampu || []).filter(a =>
+        !(String(a.guru_id) === String(gid) && (!aktifId || String(a.periode_id) === String(aktifId)))
+      ).concat(res.ampu);
+    }
     saveStore(store);
     closeForm();
     toast('Data tersimpan ke database', 'ok');
