@@ -624,17 +624,29 @@
     table.rekap-abs-table th.col-nama, table.rekap-abs-table td.td-nama { max-width:100px; min-width:80px; }
     table.rekap-abs-table th.col-nisn, table.rekap-abs-table td.col-nisn { width:80px; max-width:84px; font-size:10px; }
   }
+  /* Warna status = legend dashboard (stat-box) */
   .st-pill {
-    display:inline-block; min-width:28px; padding:2px 5px; border-radius:4px;
-    font-size:10px; font-weight:800;
+    display:inline-block; min-width:28px; padding:3px 6px; border-radius:5px;
+    font-size:10px; font-weight:800; border:1px solid transparent;
   }
-  .st-pill.TW { background:#e3f2fd; color:#1565c0; }
-  .st-pill.TL { background:#e8f5e9; color:#2e7d32; }
-  .st-pill.Izin { background:#fffde7; color:#f9a825; }
-  .st-pill.Sakit { background:#fff3e0; color:#e65100; }
-  .st-pill.Alpa { background:#fce4ec; color:#ad1457; }
-  .st-pill.Bolos { background:#ffcdd2; color:#ff1744; }
-  .st-pill.empty { background:#f5f5f5; color:#bbb; font-weight:500; }
+  .st-pill.TW { background:rgba(25,118,210,.18); border-color:rgba(25,118,210,.45); color:#1565c0; }
+  .st-pill.TL { background:rgba(67,160,71,.18); border-color:rgba(67,160,71,.45); color:#2e7d32; }
+  .st-pill.Izin { background:rgba(253,216,53,.28); border-color:rgba(249,168,37,.5); color:#f9a825; }
+  .st-pill.Sakit { background:rgba(251,140,0,.18); border-color:rgba(251,140,0,.45); color:#e65100; }
+  .st-pill.Alpa { background:rgba(194,24,91,.14); border-color:rgba(194,24,91,.4); color:#ad1457; }
+  .st-pill.Bolos { background:rgba(255,82,82,.22); border-color:rgba(255,82,82,.55); color:#ff1744; }
+  .st-pill.empty { background:#f5f5f5; border-color:#e0e0e0; color:#bbb; font-weight:500; }
+  /* Select status di Edit Absensi */
+  select.edit-abs-status {
+    font-size:10px; padding:3px 4px; border-radius:5px; border:1px solid #cfd8dc;
+    font-weight:700; max-width:78px; cursor:pointer;
+  }
+  select.edit-abs-status.st-TW { background:rgba(25,118,210,.18); color:#1565c0; border-color:rgba(25,118,210,.45); }
+  select.edit-abs-status.st-TL { background:rgba(67,160,71,.18); color:#2e7d32; border-color:rgba(67,160,71,.45); }
+  select.edit-abs-status.st-Izin { background:rgba(253,216,53,.28); color:#f9a825; border-color:rgba(249,168,37,.5); }
+  select.edit-abs-status.st-Sakit { background:rgba(251,140,0,.18); color:#e65100; border-color:rgba(251,140,0,.45); }
+  select.edit-abs-status.st-Alpa { background:rgba(194,24,91,.14); color:#ad1457; border-color:rgba(194,24,91,.4); }
+  select.edit-abs-status.st-Bolos { background:rgba(255,82,82,.22); color:#ff1744; border-color:rgba(255,82,82,.55); }
   .rekap-aksi-btn {
     border:none; background:#e3f2fd; color:#1565c0; border-radius:6px;
     padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer;
@@ -1818,6 +1830,70 @@
     </div>
   </div>
 
+
+  <!-- ========== PAGE: RESET / UBAH PIN ========== -->
+  <div class="page" id="page-reset-pin">
+    <div class="page-title">🔑 Ubah / Reset PIN</div>
+    <p style="font-size:12px;color:#666;margin:-6px 0 14px">PIN dipakai untuk login (Admin &amp; Guru: 6 digit). PIN admin disimpan di tabel <b>admin</b>, PIN guru di tabel <b>guru</b>. Wajib verifikasi PIN lama sebelum mengganti.</p>
+
+    <div class="rekap-tabs" id="pinTabs" style="margin-bottom:14px">
+      <button type="button" class="rekap-tab active" data-pin-tab="self">Ubah PIN Saya</button>
+      <button type="button" class="rekap-tab" data-pin-tab="guru" id="pinTabGuru">Reset PIN Guru</button>
+    </div>
+
+    <!-- Ubah PIN sendiri -->
+    <div class="card" id="pinPanelSelf" style="max-width:420px">
+      <h3 style="font-size:14px;margin-bottom:12px">Ubah PIN akun ini</h3>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>PIN Lama</label>
+        <input type="password" id="pinOld" inputmode="numeric" maxlength="6" placeholder="6 digit" autocomplete="current-password"
+          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:14px;letter-spacing:2px" />
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>PIN Baru</label>
+        <input type="password" id="pinNew" inputmode="numeric" maxlength="6" placeholder="6 digit baru" autocomplete="new-password"
+          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:14px;letter-spacing:2px" />
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Ulangi PIN Baru</label>
+        <input type="password" id="pinNew2" inputmode="numeric" maxlength="6" placeholder="Ulangi 6 digit" autocomplete="new-password"
+          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:14px;letter-spacing:2px" />
+      </div>
+      <button type="button" class="btn btn-primary" id="btnUbahPinSelf" style="width:100%;padding:12px">Simpan PIN Baru</button>
+      <p id="pinSelfMsg" style="font-size:12px;margin-top:10px;color:#666"></p>
+    </div>
+
+    <!-- Reset PIN Guru (admin) -->
+    <div class="card" id="pinPanelGuru" style="max-width:480px;display:none">
+      <h3 style="font-size:14px;margin-bottom:12px">Reset PIN Guru (Admin)</h3>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Cari Guru</label>
+        <input type="text" id="pinGuruQ" placeholder="Nama / NIP / PIN…" autocomplete="off"
+          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:13px" />
+        <select id="pinGuruSelect" size="6" style="width:100%;margin-top:6px;border:1px solid #e0e0e0;border-radius:8px;font-size:12px;padding:4px">
+          <option value="">— ketik untuk mencari —</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>PIN Admin (verifikasi)</label>
+        <input type="password" id="pinAdminVerify" inputmode="numeric" maxlength="6" placeholder="PIN admin Anda"
+          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:14px;letter-spacing:2px" />
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>PIN Baru Guru</label>
+        <input type="password" id="pinGuruNew" inputmode="numeric" maxlength="6" placeholder="6 digit"
+          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:14px;letter-spacing:2px" />
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Ulangi PIN Baru Guru</label>
+        <input type="password" id="pinGuruNew2" inputmode="numeric" maxlength="6" placeholder="Ulangi"
+          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:14px;letter-spacing:2px" />
+      </div>
+      <button type="button" class="btn btn-primary" id="btnResetPinGuru" style="width:100%;padding:12px">Reset PIN Guru</button>
+      <p id="pinGuruMsg" style="font-size:12px;margin-top:10px;color:#666"></p>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -2829,7 +2905,7 @@ function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
 
@@ -2858,6 +2934,7 @@ function navigate(page, opts = {}) {
   if (target === 'sesi-libur') initSesiLiburPage();
   if (target === 'input-daftar-nilai') initNilaiPage();
   if (target === 'rekap-data') initRekapPage();
+  if (target === 'reset-pin') initResetPinPage();
   if (target !== 'scan-barcode') stopQrScanner();
 
   // persist halaman agar refresh tidak kembali ke dashboard
@@ -6234,11 +6311,11 @@ function renderEditTable(payload) {
     const cells = sesi.map(s => {
       const c = r.cells?.[s.key];
       if (!c) return `<td><span class="st-pill empty">—</span></td>`;
+      const stNow = String(c.status || '');
       return `<td>
-        <select class="edit-abs-status" data-id="${escapeHtml(c.id)}" data-source="${escapeHtml(c.source || 'absensi')}"
-          style="font-size:10px;padding:2px 3px;border-radius:4px;border:1px solid #cfd8dc;max-width:72px">
+        <select class="edit-abs-status st-${escapeHtml(stNow)}" data-id="${escapeHtml(c.id)}" data-source="${escapeHtml(c.source || 'absensi')}">
           ${['TW','TL','Izin','Sakit','Alpa','Bolos'].map(st =>
-            `<option value="${st}" ${String(c.status) === st ? 'selected' : ''}>${st}</option>`
+            `<option value="${st}" ${stNow === st ? 'selected' : ''}>${st}</option>`
           ).join('')}
         </select>
       </td>`;
@@ -6278,6 +6355,7 @@ function renderEditTable(payload) {
         const confirmed = res?.data?.status || newStatus;
         sel.value = confirmed;
         sel.dataset.prev = confirmed;
+        sel.className = 'edit-abs-status st-' + confirmed;
         if (res?.data?._source) sel.setAttribute('data-source', res.data._source);
         toast(res.message || ('Status → ' + confirmed), 'ok');
         // detail singkat di console untuk debug
@@ -6549,6 +6627,118 @@ document.getElementById('btnRekapHapusTerpilih')?.addEventListener('click', asyn
     showBigPopup('err', 'Gagal Hapus', errToText(e), 0);
   }
 });
+
+
+/* ===== Reset / Ubah PIN ===== */
+function onlyDigit6(el) {
+  if (!el) return;
+  el.addEventListener('input', () => { el.value = el.value.replace(/\D/g, '').slice(0, 6); });
+}
+function switchPinTab(tab) {
+  const isAdmin = getSession()?.role === 'admin';
+  if (tab === 'guru' && !isAdmin) tab = 'self';
+  document.querySelectorAll('#pinTabs .rekap-tab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-pin-tab') === tab);
+  });
+  const ps = document.getElementById('pinPanelSelf');
+  const pg = document.getElementById('pinPanelGuru');
+  if (ps) ps.style.display = tab === 'self' ? '' : 'none';
+  if (pg) pg.style.display = tab === 'guru' ? '' : 'none';
+  const tg = document.getElementById('pinTabGuru');
+  if (tg) tg.style.display = isAdmin ? '' : 'none';
+}
+function fillPinGuruSelect(q) {
+  const sel = document.getElementById('pinGuruSelect');
+  if (!sel) return;
+  const qq = String(q || '').toLowerCase().trim();
+  let list = (store.guru || []).slice().sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
+  if (qq) {
+    list = list.filter(g => {
+      const hay = ((g.nama || '') + ' ' + (g.nip || '') + ' ' + (g.pin || '')).toLowerCase();
+      return hay.includes(qq);
+    });
+  }
+  list = list.slice(0, 40);
+  sel.innerHTML = list.length
+    ? list.map(g => `<option value="${escapeHtml(String(g.id))}">${escapeHtml(g.nama || '')} — PIN ${escapeHtml(String(g.pin || ''))}${g.nip ? ' · ' + escapeHtml(g.nip) : ''}</option>`).join('')
+    : '<option value="">— tidak ada —</option>';
+}
+function initResetPinPage() {
+  switchPinTab('self');
+  ['pinOld','pinNew','pinNew2','pinAdminVerify','pinGuruNew','pinGuruNew2'].forEach(id => onlyDigit6(document.getElementById(id)));
+  fillPinGuruSelect('');
+}
+document.getElementById('pinTabs')?.addEventListener('click', (e) => {
+  const b = e.target.closest('.rekap-tab');
+  if (b) switchPinTab(b.getAttribute('data-pin-tab'));
+});
+document.getElementById('pinGuruQ')?.addEventListener('input', (e) => fillPinGuruSelect(e.target.value));
+
+document.getElementById('btnUbahPinSelf')?.addEventListener('click', async () => {
+  const oldP = document.getElementById('pinOld')?.value || '';
+  const n1 = document.getElementById('pinNew')?.value || '';
+  const n2 = document.getElementById('pinNew2')?.value || '';
+  const msg = document.getElementById('pinSelfMsg');
+  if (oldP.length !== 6 || n1.length !== 6) {
+    if (msg) msg.textContent = 'PIN lama & baru harus 6 digit.';
+    toast('PIN harus 6 digit', 'err'); return;
+  }
+  if (n1 !== n2) {
+    if (msg) msg.textContent = 'PIN baru tidak sama dengan ulangan.';
+    toast('Konfirmasi PIN tidak cocok', 'err'); return;
+  }
+  if (oldP === n1) {
+    if (msg) msg.textContent = 'PIN baru harus berbeda dari PIN lama.';
+    toast('PIN baru sama dengan lama', 'err'); return;
+  }
+  try {
+    const res = await apiCall('change_pin', { old_pin: oldP, new_pin: n1, target: 'self' });
+    if (msg) msg.textContent = res.message || 'PIN diperbarui';
+    toast(res.message || 'PIN diperbarui', 'ok');
+    showBigPopup('ok', 'PIN Berhasil Diubah', res.message || 'Gunakan PIN baru saat login berikutnya.', 2500);
+    // update session pin jika guru
+    const sess = getSession();
+    if (sess?.user) {
+      sess.user.pin = n1;
+      try { localStorage.setItem('sis_session', JSON.stringify(sess)); } catch (_) {}
+    }
+    ['pinOld','pinNew','pinNew2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  } catch (e) {
+    if (msg) msg.textContent = errToText(e);
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Gagal Ubah PIN', errToText(e), 0);
+  }
+});
+
+document.getElementById('btnResetPinGuru')?.addEventListener('click', async () => {
+  const guruId = document.getElementById('pinGuruSelect')?.value || '';
+  const adminPin = document.getElementById('pinAdminVerify')?.value || '';
+  const n1 = document.getElementById('pinGuruNew')?.value || '';
+  const n2 = document.getElementById('pinGuruNew2')?.value || '';
+  const msg = document.getElementById('pinGuruMsg');
+  if (!guruId) { toast('Pilih guru', 'err'); return; }
+  if (adminPin.length !== 6) { toast('PIN admin (verifikasi) 6 digit', 'err'); return; }
+  if (n1.length !== 6 || n1 !== n2) { toast('PIN baru guru harus 6 digit & sama', 'err'); return; }
+  try {
+    const res = await apiCall('change_pin', {
+      target: 'guru', guru_id: guruId, old_pin: adminPin, new_pin: n1,
+    });
+    if (msg) msg.textContent = res.message || 'PIN guru direset';
+    toast(res.message || 'PIN guru direset', 'ok');
+    showBigPopup('ok', 'PIN Guru Direset', res.message || 'PIN guru berhasil diganti.', 2500);
+    // refresh store guru
+    try {
+      const g = await apiCall('list_guru', {});
+      if (g?.data) { store.guru = g.data; saveStore(store); fillPinGuruSelect(document.getElementById('pinGuruQ')?.value || ''); }
+    } catch (_) {}
+    ['pinAdminVerify','pinGuruNew','pinGuruNew2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  } catch (e) {
+    if (msg) msg.textContent = errToText(e);
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Gagal Reset PIN', errToText(e), 0);
+  }
+});
+
 
 /* ===== Auto-refresh status sesi (tanpa reload penuh) ===== */
 let _lastSesiKey = '';
