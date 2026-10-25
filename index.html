@@ -569,18 +569,55 @@
   .rekap-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; background:#fff;
     border-radius:10px; border:1px solid #e8eef5; }
   table.rekap-abs-table {
-    width:100%; border-collapse:collapse; font-size:11px; min-width:720px;
+    width:100%; border-collapse:collapse; font-size:11px; min-width:0;
+    table-layout:fixed;
   }
   table.rekap-abs-table thead th {
-    background:#1565c0; color:#fff; padding:8px 5px; font-size:10px; font-weight:700;
+    background:#1565c0; color:#fff; padding:6px 3px; font-size:9.5px; font-weight:700;
     text-transform:uppercase; white-space:nowrap; text-align:center;
   }
   table.rekap-abs-table tbody td {
-    padding:6px 4px; border-bottom:1px solid #eef2f6; text-align:center; color:#333;
+    padding:5px 2px; border-bottom:1px solid #eef2f6; text-align:center; color:#333;
+    font-size:10.5px;
   }
-  table.rekap-abs-table tbody td.td-nama { text-align:left; font-weight:600; max-width:140px;
-    white-space:normal; word-break:break-word; line-height:1.25; }
+  table.rekap-abs-table th.col-chk, table.rekap-abs-table td.col-chk { width:28px; }
+  table.rekap-abs-table th.col-no, table.rekap-abs-table td.col-no { width:28px; }
+  table.rekap-abs-table th.col-nama, table.rekap-abs-table td.td-nama {
+    width:22%; max-width:110px; text-align:left; font-weight:600;
+    white-space:normal; word-break:break-word; line-height:1.2; padding-left:4px;
+  }
+  table.rekap-abs-table th.col-nisn, table.rekap-abs-table td.col-nisn {
+    width:72px; max-width:78px; font-size:10px; overflow:hidden; text-overflow:ellipsis;
+  }
+  table.rekap-abs-table th.col-kls, table.rekap-abs-table td.col-kls { width:36px; }
+  table.rekap-abs-table th.col-tgl, table.rekap-abs-table td.col-tgl { width:78px; font-size:10px; }
   table.rekap-abs-table tbody tr:hover { background:#f5f9ff; }
+  .rekap-edit-toolbar {
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px;
+  }
+  .rekap-edit-toolbar .btn-danger-soft {
+    background:#fff; color:#c62828; border:1px solid #ef9a9a; border-radius:8px;
+    padding:7px 12px; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .rekap-edit-toolbar .btn-danger-soft:hover { background:#ffebee; }
+  .rekap-suggest {
+    position:relative; flex:1; min-width:140px;
+  }
+  .rekap-suggest-box {
+    position:absolute; left:0; right:0; top:100%; z-index:50;
+    background:#fff; border:1px solid #cfd8dc; border-radius:8px;
+    max-height:200px; overflow:auto; box-shadow:0 6px 16px rgba(0,0,0,.12); display:none;
+  }
+  .rekap-suggest-item {
+    padding:8px 12px; cursor:pointer; font-size:12px; border-bottom:1px solid #f0f2f5;
+  }
+  .rekap-suggest-item:hover { background:#e3f2fd; }
+  .rekap-suggest-item small { color:#888; display:block; margin-top:2px; }
+  @media(max-width:480px){
+    table.rekap-abs-table { font-size:10px; }
+    table.rekap-abs-table th.col-nama, table.rekap-abs-table td.td-nama { width:28%; max-width:96px; font-size:10px; }
+    table.rekap-abs-table th.col-nisn, table.rekap-abs-table td.col-nisn { width:64px; max-width:68px; font-size:9px; }
+  }
   .st-pill {
     display:inline-block; min-width:28px; padding:2px 5px; border-radius:4px;
     font-size:10px; font-weight:800;
@@ -1710,7 +1747,10 @@
       </div>
       <div class="rekap-field">
         <label>Nama / NISN</label>
-        <input type="text" id="rekapQ" placeholder="Ketik nama / NISN (kosong = semua)" />
+        <div class="rekap-suggest">
+          <input type="text" id="rekapQ" placeholder="Cari nama / NISN…" autocomplete="off" />
+          <div class="rekap-suggest-box" id="rekapSuggest"></div>
+        </div>
       </div>
       <div class="rekap-field" id="rekapKelasWrap">
         <label>Kelas</label>
@@ -1751,13 +1791,21 @@
 
     <!-- Panel Edit (admin only) -->
     <div id="rekapPanelEdit" style="display:none">
+      <div class="rekap-edit-toolbar">
+        <button type="button" class="btn-danger-soft" id="btnRekapHapusTerpilih">🗑 Hapus Terpilih</button>
+        <span id="rekapEditSelectedCount" style="font-size:12px;color:#666"></span>
+      </div>
       <div class="rekap-table-wrap">
         <table class="rekap-abs-table" id="tableEditAbsensi">
           <thead id="theadEditAbsensi">
-            <tr><th>No</th><th>Nama</th><th>NISN</th><th>Kls</th><th>Tanggal</th><th>Aksi</th></tr>
+            <tr>
+              <th class="col-chk"><input type="checkbox" id="rekapCheckAll" title="Pilih semua" /></th>
+              <th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">NISN</th>
+              <th class="col-kls">Kls</th><th class="col-tgl">Tanggal</th><th>Aksi</th>
+            </tr>
           </thead>
           <tbody id="tbodyEditAbsensi">
-            <tr><td colspan="6" style="padding:20px;color:#888">Pilih filter lalu klik Cari.</td></tr>
+            <tr><td colspan="7" style="padding:20px;color:#888">Pilih filter lalu klik Cari.</td></tr>
           </tbody>
         </table>
       </div>
@@ -6108,12 +6156,11 @@ function renderRekapTable(rows, tipe) {
   const tb = document.getElementById('tbodyRekapAbsensi');
   if (!tb) return;
   const showNisn = tipe !== 'guru';
-  // adjust header
   const thead = document.querySelector('#tableRekapAbsensi thead tr');
   if (thead) {
     thead.innerHTML = showNisn
-      ? `<th>No</th><th>Nama</th><th>NISN</th><th>Kls</th><th>TW</th><th>TL</th><th>Izin</th><th>Sakit</th><th>Alpa</th><th>Bolos</th><th>Jml Sesi</th><th>Nilai Hadir</th><th>%</th>`
-      : `<th>No</th><th>Nama</th><th>Kode</th><th>TW</th><th>TL</th><th>Izin</th><th>Sakit</th><th>Alpa</th><th>Bolos</th><th>Jml Sesi</th><th>Nilai Hadir</th><th>%</th>`;
+      ? `<th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">NISN</th><th class="col-kls">Kls</th><th>TW</th><th>TL</th><th>Izin</th><th>Sakit</th><th>Alpa</th><th>Bolos</th><th>Jml</th><th>Hadir</th><th>%</th>`
+      : `<th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">Kode</th><th>TW</th><th>TL</th><th>Izin</th><th>Sakit</th><th>Alpa</th><th>Bolos</th><th>Jml</th><th>Hadir</th><th>%</th>`;
   }
   if (!rows?.length) {
     tb.innerHTML = `<tr><td colspan="${showNisn ? 13 : 12}" style="padding:20px;color:#888">Tidak ada data.</td></tr>`;
@@ -6122,10 +6169,10 @@ function renderRekapTable(rows, tipe) {
   tb.innerHTML = rows.map((r, i) => {
     if (showNisn) {
       return `<tr>
-        <td>${i + 1}</td>
+        <td class="col-no">${i + 1}</td>
         <td class="td-nama">${escapeHtml(r.nama || '')}</td>
-        <td>${escapeHtml(r.nisn || r.kode || '')}</td>
-        <td>${escapeHtml(r.kelas || '')}</td>
+        <td class="col-nisn">${escapeHtml(r.nisn || r.kode || '')}</td>
+        <td class="col-kls">${escapeHtml(r.kelas || '')}</td>
         <td>${r.tw || 0}</td><td>${r.tl || 0}</td><td>${r.izin || 0}</td>
         <td>${r.sakit || 0}</td><td>${r.alpa || 0}</td><td>${r.bolos || 0}</td>
         <td><b>${r.jml_sesi || 0}</b></td>
@@ -6134,9 +6181,9 @@ function renderRekapTable(rows, tipe) {
       </tr>`;
     }
     return `<tr>
-      <td>${i + 1}</td>
+      <td class="col-no">${i + 1}</td>
       <td class="td-nama">${escapeHtml(r.nama || '')}</td>
-      <td>${escapeHtml(r.kode || '')}</td>
+      <td class="col-nisn">${escapeHtml(r.kode || '')}</td>
       <td>${r.tw || 0}</td><td>${r.tl || 0}</td><td>${r.izin || 0}</td>
       <td>${r.sakit || 0}</td><td>${r.alpa || 0}</td><td>${r.bolos || 0}</td>
       <td><b>${r.jml_sesi || 0}</b></td>
@@ -6163,11 +6210,14 @@ function renderEditTable(payload) {
   const showKls = tipe === 'siswa';
   const sesiHeads = sesi.map(s => `<th title="${escapeHtml(s.nama || '')}">${escapeHtml(s.label || s.nama)}</th>`).join('');
   thead.innerHTML = `<tr>
-    <th>No</th><th>Nama</th><th>NISN</th>${showKls ? '<th>Kls</th>' : ''}
-    <th>Tanggal</th>${sesiHeads}<th>Aksi</th>
+    <th class="col-chk"><input type="checkbox" id="rekapCheckAll" title="Pilih semua" /></th>
+    <th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-nisn">NISN</th>
+    ${showKls ? '<th class="col-kls">Kls</th>' : ''}
+    <th class="col-tgl">Tanggal</th>${sesiHeads}<th>Aksi</th>
   </tr>`;
   if (!rows.length) {
-    tb.innerHTML = `<tr><td colspan="${5 + (showKls ? 1 : 0) + sesi.length}" style="padding:20px;color:#888">Tidak ada data.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="${6 + (showKls ? 1 : 0) + sesi.length}" style="padding:20px;color:#888">Tidak ada data.</td></tr>`;
+    updateRekapSelectedCount();
     return;
   }
   tb.innerHTML = rows.map((r, i) => {
@@ -6183,18 +6233,21 @@ function renderEditTable(payload) {
         </select>
       </td>`;
     }).join('');
+    // kumpulkan semua cell id untuk hapus baris
+    const cellItems = sesi.map(s => r.cells?.[s.key]).filter(Boolean)
+      .map(c => `${c.id}|${c.source || 'absensi'}`).join(',');
     return `<tr>
-      <td>${i + 1}</td>
+      <td class="col-chk"><input type="checkbox" class="rekap-row-check" data-items="${escapeHtml(cellItems)}" /></td>
+      <td class="col-no">${i + 1}</td>
       <td class="td-nama">${escapeHtml(r.nama || '')}</td>
-      <td>${escapeHtml(r.nisn || '')}</td>
-      ${showKls ? `<td>${escapeHtml(r.kelas || '')}</td>` : ''}
-      <td style="white-space:nowrap">${escapeHtml(r.tanggal || '')}</td>
+      <td class="col-nisn">${escapeHtml(r.nisn || '')}</td>
+      ${showKls ? `<td class="col-kls">${escapeHtml(r.kelas || '')}</td>` : ''}
+      <td class="col-tgl">${escapeHtml(r.tanggal || '')}</td>
       ${cells}
-      <td><button type="button" class="rekap-aksi-btn btn-save-row-abs" data-row="${i}">Simpan</button></td>
+      <td><button type="button" class="rekap-aksi-btn btn-del-row-abs" data-items="${escapeHtml(cellItems)}">Hapus</button></td>
     </tr>`;
   }).join('');
 
-  // bind change: auto-save on select change
   tb.querySelectorAll('.edit-abs-status').forEach(sel => {
     sel.addEventListener('change', async () => {
       try {
@@ -6204,11 +6257,33 @@ function renderEditTable(payload) {
           status: sel.value,
         });
         toast('Status diperbarui', 'ok');
-      } catch (e) {
-        toast(errToText(e), 'err');
-      }
+      } catch (e) { toast(errToText(e), 'err'); }
     });
   });
+  const checkAll = document.getElementById('rekapCheckAll');
+  if (checkAll) {
+    checkAll.checked = false;
+    checkAll.onchange = () => {
+      tb.querySelectorAll('.rekap-row-check').forEach(c => { c.checked = checkAll.checked; });
+      updateRekapSelectedCount();
+    };
+  }
+  tb.querySelectorAll('.rekap-row-check').forEach(c => {
+    c.addEventListener('change', updateRekapSelectedCount);
+  });
+  tb.querySelectorAll('.btn-del-row-abs').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const items = parseRekapItems(btn.getAttribute('data-items'));
+      if (!items.length) return;
+      if (!confirm('Hapus semua sesi absensi baris ini?')) return;
+      try {
+        const res = await apiCall('delete_absensi_bulk', { items });
+        toast(res.message || 'Dihapus', 'ok');
+        await cariRekap();
+      } catch (e) { toast(errToText(e), 'err'); }
+    });
+  });
+  updateRekapSelectedCount();
 }
 
 async function cariRekap() {
@@ -6254,13 +6329,95 @@ document.getElementById('rekapTabs')?.addEventListener('click', (e) => {
   if (!btn) return;
   switchRekapTab(btn.getAttribute('data-rekap-tab'));
 });
+
+function updateRekapSelectedCount() {
+  const n = document.querySelectorAll('.rekap-row-check:checked').length;
+  const el = document.getElementById('rekapEditSelectedCount');
+  if (el) el.textContent = n ? n + ' baris dipilih' : '';
+}
+function parseRekapItems(raw) {
+  if (!raw) return [];
+  return String(raw).split(',').filter(Boolean).map(s => {
+    const [id, source] = s.split('|');
+    return { id, source: source || 'absensi' };
+  });
+}
+function rekapSearchList(q, tipe) {
+  const qq = String(q || '').toLowerCase().trim();
+  if (!qq || qq.length < 1) return [];
+  if (tipe === 'guru') {
+    return (store.guru || []).filter(g => {
+      const hay = ((g.nama || '') + ' ' + (g.pin || '') + ' ' + (g.nip || '')).toLowerCase();
+      return hay.includes(qq) || String(g.pin || '').includes(qq.replace(/\D/g, ''));
+    }).slice(0, 12).map(g => ({ label: g.nama, meta: g.nip || g.pin || '', value: g.nama }));
+  }
+  return (store.siswa || []).filter(s => {
+    const hay = ((s.nama || '') + ' ' + (s.nisn || '') + ' ' + (s.kelas || '')).toLowerCase();
+    return hay.includes(qq) || String(s.nisn || '').includes(qq.replace(/\D/g, ''));
+  }).slice(0, 12).map(s => ({ label: s.nama, meta: (s.nisn || '') + (s.kelas ? ' · ' + s.kelas : ''), value: s.nama, nisn: s.nisn }));
+}
+function showRekapSuggest(items) {
+  const box = document.getElementById('rekapSuggest');
+  if (!box) return;
+  if (!items.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.innerHTML = items.map((it, i) =>
+    `<div class="rekap-suggest-item" data-value="${escapeHtml(it.value || '')}" data-nisn="${escapeHtml(it.nisn || '')}">
+      ${escapeHtml(it.label || '')}<small>${escapeHtml(it.meta || '')}</small>
+    </div>`
+  ).join('');
+  box.style.display = '';
+  box.querySelectorAll('.rekap-suggest-item').forEach(el => {
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const inp = document.getElementById('rekapQ');
+      const nisn = el.getAttribute('data-nisn');
+      const val = el.getAttribute('data-value');
+      if (inp) inp.value = nisn || val || '';
+      box.style.display = 'none';
+      cariRekap();
+    });
+  });
+}
+
+
 document.getElementById('btnRekapCari')?.addEventListener('click', cariRekap);
 document.getElementById('rekapTipe')?.addEventListener('change', () => {
   const kelasWrap = document.getElementById('rekapKelasWrap');
   const tipe = document.getElementById('rekapTipe')?.value;
   if (kelasWrap) kelasWrap.style.display = tipe === 'guru' ? 'none' : '';
 });
-
+document.getElementById('rekapQ')?.addEventListener('input', () => {
+  const tipe = document.getElementById('rekapTipe')?.value || 'siswa';
+  const q = document.getElementById('rekapQ')?.value || '';
+  showRekapSuggest(rekapSearchList(q, tipe));
+});
+document.getElementById('rekapQ')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const b = document.getElementById('rekapSuggest');
+    if (b) b.style.display = 'none';
+    cariRekap();
+  }
+});
+document.getElementById('rekapQ')?.addEventListener('blur', () => {
+  setTimeout(() => {
+    const b = document.getElementById('rekapSuggest');
+    if (b) b.style.display = 'none';
+  }, 180);
+});
+document.getElementById('btnRekapHapusTerpilih')?.addEventListener('click', async () => {
+  const checks = [...document.querySelectorAll('.rekap-row-check:checked')];
+  if (!checks.length) { toast('Pilih baris terlebih dahulu', 'err'); return; }
+  const items = [];
+  checks.forEach(c => { items.push(...parseRekapItems(c.getAttribute('data-items'))); });
+  if (!items.length) { toast('Tidak ada data absensi pada baris terpilih', 'err'); return; }
+  if (!confirm(`Hapus ${checks.length} baris (${items.length} record absensi)?`)) return;
+  try {
+    const res = await apiCall('delete_absensi_bulk', { items });
+    toast(res.message || 'Dihapus', 'ok');
+    await cariRekap();
+  } catch (e) { toast(errToText(e), 'err'); }
+});
 
 /* ===== Auto-refresh status sesi (tanpa reload penuh) ===== */
 let _lastSesiKey = '';
