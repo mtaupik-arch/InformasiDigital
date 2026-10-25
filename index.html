@@ -34,8 +34,12 @@
   }
   .hamburger:hover { background:rgba(255,255,255,.3); }
   .hamburger span { display:block; width:20px; height:2.5px; background:#fff; border-radius:2px; }
-  .logo-sekolah { width:40px; height:40px; border-radius:50%; background:#fff;
-    display:flex; align-items:center; justify-content:center; font-weight:bold; color:var(--primary); font-size:16px; flex-shrink:0; }
+  .logo-sekolah {
+    width:40px; height:40px; border-radius:8px; background:transparent;
+    display:flex; align-items:center; justify-content:center; font-weight:bold;
+    color:var(--primary); font-size:16px; flex-shrink:0; overflow:hidden;
+  }
+  .logo-sekolah img { width:100%; height:100%; object-fit:contain; border-radius:0; }
 
   .topbar-center { flex:1; text-align:center; line-height:1.25; padding:0 5px; overflow:hidden; }
   .topbar-center .nama-sekolah { font-size:14px; font-weight:700; letter-spacing:.3px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
@@ -50,8 +54,12 @@
     font-size:10px; font-weight:700; min-width:18px; height:18px; border-radius:9px;
     display:flex; align-items:center; justify-content:center; padding:0 4px; }
   .profile-wrap { position:relative; }
-  .avatar { width:36px; height:36px; border-radius:50%; border:2px solid #ffd54f;
-    object-fit:cover; cursor:pointer; background:#fff; display:flex; align-items:center; justify-content:center; color:var(--primary); font-weight:700; font-size:14px; }
+  .avatar {
+    width:42px; height:42px; border-radius:50%; border:2px solid #ffd54f;
+    object-fit:cover; cursor:pointer; background:#fff; display:flex; align-items:center;
+    justify-content:center; color:var(--primary); font-weight:700; font-size:15px; overflow:hidden;
+  }
+  .avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
   .profile-menu {
     position:absolute; top:46px; right:0; background:#fff; color:#333; border-radius:10px;
     box-shadow:0 6px 20px rgba(0,0,0,.2); min-width:190px; overflow:hidden;
@@ -140,15 +148,23 @@
     display:flex; flex-direction:column; align-items:center; text-align:center;
     width:42%; max-width:180px; flex-shrink:0;
   }
+  /* Logo sekolah di dashboard: tanpa bingkai lingkaran, lebih besar */
   .dash-avatar {
-    width:64px; height:64px; border-radius:50%;
-    background:linear-gradient(135deg,#1976d2,#42a5f5);
-    color:#fff; display:flex; align-items:center; justify-content:center;
-    font-size:16px; font-weight:800; letter-spacing:.5px; flex-shrink:0;
-    box-shadow:0 3px 10px rgba(25,118,210,.3);
-    margin-bottom:6px;
+    width:88px; height:88px; border-radius:0;
+    background:transparent;
+    color:#1565c0; display:flex; align-items:center; justify-content:center;
+    font-size:28px; font-weight:800; letter-spacing:.5px; flex-shrink:0;
+    box-shadow:none; margin-bottom:8px; overflow:hidden;
   }
-  .dash-avatar.user { background:linear-gradient(135deg,#1565c0,#1e88e5); }
+  .dash-avatar img { width:100%; height:100%; object-fit:contain; border-radius:0; }
+  /* Foto profil user: lingkaran, diperbesar */
+  .dash-avatar.user {
+    width:80px; height:80px; border-radius:50%;
+    background:linear-gradient(135deg,#1565c0,#1e88e5);
+    color:#fff; font-size:22px;
+    box-shadow:0 3px 10px rgba(25,118,210,.3);
+  }
+  .dash-avatar.user img { object-fit:cover; border-radius:50%; }
   .dash-name {
     font-size:11px; font-weight:700; color:#1a237e;
     text-transform:uppercase; letter-spacing:.3px; line-height:1.3;
@@ -223,7 +239,8 @@
   @media(min-width:768px){
     .dash-panel { padding:16px; }
     .dash-left { width:auto; max-width:none; flex:1; align-items:flex-start; text-align:left; }
-    .dash-avatar { width:72px; height:72px; font-size:20px; }
+    .dash-avatar { width:96px; height:96px; font-size:28px; }
+    .dash-avatar.user { width:84px; height:84px; font-size:22px; }
     .dash-name { font-size:13px; text-align:left; }
     .dash-detail p { font-size:13px; }
     .dash-detail p b { min-width:90px; }
@@ -235,7 +252,8 @@
     .stat-box .lbl { font-size:11px; margin-top:5px; }
   }
   @media(max-width:480px){
-    .dash-avatar { width:52px; height:52px; font-size:14px; }
+    .dash-avatar { width:80px; height:80px; font-size:24px; }
+    .dash-avatar.user { width:72px; height:72px; font-size:20px; }
     .dash-name { font-size:10px; }
     .dash-detail p { font-size:10px; }
     .dash-detail p b { min-width:54px; }
@@ -610,10 +628,49 @@
     background: #f5f7fa; overflow: hidden; font-size: 11px; color: #90a4ae;
   }
   .sek-preview img { width: 100%; height: 100%; object-fit: contain; }
-  .logo-sekolah img, .dash-avatar img {
-    width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+  /* user photo cards */
+  .up-filters {
+    background:#fff; border-radius:12px; padding:14px; margin-bottom:14px;
+    box-shadow:0 1px 6px rgba(0,0,0,.06);
   }
-  .dash-avatar { overflow: hidden; }
+  .up-filters .up-row {
+    display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;
+  }
+  .up-filters label { font-size:12px; font-weight:600; color:#37474f; min-width:100px; }
+  .up-filters select, .up-filters input[type=search] {
+    flex:1; min-width:140px; padding:9px 12px; border:1px solid #cfd8dc; border-radius:20px;
+    font-size:13px; background:#fff;
+  }
+  .up-actions {
+    display:flex; align-items:center; gap:10px; margin-top:4px;
+  }
+  .up-grid {
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px;
+  }
+  .up-card {
+    background:#fff; border-radius:14px; padding:16px 12px 12px; text-align:center;
+    box-shadow:0 1px 8px rgba(0,0,0,.07); display:flex; flex-direction:column; align-items:center;
+  }
+  .up-photo {
+    width:72px; height:72px; border-radius:50%; background:#e3f2fd; color:#1565c0;
+    display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:700;
+    overflow:hidden; margin-bottom:10px;
+  }
+  .up-photo img { width:100%; height:100%; object-fit:cover; }
+  .up-name { font-size:13px; font-weight:700; color:#1a237e; margin-bottom:6px; line-height:1.25; }
+  .up-badge {
+    display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; margin-bottom:4px;
+  }
+  .up-badge.admin { background:#ede7f6; color:#6a1b9a; }
+  .up-badge.guru { background:#e8f5e9; color:#2e7d32; }
+  .up-badge.siswa { background:#e3f2fd; color:#1565c0; }
+  .up-meta { font-size:11px; color:#90a4ae; margin-bottom:10px; }
+  .up-btn {
+    width:100%; padding:8px; border-radius:20px; border:1px solid #cfd8dc; background:#fff;
+    font-size:12px; font-weight:600; cursor:pointer; margin-bottom:6px;
+  }
+  .up-btn.del { border-color:#ef9a9a; color:#c62828; }
+  .up-btn:hover { background:#f5f7fa; }
   #page-scan-barcode #qr-reader {
     margin-top:14px; border-radius:6px; overflow:hidden;
     max-width:360px; margin-left:auto; margin-right:auto;
@@ -733,8 +790,8 @@
 <div class="sidebar-overlay" id="overlay"></div>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <div class="logo-sekolah">S</div>
-    <div class="brand">SMA N 1 NUSANTARA<small>Sistem Informasi Sekolah</small></div>
+    <div class="logo-sekolah" id="sidebarLogo">S</div>
+    <div class="brand"><span id="sidebarSekolahNama">SMA N 1 NUSANTARA</span><small>Sistem Informasi Sekolah</small></div>
   </div>
   <nav class="sidebar-menu">
 
@@ -1358,6 +1415,40 @@
     </div>
   </div>
 
+  <!-- ========== PAGE: EDIT PROFIL USER ========== -->
+  <div class="page" id="page-edit-profil-user">
+    <div class="page-title">👤 Edit Profil User</div>
+    <div class="up-filters">
+      <div class="up-row">
+        <label>Filter peran</label>
+        <select id="upFilterRole">
+          <option value="all">Semua</option>
+          <option value="admin">Admin</option>
+          <option value="guru">Guru</option>
+          <option value="siswa">Siswa</option>
+        </select>
+      </div>
+      <div class="up-row">
+        <label>Cari</label>
+        <input type="search" id="upSearch" placeholder="Nama / NISN / NIP / Username" />
+      </div>
+      <div class="up-row">
+        <label>Hanya berfoto</label>
+        <select id="upFilterFoto">
+          <option value="all">Semua</option>
+          <option value="yes">Ada foto</option>
+          <option value="no">Belum ada foto</option>
+        </select>
+      </div>
+      <div class="up-actions">
+        <button type="button" class="btn btn-outline" id="btnUpReload" style="flex:1">↻ Muat Ulang</button>
+        <span style="font-size:12px;color:#888" id="upCount">0 user</span>
+      </div>
+    </div>
+    <div class="up-grid" id="upGrid"></div>
+    <input type="file" id="upFileInput" accept="image/*" style="display:none" />
+  </div>
+
   <!-- ========== PAGE: DATA SEKOLAH ========== -->
   <div class="page" id="page-data-sekolah">
     <div class="page-title">🏫 Data Sekolah</div>
@@ -1559,6 +1650,7 @@ async function refreshStoreFromDb() {
     store.kelas = d.kelas || store.kelas || [];
     store.bobot_nilai = d.bobot_nilai || store.bobot_nilai || [];
     store.guru_ampu = d.guru_ampu || store.guru_ampu || [];
+    store.user_foto = d.user_foto || store.user_foto || [];
     if (d.sekolah) {
       store.sekolah = d.sekolah;
       applySekolahToUI();
@@ -1721,7 +1813,18 @@ function renderUserUI(session) {
   btnSet.style.display = role === 'admin' ? '' : 'none';
   guestBanner.style.display = 'none';
   if (userDisplayName) userDisplayName.textContent = nama;
-  userPhoto.textContent = avatarCode;
+
+  // Foto profil dari storage jika ada
+  const fotoKey = role === 'siswa' ? String(user.nisn || '') : role === 'guru' ? String(user.pin || '') : 'admin';
+  const fotoRec = (store.user_foto || []).find(f => f.role === (role === 'admin' ? 'admin' : role) && String(f.ref_key) === fotoKey);
+  const fotoUrl = fotoRec?.foto_url || user.foto_url || '';
+  if (fotoUrl) {
+    if (userPhoto) userPhoto.innerHTML = `<img src="${fotoUrl}" alt="" />`;
+    if (avatar) avatar.innerHTML = `<img src="${fotoUrl}" alt="" />`;
+  } else {
+    if (userPhoto) userPhoto.textContent = avatarCode;
+    if (avatar) avatar.textContent = initial;
+  }
 
   if (role === 'siswa') {
     userDetail.innerHTML = `
@@ -1915,10 +2018,14 @@ function closeProfileMenu() {
   if (wrap) {
     wrap.classList.remove('open');
     wrap.classList.add('force-close');
-    // lepas force-close setelah hover/touch selesai
-    setTimeout(() => wrap.classList.remove('force-close'), 400);
+    // lepas force-close setelah hover residual selesai
+    setTimeout(() => wrap.classList.remove('force-close'), 600);
   }
 }
+// Setiap klik item di menu profil → langsung tutup
+document.getElementById('profileMenu')?.addEventListener('click', (e) => {
+  if (e.target.closest('a')) closeProfileMenu();
+});
 
 /* ===== Logout ===== */
 document.getElementById('btnLogout').addEventListener('click', (e) => {
@@ -1971,6 +2078,7 @@ function seedStore() {
     bobot_nilai: [],
     guru_ampu: [],
     sekolah: null,
+    user_foto: [],
   };
 }
 
@@ -2400,7 +2508,7 @@ function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user'];
   let target = known.includes(page) ? page : 'placeholder';
 
   const pageEl = document.getElementById('page-' + target);
@@ -2417,6 +2525,7 @@ function navigate(page, opts = {}) {
   if (target === 'dashboard') renderDashboard();
   if (target === 'mapel-kelas') initMapelKelasPage();
   if (target === 'data-sekolah') initDataSekolahPage();
+  if (target === 'edit-profil-user') initEditProfilUserPage();
   if (target === 'data-siswa') renderSiswa();
   if (target === 'data-guru') renderGuru();
   if (target === 'data-lulusan') renderLulusan();
@@ -4761,6 +4870,154 @@ document.getElementById('btnSimpanIzin')?.addEventListener('click', async () => 
   }
 });
 
+/* ===== Edit Profil User (foto saja) ===== */
+let upSelectedKey = null; // role|ref_key
+
+function buildUserFotoList() {
+  const list = [];
+  // Admin: dari session / placeholder
+  list.push({
+    role: 'admin',
+    ref_key: 'admin',
+    nama: 'Administrator',
+    meta: 'admin · Administrator',
+    foto_url: (store.user_foto || []).find(f => f.role === 'admin' && f.ref_key === 'admin')?.foto_url || '',
+  });
+  (store.guru || []).forEach(g => {
+    const key = String(g.pin || g.id);
+    const foto = (store.user_foto || []).find(f => f.role === 'guru' && String(f.ref_key) === key)?.foto_url
+      || g.foto_url || '';
+    list.push({
+      role: 'guru',
+      ref_key: key,
+      id: g.id,
+      nama: g.nama || 'Guru',
+      meta: (g.nip || g.pin || '') + (g.jabatan_struktur ? ' · ' + g.jabatan_struktur : ''),
+      foto_url: foto,
+    });
+  });
+  (store.siswa || []).forEach(s => {
+    const key = String(s.nisn || s.id);
+    const foto = (store.user_foto || []).find(f => f.role === 'siswa' && String(f.ref_key) === key)?.foto_url
+      || s.foto_url || '';
+    list.push({
+      role: 'siswa',
+      ref_key: key,
+      id: s.id,
+      nama: s.nama || 'Siswa',
+      meta: (s.nisn || '') + (s.kelas ? ' · ' + s.kelas : ''),
+      foto_url: foto,
+    });
+  });
+  return list;
+}
+
+function renderUserFotoCards() {
+  const grid = document.getElementById('upGrid');
+  const cnt = document.getElementById('upCount');
+  if (!grid) return;
+  const roleF = document.getElementById('upFilterRole')?.value || 'all';
+  const fotoF = document.getElementById('upFilterFoto')?.value || 'all';
+  const q = (document.getElementById('upSearch')?.value || '').toLowerCase().trim();
+  let list = buildUserFotoList();
+  if (roleF !== 'all') list = list.filter(u => u.role === roleF);
+  if (fotoF === 'yes') list = list.filter(u => !!u.foto_url);
+  if (fotoF === 'no') list = list.filter(u => !u.foto_url);
+  if (q) {
+    list = list.filter(u =>
+      (u.nama || '').toLowerCase().includes(q) ||
+      (u.meta || '').toLowerCase().includes(q) ||
+      (u.ref_key || '').toLowerCase().includes(q)
+    );
+  }
+  if (cnt) cnt.textContent = list.length + ' user';
+  if (!list.length) {
+    grid.innerHTML = '<p style="color:#888;font-size:13px;grid-column:1/-1;text-align:center;padding:24px">Tidak ada data</p>';
+    return;
+  }
+  const badgeCls = { admin: 'admin', guru: 'guru', siswa: 'siswa' };
+  const badgeLbl = { admin: 'Admin', guru: 'Guru', siswa: 'Siswa' };
+  grid.innerHTML = list.map(u => {
+    const initial = (u.nama || '?').trim().charAt(0).toUpperCase();
+    const photo = u.foto_url
+      ? `<img src="${escapeHtml(u.foto_url)}" alt="" />`
+      : escapeHtml(initial);
+    return `<div class="up-card" data-role="${u.role}" data-key="${escapeHtml(u.ref_key)}">
+      <div class="up-photo">${photo}</div>
+      <div class="up-name">${escapeHtml(u.nama)}</div>
+      <span class="up-badge ${badgeCls[u.role] || ''}">${badgeLbl[u.role] || u.role}</span>
+      <div class="up-meta">${escapeHtml(u.meta || '')}</div>
+      <button type="button" class="up-btn up-ganti" data-role="${u.role}" data-key="${escapeHtml(u.ref_key)}" data-nama="${escapeHtml(u.nama)}">📷 Ganti</button>
+      <button type="button" class="up-btn del up-hapus" data-role="${u.role}" data-key="${escapeHtml(u.ref_key)}">🗑 Hapus</button>
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.up-ganti').forEach(btn => {
+    btn.addEventListener('click', () => {
+      upSelectedKey = btn.getAttribute('data-role') + '|' + btn.getAttribute('data-key');
+      document.getElementById('upFileInput').click();
+    });
+  });
+  grid.querySelectorAll('.up-hapus').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Hapus foto user ini?')) return;
+      try {
+        await apiCall('delete_user_foto', {
+          role: btn.getAttribute('data-role'),
+          ref_key: btn.getAttribute('data-key'),
+        });
+        await loadUserFotoStore();
+        renderUserFotoCards();
+        toast('Foto dihapus', 'ok');
+      } catch (e) { toast(errToText(e), 'err'); }
+    });
+  });
+}
+
+async function loadUserFotoStore() {
+  try {
+    const res = await apiCall('list_user_foto', {});
+    store.user_foto = res.data || [];
+    saveStore(store);
+  } catch (_) {}
+}
+
+async function initEditProfilUserPage() {
+  await loadUserFotoStore();
+  renderUserFotoCards();
+}
+
+document.getElementById('upFilterRole')?.addEventListener('change', renderUserFotoCards);
+document.getElementById('upFilterFoto')?.addEventListener('change', renderUserFotoCards);
+document.getElementById('upSearch')?.addEventListener('input', renderUserFotoCards);
+document.getElementById('btnUpReload')?.addEventListener('click', async () => {
+  await refreshStoreFromDb();
+  await loadUserFotoStore();
+  renderUserFotoCards();
+  toast('Data dimuat ulang', 'ok');
+});
+document.getElementById('upFileInput')?.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file || !upSelectedKey) return;
+  const [role, ref_key] = upSelectedKey.split('|');
+  try {
+    const dataUrl = await fileToDataUrl(file, 400);
+    await apiCall('upload_user_foto', { role, ref_key, data_url: dataUrl });
+    await loadUserFotoStore();
+    renderUserFotoCards();
+    // update avatar di topbar jika user yang login
+    const sess = getSession();
+    if (sess && ((sess.role === role && (String(sess.user?.pin) === ref_key || String(sess.user?.nisn) === ref_key || role === 'admin')))) {
+      renderUserUI(sess);
+    }
+    toast('Foto tersimpan', 'ok');
+  } catch (err) {
+    toast(errToText(err), 'err');
+    showBigPopup('err', 'Gagal Upload', errToText(err), 0);
+  }
+});
+
 /* ===== Data Sekolah ===== */
 function applySekolahToUI() {
   const s = store.sekolah || {};
@@ -4768,6 +5025,9 @@ function applySekolahToUI() {
   document.querySelectorAll('.nama-sekolah').forEach(el => { el.textContent = nama; });
   const schoolName = document.getElementById('schoolName');
   if (schoolName) schoolName.textContent = nama;
+  // Sidebar brand
+  const sideNama = document.getElementById('sidebarSekolahNama');
+  if (sideNama) sideNama.textContent = nama;
 
   const detail = document.getElementById('schoolDetail');
   if (detail) {
@@ -4779,21 +5039,19 @@ function applySekolahToUI() {
   }
 
   const logo = s.logo_url || '';
-  const setLogo = (el) => {
+  const setLogo = (el, isDashSchool) => {
     if (!el) return;
     if (logo) {
       el.innerHTML = `<img src="${logo}" alt="Logo" />`;
-      el.style.background = '#fff';
+      if (!isDashSchool) el.style.background = 'transparent';
     } else {
       const initial = (nama || 'S').trim().charAt(0).toUpperCase();
-      el.textContent = initial;
       el.innerHTML = initial;
     }
   };
-  document.querySelectorAll('.logo-sekolah').forEach(setLogo);
-  setLogo(document.getElementById('schoolAvatar'));
+  document.querySelectorAll('.logo-sekolah').forEach(el => setLogo(el, false));
+  setLogo(document.getElementById('schoolAvatar'), true);
 
-  // Footer sekolah jika ada
   document.querySelectorAll('.footer-sekolah-nama').forEach(el => {
     el.textContent = nama;
   });
