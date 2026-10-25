@@ -608,15 +608,17 @@
     position:relative; flex:1; min-width:140px;
   }
   .rekap-suggest-box {
-    position:absolute; left:0; right:0; top:100%; z-index:50;
-    background:#fff; border:1px solid #cfd8dc; border-radius:8px;
-    max-height:200px; overflow:auto; box-shadow:0 6px 16px rgba(0,0,0,.12); display:none;
+    position:absolute; left:0; right:0; top:calc(100% + 2px); z-index:200;
+    background:#fff; border:1.5px solid #90caf9; border-radius:10px;
+    max-height:240px; overflow:auto; box-shadow:0 8px 20px rgba(21,101,192,.18); display:none;
   }
   .rekap-suggest-item {
-    padding:8px 12px; cursor:pointer; font-size:12px; border-bottom:1px solid #f0f2f5;
+    padding:10px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #f0f2f5;
   }
+  .rekap-suggest-item:last-child { border-bottom:none; }
   .rekap-suggest-item:hover { background:#e3f2fd; }
-  .rekap-suggest-item small { color:#888; display:block; margin-top:2px; }
+  .rekap-suggest-item strong { display:block; color:#1565c0; font-weight:700; }
+  .rekap-suggest-item small { color:#78909c; display:block; margin-top:2px; font-size:11px; }
   @media(max-width:480px){
     table.rekap-abs-table { font-size:10.5px; min-width:720px; }
     table.rekap-abs-table th.col-nama, table.rekap-abs-table td.td-nama { max-width:100px; min-width:80px; }
@@ -6338,7 +6340,19 @@ async function cariRekap() {
   }
 }
 
-function initRekapPage() {
+async function initRekapPage() {
+  // Pastikan data master ada untuk preview pencarian
+  if (!(store.siswa || []).length || !(store.kelas || []).length) {
+    try {
+      const boot = await apiCall('bootstrap', {});
+      if (boot?.data) {
+        if (boot.data.siswa) store.siswa = boot.data.siswa;
+        if (boot.data.guru) store.guru = boot.data.guru;
+        if (boot.data.kelas) store.kelas = boot.data.kelas;
+        saveStore(store);
+      }
+    } catch (_) {}
+  }
   fillRekapKelas();
   defaultRekapDates();
   switchRekapTab(rekapIsAdmin() ? rekapTab : 'rekap');
@@ -6369,18 +6383,34 @@ function parseRekapItems(raw) {
 }
 function rekapSearchList(q, tipe) {
   const qq = String(q || '').toLowerCase().trim();
-  if (!qq) return [];
+  // Preview mulai minimal 2 karakter
+  if (qq.length < 2) return [];
   const dig = qq.replace(/\D/g, '');
+  const kelasFilter = document.getElementById('rekapKelas')?.value || '';
+  const startsOrIncludes = (hay) => {
+    if (!hay) return false;
+    if (hay.includes(qq)) return true;
+    // cocok di awal kata (mis. "nu" → "Nurhidayatullah")
+    return hay.split(/\s+/).some(w => w.startsWith(qq));
+  };
   if (tipe === 'guru') {
     return (store.guru || []).filter(g => {
-      const hay = ((g.nama || '') + ' ' + (g.pin || '') + ' ' + (g.nip || '')).toLowerCase();
-      return hay.includes(qq) || (dig && String(g.pin || g.nip || '').includes(dig));
-    }).slice(0, 12).map(g => ({ label: g.nama, meta: g.nip || g.pin || '', value: g.nama }));
+      const nama = String(g.nama || '').toLowerCase();
+      const pin = String(g.pin || g.nip || '');
+      return startsOrIncludes(nama) || (dig.length >= 2 && pin.includes(dig));
+    }).slice(0, 15).map(g => ({
+      label: g.nama,
+      meta: g.nip || g.pin || '',
+      value: g.nama,
+      nisn: ''
+    }));
   }
   return (store.siswa || []).filter(s => {
-    const hay = ((s.nama || '') + ' ' + (s.nisn || '') + ' ' + (s.kelas || '')).toLowerCase();
-    return hay.includes(qq) || (dig && String(s.nisn || '').includes(dig));
-  }).slice(0, 12).map(s => ({
+    if (kelasFilter && String(s.kelas || '') !== kelasFilter) return false;
+    const nama = String(s.nama || '').toLowerCase();
+    const nisn = String(s.nisn || '');
+    return startsOrIncludes(nama) || (dig.length >= 2 && nisn.includes(dig));
+  }).slice(0, 15).map(s => ({
     label: s.nama,
     meta: (s.nisn || '') + (s.kelas ? ' · ' + s.kelas : ''),
     value: s.nama,
@@ -6391,19 +6421,20 @@ function showRekapSuggest(items) {
   const box = document.getElementById('rekapSuggest');
   if (!box) return;
   if (!items.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
-  box.innerHTML = items.map((it, i) =>
+  box.innerHTML = items.map((it) =>
     `<div class="rekap-suggest-item" data-value="${escapeHtml(it.value || '')}" data-nisn="${escapeHtml(it.nisn || '')}">
-      ${escapeHtml(it.label || '')}<small>${escapeHtml(it.meta || '')}</small>
+      <strong>${escapeHtml(it.label || '')}</strong>
+      <small>${escapeHtml(it.meta || '')}</small>
     </div>`
   ).join('');
-  box.style.display = '';
+  box.style.display = 'block';
   box.querySelectorAll('.rekap-suggest-item').forEach(el => {
     el.addEventListener('mousedown', (e) => {
       e.preventDefault();
       const inp = document.getElementById('rekapQ');
-      const nisn = el.getAttribute('data-nisn');
-      const val = el.getAttribute('data-value');
-      if (inp) inp.value = nisn || val || '';
+      // Isi dengan nama agar mudah dibaca; pencarian cocok nama maupun NISN
+      const val = el.getAttribute('data-value') || el.getAttribute('data-nisn') || '';
+      if (inp) inp.value = val;
       box.style.display = 'none';
       cariRekap();
     });
@@ -6417,9 +6448,24 @@ document.getElementById('rekapTipe')?.addEventListener('change', () => {
   const tipe = document.getElementById('rekapTipe')?.value;
   if (kelasWrap) kelasWrap.style.display = tipe === 'guru' ? 'none' : '';
 });
-document.getElementById('rekapQ')?.addEventListener('input', () => {
+document.getElementById('rekapQ')?.addEventListener('input', async () => {
   const tipe = document.getElementById('rekapTipe')?.value || 'siswa';
   const q = document.getElementById('rekapQ')?.value || '';
+  // pastikan master data tersedia untuk preview (≥2 huruf)
+  if (String(q).trim().length >= 2) {
+    if (tipe === 'siswa' && !(store.siswa || []).length) {
+      try {
+        const res = await apiCall('list_siswa', {});
+        if (res?.data) { store.siswa = res.data; saveStore(store); }
+      } catch (_) {}
+    }
+    if (tipe === 'guru' && !(store.guru || []).length) {
+      try {
+        const res = await apiCall('list_guru', {});
+        if (res?.data) { store.guru = res.data; saveStore(store); }
+      } catch (_) {}
+    }
+  }
   showRekapSuggest(rekapSearchList(q, tipe));
 });
 document.getElementById('rekapQ')?.addEventListener('keydown', (e) => {
