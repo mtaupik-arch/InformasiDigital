@@ -35,11 +35,17 @@
   .hamburger:hover { background:rgba(255,255,255,.3); }
   .hamburger span { display:block; width:20px; height:2.5px; background:#fff; border-radius:2px; }
   .logo-sekolah {
-    width:40px; height:40px; border-radius:8px; background:transparent;
+    width:40px; height:40px; border-radius:0;
+    background:transparent !important; background-color:transparent !important;
     display:flex; align-items:center; justify-content:center; font-weight:bold;
     color:var(--primary); font-size:16px; flex-shrink:0; overflow:hidden;
+    box-shadow:none !important; border:none !important;
   }
-  .logo-sekolah img { width:100%; height:100%; object-fit:contain; border-radius:0; }
+  .logo-sekolah img {
+    width:100%; height:100%; object-fit:contain; border-radius:0;
+    background:transparent !important; background-color:transparent !important;
+    box-shadow:none !important; display:block;
+  }
 
   .topbar-center { flex:1; text-align:center; line-height:1.25; padding:0 5px; overflow:hidden; }
   .topbar-center .nama-sekolah { font-size:14px; font-weight:700; letter-spacing:.3px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
@@ -148,15 +154,19 @@
     display:flex; flex-direction:column; align-items:center; text-align:center;
     width:42%; max-width:180px; flex-shrink:0;
   }
-  /* Logo sekolah di dashboard: tanpa bingkai lingkaran, lebih besar */
+  /* Logo sekolah di dashboard: tanpa bingkai / tanpa background */
   .dash-avatar {
     width:88px; height:88px; border-radius:0;
-    background:transparent;
+    background:transparent !important; background-color:transparent !important;
     color:#1565c0; display:flex; align-items:center; justify-content:center;
     font-size:28px; font-weight:800; letter-spacing:.5px; flex-shrink:0;
-    box-shadow:none; margin-bottom:8px; overflow:hidden;
+    box-shadow:none !important; border:none !important; margin-bottom:8px; overflow:hidden;
   }
-  .dash-avatar img { width:100%; height:100%; object-fit:contain; border-radius:0; }
+  .dash-avatar img {
+    width:100%; height:100%; object-fit:contain; border-radius:0;
+    background:transparent !important; background-color:transparent !important;
+    box-shadow:none !important; display:block;
+  }
   /* Foto profil user: lingkaran, diperbesar */
   .dash-avatar.user {
     width:80px; height:80px; border-radius:50%;
@@ -826,8 +836,7 @@
         <a href="#" data-page="scan-barcode"><span class="ico">📷</span> Scan Barcode</a>
         <a href="#" data-page="input-izin"><span class="ico">🤒</span> Input Izin / Sakit</a>
         <a href="#" data-page="rekap-data"><span class="ico">📊</span> Rekap Data</a>
-        <a href="#" data-page="input-nilai"><span class="ico">✏️</span> Input Nilai</a>
-        <a href="#" data-page="daftar-nilai"><span class="ico">📋</span> Daftar Nilai</a>
+        <a href="#" data-page="input-daftar-nilai"><span class="ico">✏️</span> Input / Daftar Nilai</a>
         <a href="#" data-page="bank-soal"><span class="ico">📚</span> Bank Soal</a>
         <a href="#" data-page="download-absensi"><span class="ico">⬇️</span> Download Absensi</a>
       </div>
@@ -1494,6 +1503,76 @@
         <button type="button" class="btn btn-primary" id="btnSimpanSekolah">💾 Simpan Data Sekolah</button>
       </div>
       <div id="sekolahMsg" style="margin-top:10px;font-size:12px"></div>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: INPUT / DAFTAR NILAI ========== -->
+  <div class="page" id="page-input-daftar-nilai">
+    <div class="page-title">✏️ Input / Daftar Nilai <span class="periode-badge" id="badgePeriodeNilai">Periode: -</span></div>
+    <div class="mk-switch" id="nilaiSwitch">
+      <button type="button" class="mk-tab active" data-nilai-tab="input">Input Nilai</button>
+      <button type="button" class="mk-tab" data-nilai-tab="daftar">Daftar Nilai</button>
+    </div>
+    <div class="card" style="padding:12px;margin-bottom:10px">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px">Mapel</label>
+          <select id="nilaiFilterMapel" class="search-box" style="min-width:140px;max-width:200px"></select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px">Kelas</label>
+          <select id="nilaiFilterKelas" class="search-box" style="min-width:100px;max-width:140px"></select>
+        </div>
+        <div id="nilaiJenisWrap">
+          <label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px">Jenis Nilai</label>
+          <select id="nilaiFilterJenis" class="search-box" style="min-width:100px;max-width:130px"></select>
+        </div>
+        <div id="nilaiKeWrap">
+          <label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px">Penilaian Ke</label>
+          <select id="nilaiFilterKe" class="search-box" style="min-width:90px;max-width:110px"></select>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="btnNilaiMuat">Muat Data</button>
+      </div>
+      <p style="font-size:11px;color:#666;margin-top:8px;margin-bottom:0">Nilai terikat periode aktif, mapel, kelas, dan guru pengampu.</p>
+    </div>
+    <div class="data-card nilai-panel" id="nilaiPanelInput" style="padding:12px">
+      <div class="crud-toolbar" style="margin-bottom:10px">
+        <button type="button" class="btn btn-success btn-sm" id="btnNilaiSimpan">💾 Simpan</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btnNilaiTemplate">📄 Template</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btnNilaiImport">📥 Import</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btnNilaiTemplateMassal">📄 Template Massal</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btnNilaiImportMassal">📥 Import Massal</button>
+        <input type="file" id="nilaiImportFile" accept=".xlsx,.xls,.csv" style="display:none" />
+        <input type="file" id="nilaiImportMassalFile" accept=".xlsx,.xls,.csv" style="display:none" />
+        <span class="spacer"></span>
+        <span id="nilaiInputCount" style="font-size:11px;color:#666"></span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table" style="min-width:520px">
+          <thead><tr>
+            <th style="width:40px">No</th><th style="width:110px">NISN</th><th>Nama</th>
+            <th style="width:40px">L/P</th><th style="width:100px">Nilai</th>
+          </tr></thead>
+          <tbody id="tbodyNilaiInput"><tr class="empty-row"><td colspan="5">Pilih mapel, kelas, jenis &amp; penilaian ke, lalu Muat Data.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="data-card nilai-panel" id="nilaiPanelDaftar" style="padding:12px;display:none">
+      <div class="crud-toolbar" style="margin-bottom:10px">
+        <button type="button" class="btn btn-outline btn-sm" id="btnNilaiExportDaftar">⬇️ Export Excel</button>
+        <span class="spacer"></span>
+        <span id="nilaiDaftarCount" style="font-size:11px;color:#666"></span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table" style="min-width:480px">
+          <thead id="theadNilaiDaftar"><tr>
+            <th style="width:40px">No</th><th style="width:110px">NISN</th><th>Nama</th>
+            <th style="width:40px">L/P</th><th style="width:60px">NR</th>
+          </tr></thead>
+          <tbody id="tbodyNilaiDaftar"><tr class="empty-row"><td colspan="5">Pilih mapel &amp; kelas, lalu Muat Data.</td></tr></tbody>
+        </table>
+      </div>
+      <p style="font-size:11px;color:#888;margin-top:8px">Kolom NH1, TGS1, … muncul otomatis setelah nilai diinput.</p>
     </div>
   </div>
 
@@ -2508,13 +2587,15 @@ function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai'];
   let target = known.includes(page) ? page : 'placeholder';
+  if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
 
   const pageEl = document.getElementById('page-' + target);
   if (pageEl) pageEl.classList.add('active');
 
-  const link = document.querySelector(`.submenu a[data-page="${page}"]`);
+  const link = document.querySelector(`.submenu a[data-page="${page}"]`) ||
+    document.querySelector(`.submenu a[data-page="input-daftar-nilai"]`);
   if (link) link.classList.add('active');
 
   if (target === 'placeholder') {
@@ -2533,6 +2614,7 @@ function navigate(page, opts = {}) {
   if (target === 'sidik-jari-siswa') initSidikJariPage();
   if (target === 'scan-barcode') initScanPage();
   if (target === 'sesi-libur') initSesiLiburPage();
+  if (target === 'input-daftar-nilai') initNilaiPage();
   if (target !== 'scan-barcode') stopQrScanner();
 
   // persist halaman agar refresh tidak kembali ke dashboard
@@ -5041,9 +5123,12 @@ function applySekolahToUI() {
   const logo = s.logo_url || '';
   const setLogo = (el, isDashSchool) => {
     if (!el) return;
+    el.style.background = 'transparent';
+    el.style.backgroundColor = 'transparent';
+    el.style.boxShadow = 'none';
+    el.style.border = 'none';
     if (logo) {
-      el.innerHTML = `<img src="${logo}" alt="Logo" />`;
-      if (!isDashSchool) el.style.background = 'transparent';
+      el.innerHTML = `<img src="${logo}" alt="Logo" style="background:transparent;display:block;width:100%;height:100%;object-fit:contain" />`;
     } else {
       const initial = (nama || 'S').trim().charAt(0).toUpperCase();
       el.innerHTML = initial;
@@ -5383,6 +5468,387 @@ document.getElementById('btnBobotHapus')?.addEventListener('click', async () => 
 });
 document.getElementById('checkAllBobot')?.addEventListener('change', (e) => {
   document.querySelectorAll('.row-check-bobot').forEach(c => { c.checked = e.target.checked; });
+});
+
+
+/* ===== Input / Daftar Nilai ===== */
+let nilaiActiveTab = 'input';
+let nilaiInputRows = [];
+let nilaiTerisiKe = [];
+
+function periodeAktifId() {
+  const p = (store.periode || []).find(x => String(x.status || '').toLowerCase() === 'aktif');
+  return p?.id || null;
+}
+function switchNilaiTab(tab) {
+  nilaiActiveTab = tab || 'input';
+  document.querySelectorAll('#nilaiSwitch .mk-tab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-nilai-tab') === nilaiActiveTab);
+  });
+  const inp = document.getElementById('nilaiPanelInput');
+  const daf = document.getElementById('nilaiPanelDaftar');
+  if (inp) inp.style.display = nilaiActiveTab === 'input' ? '' : 'none';
+  if (daf) daf.style.display = nilaiActiveTab === 'daftar' ? '' : 'none';
+  const jw = document.getElementById('nilaiJenisWrap');
+  const kw = document.getElementById('nilaiKeWrap');
+  if (jw) jw.style.display = nilaiActiveTab === 'input' ? '' : 'none';
+  if (kw) kw.style.display = nilaiActiveTab === 'input' ? '' : 'none';
+}
+function getNilaiMapelKelasOptions() {
+  const sess = getSession();
+  const mapelAll = (store.mapel || []).filter(m => m.is_active !== false)
+    .slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  const kelasAll = (store.kelas || []).filter(k => k.is_active !== false)
+    .slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0) || String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
+  if (!sess || sess.role !== 'guru') return { mapel: mapelAll, kelasByMapel: null, kelasAll };
+  const pin = String(sess.user?.pin || '');
+  const guru = (store.guru || []).find(g => String(g.pin) === pin || String(g.id) === String(sess.user?.id));
+  const guruId = guru?.id;
+  const periodeId = periodeAktifId();
+  let ampu = (store.guru_ampu || []).filter(a => String(a.guru_id) === String(guruId));
+  if (periodeId) {
+    const withP = ampu.filter(a => String(a.periode_id || '') === String(periodeId));
+    if (withP.length) ampu = withP;
+  }
+  const mapelIds = new Set(ampu.map(a => String(a.mapel_id)));
+  const mapel = mapelAll.filter(m => mapelIds.has(String(m.id)));
+  const kelasByMapel = {};
+  ampu.forEach(a => {
+    const mid = String(a.mapel_id);
+    if (!kelasByMapel[mid]) kelasByMapel[mid] = new Set();
+    kelasByMapel[mid].add(String(a.kelas_id));
+  });
+  return { mapel, kelasByMapel, kelasAll };
+}
+function fillNilaiKelasOptions() {
+  const mapelSel = document.getElementById('nilaiFilterMapel');
+  const kelasSel = document.getElementById('nilaiFilterKelas');
+  if (!kelasSel) return;
+  const opts = getNilaiMapelKelasOptions();
+  const mid = mapelSel?.value || '';
+  let list = opts.kelasAll;
+  if (opts.kelasByMapel && mid && opts.kelasByMapel[mid]) {
+    const allowed = opts.kelasByMapel[mid];
+    list = opts.kelasAll.filter(k => allowed.has(String(k.id)));
+  }
+  const curK = kelasSel.value;
+  kelasSel.innerHTML = '<option value="">— pilih kelas —</option>' +
+    list.map(k => `<option value="${escapeHtml(String(k.id))}">${escapeHtml(k.nama || '')}</option>`).join('');
+  if (curK && [...kelasSel.options].some(o => o.value === curK)) kelasSel.value = curK;
+}
+function fillNilaiFilters() {
+  const mapelSel = document.getElementById('nilaiFilterMapel');
+  const jenisSel = document.getElementById('nilaiFilterJenis');
+  if (!mapelSel) return;
+  const opts = getNilaiMapelKelasOptions();
+  const curM = mapelSel.value;
+  mapelSel.innerHTML = (opts.mapel.length
+    ? opts.mapel.map(m => `<option value="${escapeHtml(String(m.id))}">${escapeHtml((m.kode ? m.kode + ' — ' : '') + (m.nama || ''))}</option>`).join('')
+    : '<option value="">— tidak ada mapel —</option>');
+  if (curM && [...mapelSel.options].some(o => o.value === curM)) mapelSel.value = curM;
+  fillNilaiKelasOptions();
+  const jenisList = (store.bobot_nilai || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  const jenisOpts = jenisList.length
+    ? [...new Set(jenisList.map(j => String(j.jenis || '').toUpperCase()).filter(Boolean))]
+    : ['NH', 'TGS', 'PTS', 'ASAS', 'ASAJ', 'ASAT'];
+  const curJ = jenisSel?.value;
+  if (jenisSel) {
+    jenisSel.innerHTML = jenisOpts.map(j => `<option value="${escapeHtml(j)}">${escapeHtml(j)}</option>`).join('');
+    if (curJ && jenisOpts.includes(curJ)) jenisSel.value = curJ;
+  }
+  fillNilaiKeOptions();
+}
+function fillNilaiKeOptions() {
+  const keSel = document.getElementById('nilaiFilterKe');
+  if (!keSel) return;
+  const cur = Number(keSel.value) || 1;
+  let html = '';
+  for (let i = 1; i <= 30; i++) {
+    const used = nilaiTerisiKe.includes(i);
+    const disabled = used && i !== cur ? ' disabled' : '';
+    html += `<option value="${i}"${disabled}${i === cur ? ' selected' : ''}>${used ? i + ' (sudah ada)' : i}</option>`;
+  }
+  keSel.innerHTML = html;
+  if (![...keSel.options].some(o => o.value === String(cur) && !o.disabled)) {
+    const next = Array.from({ length: 30 }, (_, i) => i + 1).find(n => !nilaiTerisiKe.includes(n)) || 1;
+    keSel.value = String(next);
+  } else keSel.value = String(cur);
+}
+async function refreshNilaiTerisiKe() {
+  const mapelId = document.getElementById('nilaiFilterMapel')?.value;
+  const kelasId = document.getElementById('nilaiFilterKelas')?.value || null;
+  const jenis = document.getElementById('nilaiFilterJenis')?.value || '';
+  if (!mapelId || !jenis) { nilaiTerisiKe = []; fillNilaiKeOptions(); return; }
+  try {
+    const res = await apiCall('list_penilaian_ke_terisi', {
+      periode_id: periodeAktifId(), mapel_id: mapelId, kelas_id: kelasId || null, jenis,
+    });
+    nilaiTerisiKe = res.data || [];
+  } catch (_) { nilaiTerisiKe = []; }
+  fillNilaiKeOptions();
+}
+function lpLabel(jk) {
+  const s = String(jk || '').toUpperCase();
+  if (s.startsWith('L') || s === 'MALE' || s === 'PRIA') return 'L';
+  if (s.startsWith('P') || s === 'FEMALE' || s === 'WANITA') return 'P';
+  return s ? s.charAt(0) : '—';
+}
+function renderNilaiInputTable(rows) {
+  nilaiInputRows = rows || [];
+  const tb = document.getElementById('tbodyNilaiInput');
+  const cnt = document.getElementById('nilaiInputCount');
+  if (!tb) return;
+  if (cnt) cnt.textContent = (rows?.length || 0) + ' siswa';
+  if (!rows?.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="5">Tidak ada siswa di kelas ini.</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((r, i) => {
+    const val = r.nilai != null && r.nilai !== '' ? String(r.nilai) : '';
+    return `<tr data-siswa-id="${escapeHtml(String(r.siswa_id || ''))}" data-nisn="${escapeHtml(String(r.nisn || ''))}">
+      <td style="text-align:center">${i + 1}</td>
+      <td>${escapeHtml(String(r.nisn || ''))}</td>
+      <td>${escapeHtml(r.nama || '')}</td>
+      <td style="text-align:center">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
+      <td><input type="number" class="nilai-input-cell" min="0" max="100" step="0.01" placeholder="1-100"
+        value="${escapeHtml(val)}" style="width:72px;padding:4px 6px;border:1px solid #c5d0e0;border-radius:3px;font-size:12px;text-align:center" /></td>
+    </tr>`;
+  }).join('');
+}
+function collectNilaiInputRows() {
+  const tb = document.getElementById('tbodyNilaiInput');
+  if (!tb) return [];
+  return [...tb.querySelectorAll('tr[data-nisn]')].map(tr => {
+    const inp = tr.querySelector('.nilai-input-cell');
+    const raw = inp ? String(inp.value).trim() : '';
+    return { siswa_id: tr.getAttribute('data-siswa-id') || null, nisn: tr.getAttribute('data-nisn') || '', nilai: raw === '' ? null : raw };
+  });
+}
+async function loadNilaiInput() {
+  const mapelId = document.getElementById('nilaiFilterMapel')?.value;
+  const kelasId = document.getElementById('nilaiFilterKelas')?.value;
+  const jenis = document.getElementById('nilaiFilterJenis')?.value || '';
+  if (!mapelId) { toast('Pilih mapel', 'err'); return; }
+  if (!kelasId) { toast('Pilih kelas', 'err'); return; }
+  if (!jenis) { toast('Pilih jenis nilai', 'err'); return; }
+  try {
+    await refreshNilaiTerisiKe();
+    const ke = Number(document.getElementById('nilaiFilterKe')?.value) || 1;
+    const res = await apiCall('list_nilai_input', {
+      periode_id: periodeAktifId(), mapel_id: mapelId, kelas_id: kelasId, jenis, penilaian_ke: ke,
+    });
+    renderNilaiInputTable(res.data || []);
+  } catch (e) { toast(errToText(e), 'err'); showBigPopup('err', 'Gagal Muat', errToText(e), 0); }
+}
+async function saveNilaiInput() {
+  const mapelId = document.getElementById('nilaiFilterMapel')?.value;
+  const kelasId = document.getElementById('nilaiFilterKelas')?.value;
+  const jenis = document.getElementById('nilaiFilterJenis')?.value || '';
+  const ke = Number(document.getElementById('nilaiFilterKe')?.value) || 1;
+  if (!mapelId || !kelasId || !jenis) { toast('Lengkapi filter (mapel, kelas, jenis)', 'err'); return; }
+  const rows = collectNilaiInputRows();
+  for (const r of rows) {
+    if (r.nilai == null || r.nilai === '') continue;
+    const n = Number(r.nilai);
+    if (isNaN(n) || n < 0 || n > 100) { toast('Nilai harus 0–100 (NISN ' + r.nisn + ')', 'err'); return; }
+  }
+  try {
+    const res = await apiCall('save_nilai_batch', {
+      periode_id: periodeAktifId(), mapel_id: mapelId, kelas_id: kelasId, jenis, penilaian_ke: ke, rows,
+    });
+    toast(res.message || 'Tersimpan', 'ok');
+    showBigPopup('ok', 'Nilai Tersimpan', res.message || 'Batch nilai berhasil disimpan.', 2200);
+    await refreshNilaiTerisiKe();
+    await loadNilaiInput();
+  } catch (e) { toast(errToText(e), 'err'); showBigPopup('err', 'Gagal Simpan', errToText(e), 0); }
+}
+function renderNilaiDaftar(payload) {
+  const columns = payload?.columns || [];
+  const rows = payload?.rows || [];
+  const thead = document.getElementById('theadNilaiDaftar');
+  const tb = document.getElementById('tbodyNilaiDaftar');
+  const cnt = document.getElementById('nilaiDaftarCount');
+  if (!thead || !tb) return;
+  if (cnt) cnt.textContent = (rows.length || 0) + ' siswa';
+  const colHeads = columns.map(c => `<th style="text-align:center;min-width:48px">${escapeHtml(c.key)}</th>`).join('');
+  thead.innerHTML = `<tr><th style="width:40px">No</th><th style="width:110px">NISN</th><th>Nama</th><th style="width:40px">L/P</th>${colHeads}<th style="width:60px;text-align:center">NR</th></tr>`;
+  if (!rows.length) { tb.innerHTML = `<tr class="empty-row"><td colspan="${5 + columns.length}">Tidak ada data.</td></tr>`; return; }
+  tb.innerHTML = rows.map((r, i) => {
+    const cells = columns.map(c => {
+      const v = r.scores?.[c.key];
+      return `<td style="text-align:center">${v != null ? escapeHtml(String(v)) : '—'}</td>`;
+    }).join('');
+    const nr = r.nr != null ? (Math.round(Number(r.nr) * 100) / 100) : '—';
+    return `<tr>
+      <td style="text-align:center">${i + 1}</td>
+      <td>${escapeHtml(String(r.nisn || ''))}</td>
+      <td>${escapeHtml(r.nama || '')}</td>
+      <td style="text-align:center">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
+      ${cells}
+      <td style="text-align:center;font-weight:700">${escapeHtml(String(nr))}</td>
+    </tr>`;
+  }).join('');
+}
+async function loadNilaiDaftar() {
+  const mapelId = document.getElementById('nilaiFilterMapel')?.value;
+  const kelasId = document.getElementById('nilaiFilterKelas')?.value;
+  if (!mapelId) { toast('Pilih mapel', 'err'); return; }
+  if (!kelasId) { toast('Pilih kelas', 'err'); return; }
+  try {
+    const res = await apiCall('list_nilai_daftar', { periode_id: periodeAktifId(), mapel_id: mapelId, kelas_id: kelasId });
+    renderNilaiDaftar(res.data || { columns: [], rows: [] });
+  } catch (e) { toast(errToText(e), 'err'); showBigPopup('err', 'Gagal Muat', errToText(e), 0); }
+}
+function downloadNilaiTemplate(massal) {
+  const kelasId = document.getElementById('nilaiFilterKelas')?.value;
+  const jenis = document.getElementById('nilaiFilterJenis')?.value || 'NH';
+  const ke = Number(document.getElementById('nilaiFilterKe')?.value) || 1;
+  const kelasNama = (store.kelas || []).find(k => String(k.id) === String(kelasId))?.nama || '';
+  let siswa = (store.siswa || []).filter(s => {
+    const st = String(s.status || 'Aktif').toLowerCase();
+    if (!(st === 'aktif' || st === '' || st === 'null')) return false;
+    if (kelasNama && String(s.kelas) !== String(kelasNama)) return false;
+    return true;
+  }).sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
+  if (massal) {
+    const aoa = [['NISN', 'Nama', 'L/P', 'Kelas_ID', 'Kelas', 'Jenis', 'Penilaian_Ke', 'Nilai']];
+    siswa.forEach(s => aoa.push([s.nisn || '', s.nama || '', lpLabel(s.jenis_kelamin), kelasId || '', s.kelas || kelasNama, jenis, ke, '']));
+    const ws = XLSX.utils.aoa_to_sheet(aoa); const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Nilai Massal');
+    XLSX.writeFile(wb, `template_nilai_massal_${jenis}_ke${ke}.xlsx`);
+  } else {
+    const aoa = [['NISN', 'Nama', 'L/P', 'Nilai']];
+    (nilaiInputRows.length ? nilaiInputRows : siswa.map(s => ({ nisn: s.nisn, nama: s.nama, jenis_kelamin: s.jenis_kelamin, nilai: null })))
+      .forEach(s => aoa.push([s.nisn || '', s.nama || '', lpLabel(s.jenis_kelamin), s.nilai != null ? s.nilai : '']));
+    const ws = XLSX.utils.aoa_to_sheet(aoa); const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Nilai');
+    XLSX.writeFile(wb, `template_nilai_${jenis}_ke${ke}.xlsx`);
+  }
+  toast('Template diunduh', 'ok');
+}
+async function importNilaiFile(file, massal) {
+  if (!file) return;
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    if (!json.length) { toast('File kosong', 'err'); return; }
+    const byNisn = Object.fromEntries((store.siswa || []).map(s => [String(s.nisn), s]));
+    const kelasByNama = Object.fromEntries((store.kelas || []).map(k => [String(k.nama).toLowerCase(), k]));
+    if (massal) {
+      const groups = new Map();
+      for (const row of json) {
+        const nisn = String(row.NISN || row.nisn || '').replace(/\D/g, '');
+        if (!nisn) continue;
+        const jenis = String(row.Jenis || row.jenis || 'NH').trim().toUpperCase();
+        const ke = Math.min(30, Math.max(1, Number(row.Penilaian_Ke || row.penilaian_ke || 1) || 1));
+        let kelasId = row.Kelas_ID || row.kelas_id || '';
+        if (!kelasId && (row.Kelas || row.kelas)) {
+          const k = kelasByNama[String(row.Kelas || row.kelas).toLowerCase()];
+          if (k) kelasId = k.id;
+        }
+        if (!kelasId) kelasId = document.getElementById('nilaiFilterKelas')?.value || '';
+        const nilaiRaw = row.Nilai ?? row.nilai ?? '';
+        const key = `${jenis}|${ke}|${kelasId}`;
+        if (!groups.has(key)) groups.set(key, { jenis, ke, kelasId, rows: [] });
+        groups.get(key).rows.push({ nisn, nilai: nilaiRaw === '' ? null : nilaiRaw });
+      }
+      const mapelId = document.getElementById('nilaiFilterMapel')?.value;
+      if (!mapelId) { toast('Pilih mapel di filter sebelum import massal', 'err'); return; }
+      let total = 0;
+      for (const g of groups.values()) {
+        if (!g.kelasId) continue;
+        const rows = g.rows.map(r => ({ siswa_id: byNisn[r.nisn]?.id || null, nisn: r.nisn, nilai: r.nilai }));
+        const res = await apiCall('save_nilai_batch', {
+          periode_id: periodeAktifId(), mapel_id: mapelId, kelas_id: g.kelasId, jenis: g.jenis, penilaian_ke: g.ke, rows,
+        });
+        total += (res.saved || 0) + (res.updated || 0);
+      }
+      toast(`Import massal: ${total} nilai`, 'ok');
+      await refreshNilaiTerisiKe();
+      if (nilaiActiveTab === 'input') await loadNilaiInput(); else await loadNilaiDaftar();
+      return;
+    }
+    const mapelId = document.getElementById('nilaiFilterMapel')?.value;
+    const kelasId = document.getElementById('nilaiFilterKelas')?.value;
+    const jenis = document.getElementById('nilaiFilterJenis')?.value || '';
+    const ke = Number(document.getElementById('nilaiFilterKe')?.value) || 1;
+    if (!mapelId || !kelasId || !jenis) { toast('Lengkapi filter mapel, kelas & jenis', 'err'); return; }
+    const rows = json.map(row => {
+      const nisn = String(row.NISN || row.nisn || '').replace(/\D/g, '');
+      const nilaiRaw = row.Nilai ?? row.nilai ?? '';
+      return { siswa_id: byNisn[nisn]?.id || null, nisn, nilai: nilaiRaw === '' ? null : nilaiRaw };
+    }).filter(r => r.nisn);
+    const res = await apiCall('save_nilai_batch', {
+      periode_id: periodeAktifId(), mapel_id: mapelId, kelas_id: kelasId, jenis, penilaian_ke: ke, rows,
+    });
+    toast(res.message || 'Import selesai', 'ok');
+    await refreshNilaiTerisiKe();
+    await loadNilaiInput();
+  } catch (e) { toast(errToText(e), 'err'); showBigPopup('err', 'Gagal Import', errToText(e), 0); }
+}
+function exportNilaiDaftarExcel() {
+  const thead = document.getElementById('theadNilaiDaftar');
+  const tb = document.getElementById('tbodyNilaiDaftar');
+  if (!thead || !tb) return;
+  const headers = [...thead.querySelectorAll('th')].map(th => th.textContent.trim());
+  const aoa = [headers];
+  tb.querySelectorAll('tr').forEach(tr => {
+    if (tr.classList.contains('empty-row')) return;
+    aoa.push([...tr.querySelectorAll('td')].map(td => td.textContent.trim()));
+  });
+  if (aoa.length < 2) { toast('Tidak ada data untuk export', 'err'); return; }
+  const ws = XLSX.utils.aoa_to_sheet(aoa); const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Daftar Nilai');
+  XLSX.writeFile(wb, 'daftar_nilai.xlsx');
+  toast('Export selesai', 'ok');
+}
+async function initNilaiPage() {
+  const lab = document.getElementById('badgePeriodeNilai');
+  if (lab) lab.textContent = 'Periode: ' + (typeof periodeLabel === 'function' ? periodeLabel() : '-');
+  try {
+    const res = await apiCall('list_mapel_kelas', {});
+    if (res.data) {
+      store.mapel = res.data.mapel || store.mapel || [];
+      store.kelas = res.data.kelas || store.kelas || [];
+      store.bobot_nilai = res.data.bobot_nilai || store.bobot_nilai || [];
+      saveStore(store);
+    }
+  } catch (_) {}
+  fillNilaiFilters();
+  switchNilaiTab(nilaiActiveTab || 'input');
+  await refreshNilaiTerisiKe();
+}
+document.getElementById('nilaiSwitch')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.mk-tab');
+  if (!btn) return;
+  switchNilaiTab(btn.getAttribute('data-nilai-tab'));
+});
+document.getElementById('btnNilaiMuat')?.addEventListener('click', () => {
+  if (nilaiActiveTab === 'daftar') loadNilaiDaftar(); else loadNilaiInput();
+});
+document.getElementById('btnNilaiSimpan')?.addEventListener('click', saveNilaiInput);
+document.getElementById('btnNilaiTemplate')?.addEventListener('click', () => downloadNilaiTemplate(false));
+document.getElementById('btnNilaiTemplateMassal')?.addEventListener('click', () => downloadNilaiTemplate(true));
+document.getElementById('btnNilaiImport')?.addEventListener('click', () => document.getElementById('nilaiImportFile')?.click());
+document.getElementById('btnNilaiImportMassal')?.addEventListener('click', () => document.getElementById('nilaiImportMassalFile')?.click());
+document.getElementById('nilaiImportFile')?.addEventListener('change', async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await importNilaiFile(f, false); });
+document.getElementById('nilaiImportMassalFile')?.addEventListener('change', async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await importNilaiFile(f, true); });
+document.getElementById('btnNilaiExportDaftar')?.addEventListener('click', exportNilaiDaftarExcel);
+document.getElementById('nilaiFilterMapel')?.addEventListener('change', () => { fillNilaiKelasOptions(); refreshNilaiTerisiKe(); });
+document.getElementById('nilaiFilterKelas')?.addEventListener('change', () => refreshNilaiTerisiKe());
+document.getElementById('nilaiFilterJenis')?.addEventListener('change', () => refreshNilaiTerisiKe());
+document.getElementById('nilaiFilterKe')?.addEventListener('focus', () => {
+  const keSel = document.getElementById('nilaiFilterKe');
+  if (!keSel) return;
+  const cur = keSel.value;
+  let html = '';
+  for (let i = 1; i <= 30; i++) {
+    const used = nilaiTerisiKe.includes(i);
+    html += `<option value="${i}"${i === Number(cur) ? ' selected' : ''}>${used ? i + ' (sudah ada)' : i}</option>`;
+  }
+  keSel.innerHTML = html; keSel.value = cur;
 });
 
 /* ===== Auto-refresh status sesi (tanpa reload penuh) ===== */
