@@ -3368,24 +3368,59 @@ async function renderDashboard() {
 }
 
 /* ----- Navigation ----- */
+/* ===== Navigasi + tombol kembali HP ===== */
+let navStack = ['dashboard'];
+let navCurrent = 'dashboard';
+let navReady = false; // hindari popstate saat init
+
+function resolveNavTarget(page) {
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya'];
+  let target = known.includes(page) ? page : 'placeholder';
+  if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
+  return target;
+}
+
+/** Tutup overlay (modal/sidebar) dulu jika terbuka — dianggap "back" berhasil */
+function closeTopOverlay() {
+  const login = document.getElementById('loginOverlay');
+  if (login && login.classList.contains('active')) {
+    login.classList.remove('active');
+    return true;
+  }
+  const modal = document.querySelector('.modal-overlay.active');
+  if (modal) {
+    modal.classList.remove('active');
+    return true;
+  }
+  const side = document.querySelector('.sidebar.active');
+  if (side) {
+    if (typeof tutupSidebar === 'function') tutupSidebar();
+    else {
+      side.classList.remove('active');
+      document.querySelector('.sidebar-overlay')?.classList.remove('active');
+    }
+    return true;
+  }
+  return false;
+}
+
 function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya'];
-  let target = known.includes(page) ? page : 'placeholder';
-  if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
+  const target = resolveNavTarget(page);
 
   const pageEl = document.getElementById('page-' + target);
   if (pageEl) pageEl.classList.add('active');
 
   const link = document.querySelector(`.submenu a[data-page="${page}"]`) ||
+    document.querySelector(`.submenu a[data-page="${target}"]`) ||
     document.querySelector(`.submenu a[data-page="input-daftar-nilai"]`);
   if (link) link.classList.add('active');
 
   if (target === 'placeholder') {
     const el = document.getElementById('placeholderTitle');
-    if (el) el.textContent = page.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    if (el) el.textContent = String(page).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
   if (target === 'dashboard') renderDashboard();
@@ -3399,6 +3434,7 @@ function navigate(page, opts = {}) {
   if (target === 'sidik-jari-siswa') initSidikJariPage();
   if (target === 'scan-barcode') initScanPage();
   if (target === 'sesi-libur') initSesiLiburPage();
+  if (target === 'input-izin') { /* no special init */ }
   if (target === 'input-daftar-nilai') initNilaiPage();
   if (target === 'rekap-data') initRekapPage();
   if (target === 'reset-pin') initResetPinPage();
@@ -3407,18 +3443,90 @@ function navigate(page, opts = {}) {
   if (target === 'nilai-saya') initNilaiSayaPage();
   if (target !== 'scan-barcode') stopQrScanner();
 
-  // persist halaman agar refresh tidak kembali ke dashboard
+  navCurrent = target;
+
+  // Stack & history (tombol kembali HP)
   try {
-    sessionStorage.setItem('sis_last_page', page);
-    if (!opts.fromHash) {
-      const hash = '#' + page;
-      if (location.hash !== hash) history.replaceState(null, '', hash);
+    sessionStorage.setItem('sis_last_page', target);
+    if (opts.fromBack) {
+      // hanya update URL, jangan push stack
+      history.replaceState({ sis: true, page: target, stack: navStack.slice() }, '', '#' + target);
+    } else if (opts.replace || opts.fromHash) {
+      // init / sinkron hash: set stack ujung = target
+      if (!navStack.length) navStack = ['dashboard'];
+      if (navStack[navStack.length - 1] !== target) {
+        // jika dari hash langsung, anggap 1 level dari dashboard
+        if (target === 'dashboard') navStack = ['dashboard'];
+        else if (navStack.length === 1 && navStack[0] === 'dashboard') navStack.push(target);
+        else {
+          // ganti ujung jika refresh di halaman dalam
+          if (opts.fromHash && opts.init) navStack = target === 'dashboard' ? ['dashboard'] : ['dashboard', target];
+          else navStack.push(target);
+        }
+      }
+      history.replaceState({ sis: true, page: target, stack: navStack.slice() }, '', '#' + target);
+    } else {
+      // navigasi maju (klik menu)
+      if (navStack[navStack.length - 1] !== target) {
+        navStack.push(target);
+        history.pushState({ sis: true, page: target, stack: navStack.slice() }, '', '#' + target);
+      } else {
+        history.replaceState({ sis: true, page: target, stack: navStack.slice() }, '', '#' + target);
+      }
     }
+    try { sessionStorage.setItem('sis_nav_stack', JSON.stringify(navStack)); } catch (_) {}
   } catch (_) {}
 
   tutupSidebar();
   if (!opts.noScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+/** Dipanggil saat tombol kembali (popstate) */
+function handleAppBack() {
+  if (closeTopOverlay()) {
+    // tetap jaga entry history agar back berikutnya tertangkap
+    history.pushState({ sis: true, page: navCurrent, stack: navStack.slice() }, '', '#' + navCurrent);
+    return;
+  }
+
+  if (navStack.length > 1) {
+    navStack.pop();
+    const prev = navStack[navStack.length - 1] || 'dashboard';
+    navigate(prev, { fromBack: true });
+    // pastikan ada state untuk back berikutnya
+    history.pushState({ sis: true, page: prev, stack: navStack.slice() }, '', '#' + prev);
+    return;
+  }
+
+  // Sudah di root (dashboard) → konfirmasi keluar
+  const ok = window.confirm('Yakin ingin menutup aplikasi?');
+  if (ok) {
+    navReady = false;
+    // keluar dari situs / tutup tab jika memungkinkan
+    try {
+      if (window.history.length > 1) {
+        history.go(-1);
+      }
+      setTimeout(() => {
+        try { window.close(); } catch (_) {}
+        // fallback: arahkan ke halaman kosong / biarkan browser handle
+        try { location.replace('about:blank'); } catch (_) {}
+      }, 150);
+    } catch (_) {
+      try { location.replace('about:blank'); } catch (__) {}
+    }
+  } else {
+    // Batal → tetap di dashboard
+    navStack = ['dashboard'];
+    navigate('dashboard', { fromBack: true });
+    history.pushState({ sis: true, page: 'dashboard', stack: ['dashboard'] }, '', '#dashboard');
+  }
+}
+
+window.addEventListener('popstate', (e) => {
+  if (!navReady) return;
+  handleAppBack();
+});
 
 document.querySelectorAll('.submenu a[data-page]').forEach(a => {
   a.addEventListener('click', (e) => {
@@ -8220,11 +8328,32 @@ document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
   _lastSesiKey = sesiStateKey();
   const fromHash = (location.hash || '').replace(/^#/, '');
   const fromStore = sessionStorage.getItem('sis_last_page') || '';
-  const startPage = fromHash || fromStore || 'dashboard';
-  navigate(startPage, { fromHash: true, noScroll: true });
+  let startPage = fromHash || fromStore || 'dashboard';
+  // pulihkan stack jika ada
+  try {
+    const raw = sessionStorage.getItem('sis_nav_stack');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) navStack = arr.map(String);
+    }
+  } catch (_) {}
+  if (!navStack.length) navStack = ['dashboard'];
+  // pastikan ujung stack = startPage
+  if (navStack[navStack.length - 1] !== startPage) {
+    if (startPage === 'dashboard') navStack = ['dashboard'];
+    else navStack = ['dashboard', startPage];
+  }
+  navigate(startPage, { fromHash: true, init: true, noScroll: true });
+  // Entry ekstra agar tombol back HP selalu memicu popstate (bukan langsung keluar browser)
+  history.pushState({ sis: true, page: startPage, stack: navStack.slice() }, '', '#' + startPage);
+  navReady = true;
+  // hashchange manual (tautan eksternal) — sinkron tanpa merusak stack besar
   window.addEventListener('hashchange', () => {
+    if (!navReady) return;
     const p = (location.hash || '').replace(/^#/, '') || 'dashboard';
-    navigate(p, { fromHash: true });
+    if (p === navCurrent) return;
+    // anggap navigasi maju dari luar
+    navigate(p, { replace: false });
   });
 })();
 </script>
