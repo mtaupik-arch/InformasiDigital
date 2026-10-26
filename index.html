@@ -2471,19 +2471,29 @@ async function apiCall(action, payload = {}) {
   const body = { action, ...payload, token: session?.token || null };
   let res;
   try {
-    res = await fetch(API_FN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'apikey': SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(body),
-    });
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 20000) : null;
+    try {
+      res = await fetch(API_FN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify(body),
+        signal: ctrl ? ctrl.signal : undefined,
+      });
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   } catch (netErr) {
+    const aborted = netErr && (netErr.name === 'AbortError' || /abort/i.test(String(netErr.message || '')));
     throw new Error(
-      'Gagal terhubung ke Edge Function api. Cek: (1) function api sudah deploy, ' +
-      '(2) Verify JWT = OFF, (3) koneksi internet. Detail: ' + (netErr.message || 'Failed to fetch')
+      aborted
+        ? 'Koneksi ke server timeout (20 dtk). Cek internet / Edge Function api.'
+        : ('Gagal terhubung ke Edge Function api. Cek: (1) function api sudah deploy, ' +
+           '(2) Verify JWT = OFF, (3) koneksi internet. Detail: ' + (netErr.message || 'Failed to fetch'))
     );
   }
   let data;
@@ -3371,6 +3381,11 @@ async function renderDashboard() {
     if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
     if (cardGuru) cardGuru.style.display = 'none';
     if (cardSiswa) cardSiswa.style.display = 'none';
+    // hapus teks "Memuat data…" agar tidak terlihat stuck
+    const tg = document.getElementById('tbodyRekapGuru');
+    const ts = document.getElementById('tbodyRekapSiswa');
+    if (tg) tg.innerHTML = '<tr class="empty-row"><td colspan="8">Di luar jam sesi</td></tr>';
+    if (ts) ts.innerHTML = '<tr class="empty-row"><td colspan="8">Di luar jam sesi</td></tr>';
     return;
   }
 
@@ -3470,24 +3485,32 @@ function navigate(page, opts = {}) {
     if (el) el.textContent = String(page).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
-  if (target === 'dashboard') renderDashboard();
-  if (target === 'mapel-kelas') initMapelKelasPage();
-  if (target === 'data-sekolah') initDataSekolahPage();
-  if (target === 'edit-profil-user') initEditProfilUserPage();
-  if (target === 'data-siswa') renderSiswa();
-  if (target === 'data-guru') renderGuru();
-  if (target === 'data-lulusan') renderLulusan();
-  if (target === 'periode') renderPeriode();
-  if (target === 'sidik-jari-siswa') initSidikJariPage();
-  if (target === 'scan-barcode') initScanPage();
-  if (target === 'sesi-libur') initSesiLiburPage();
-  if (target === 'input-daftar-nilai') initNilaiPage();
-  if (target === 'rekap-data') initRekapPage();
-  if (target === 'reset-pin') initResetPinPage();
-  if (target === 'naik-kelas') initNaikKelasPage();
-  if (target === 'syarat-naik') initSyaratNaikPage();
-  if (target === 'nilai-saya') initNilaiSayaPage();
-  if (target !== 'scan-barcode') stopQrScanner();
+  const runPage = (fn) => {
+    try {
+      const r = fn();
+      if (r && typeof r.then === 'function') r.catch(e => console.warn('page init', e));
+    } catch (e) { console.warn('page init', e); }
+  };
+  if (target === 'dashboard') runPage(() => renderDashboard());
+  if (target === 'mapel-kelas') runPage(() => initMapelKelasPage());
+  if (target === 'data-sekolah') runPage(() => initDataSekolahPage());
+  if (target === 'edit-profil-user') runPage(() => initEditProfilUserPage());
+  if (target === 'data-siswa') runPage(() => renderSiswa());
+  if (target === 'data-guru') runPage(() => renderGuru());
+  if (target === 'data-lulusan') runPage(() => renderLulusan());
+  if (target === 'periode') runPage(() => renderPeriode());
+  if (target === 'sidik-jari-siswa') runPage(() => initSidikJariPage());
+  if (target === 'scan-barcode') runPage(() => initScanPage());
+  if (target === 'sesi-libur') runPage(() => initSesiLiburPage());
+  if (target === 'input-daftar-nilai') runPage(() => initNilaiPage());
+  if (target === 'rekap-data') runPage(() => initRekapPage());
+  if (target === 'reset-pin') runPage(() => initResetPinPage());
+  if (target === 'naik-kelas') runPage(() => initNaikKelasPage());
+  if (target === 'syarat-naik') runPage(() => initSyaratNaikPage());
+  if (target === 'nilai-saya') runPage(() => initNilaiSayaPage());
+  if (target !== 'scan-barcode') {
+    try { stopQrScanner(); } catch (_) {}
+  }
 
   const prev = navCurrent;
   navCurrent = target;
@@ -8377,49 +8400,72 @@ document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
 
 /* ===== Init ===== */
 (async function init() {
-  const session = getSession();
-  renderUserUI(session);
-  // Publik: selalu muat data real dari DB (login tidak wajib untuk lihat dashboard)
   try {
-    await refreshStoreFromDb();
-    applySekolahToUI();
-    // refresh identitas (mapel/kelas guru) setelah data ampu & mapel termuat
-    renderUserUI(getSession());
-  } catch (e) {
-    console.warn('init bootstrap', e);
-  }
-  if (session?.token) {
-    try { await apiCall('apply_ab_status', {}); } catch (_) {}
-  }
-  updatePeriodeBadges();
-  _lastSesiKey = sesiStateKey();
-  const fromHash = (location.hash || '').replace(/^#/, '');
-  const fromStore = sessionStorage.getItem('sis_last_page') || '';
-  let startPage = fromHash || fromStore || 'dashboard';
-  try {
-    const raw = sessionStorage.getItem('sis_nav_stack');
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr) && arr.length) navStack = arr.map(String);
-    }
-  } catch (_) {}
-  if (!navStack.length) navStack = ['dashboard'];
-  if (navStack[navStack.length - 1] !== startPage) {
-    navStack = startPage === 'dashboard' ? ['dashboard'] : ['dashboard', startPage];
-  }
-  navigate(startPage, { fromHash: true, init: true, noScroll: true });
-  // Perangkap back: 2x push agar tombol fisik HP selalu ketangkap
-  armBackTrap();
-  armBackTrap();
-  navReady = true;
+    // 1) UI lokal dulu agar tidak stuck "Memuat…"
+    const session = getSession();
+    try { renderUserUI(session); } catch (e) { console.warn(e); }
+    try { applySekolahToUI(); } catch (e) { console.warn(e); }
+    try { updatePeriodeBadges(); } catch (e) { console.warn(e); }
 
-  window.addEventListener('hashchange', () => {
-    if (!navReady) return;
-    const p = (location.hash || '').replace(/^#/, '') || 'dashboard';
-    if (p === navCurrent) return;
-    navigate(p);
-    armBackTrap();
-  });
+    // 2) Tampilkan dashboard dari cache segera
+    try {
+      navStack = ['dashboard'];
+      navigate('dashboard', { fromHash: true, init: true, noScroll: true });
+    } catch (e) { console.warn('navigate early', e); }
+
+    // 3) Bootstrap DB (timeout 20 dtk di apiCall)
+    try {
+      await refreshStoreFromDb();
+      try { applySekolahToUI(); } catch (_) {}
+      try { renderUserUI(getSession()); } catch (_) {}
+      try { renderDashboard(); } catch (_) {}
+    } catch (e) {
+      console.warn('init bootstrap', e);
+    }
+
+    if (session?.token) {
+      try { await apiCall('apply_ab_status', {}); } catch (_) {}
+    }
+
+    try { _lastSesiKey = sesiStateKey(); } catch (_) {}
+
+    // 4) Halaman terakhir (jika bukan dashboard)
+    const fromHash = (location.hash || '').replace(/^#/, '');
+    const fromStore = sessionStorage.getItem('sis_last_page') || '';
+    let startPage = fromHash || fromStore || 'dashboard';
+    try {
+      const raw = sessionStorage.getItem('sis_nav_stack');
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length) navStack = arr.map(String);
+      }
+    } catch (_) {}
+    if (!navStack.length) navStack = ['dashboard'];
+    if (startPage && startPage !== 'dashboard' && startPage !== navCurrent) {
+      if (navStack[navStack.length - 1] !== startPage) {
+        navStack = startPage === 'dashboard' ? ['dashboard'] : ['dashboard', startPage];
+      }
+      try { navigate(startPage, { fromHash: true, init: true, noScroll: true }); } catch (e) { console.warn(e); }
+    }
+
+    // 5) Arm back trap setelah UI siap
+    try { armBackTrap(); } catch (_) {}
+    navReady = true;
+
+    window.addEventListener('hashchange', () => {
+      if (!navReady) return;
+      const p = (location.hash || '').replace(/^#/, '') || 'dashboard';
+      if (p === navCurrent) return;
+      try {
+        navigate(p);
+        armBackTrap();
+      } catch (e) { console.warn(e); }
+    });
+  } catch (e) {
+    console.error('INIT FATAL', e);
+    navReady = true;
+    try { navigate('dashboard', { init: true, noScroll: true }); } catch (_) {}
+  }
 })();
 </script>
 </body>
