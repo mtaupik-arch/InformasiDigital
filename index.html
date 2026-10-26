@@ -617,7 +617,17 @@
     width:40px; max-width:44px; padding:5px 2px !important;
     text-align:center; white-space:nowrap;
   }
-  table.ns-table .ns-nr { font-weight:800; color:#0000E6; }
+  table.ns-table .ns-nr { font-weight:800; }
+  table.ns-table td.ns-score { font-weight:700; }
+  /* Warna nilai: <70 merah, <80 oranye, <90 hijau, ≥90 biru */
+  .nilai-merah, table.ns-table td.nilai-merah { color:#c62828 !important; }
+  .nilai-oranye, table.ns-table td.nilai-oranye { color:#ef6c00 !important; }
+  .nilai-hijau, table.ns-table td.nilai-hijau { color:#2e7d32 !important; }
+  .nilai-biru, table.ns-table td.nilai-biru { color:#0000E6 !important; }
+  #syaratPersen.nilai-merah { color:#c62828 !important; }
+  #syaratPersen.nilai-oranye { color:#ef6c00 !important; }
+  #syaratPersen.nilai-hijau { color:#2e7d32 !important; }
+  #syaratPersen.nilai-biru { color:#0000E6 !important; }
   .ns-legend {
     margin-top:8px; font-size:11px; color:#555; line-height:1.5;
     background:#f8fafc; border-radius:10px; padding:8px 10px; border:1px solid #e8eef5;
@@ -7401,6 +7411,16 @@ function nsFmt(v) {
   if (isNaN(n)) return '—';
   return (Math.round(n * 100) / 100).toString();
 }
+/** Warna nilai: <70 merah, <80 oranye, <90 hijau, ≥90 biru */
+function nsNilaiClass(v) {
+  if (v == null || v === '' || v === '—') return '';
+  const n = Number(v);
+  if (isNaN(n)) return '';
+  if (n < 70) return 'nilai-merah';
+  if (n < 80) return 'nilai-oranye';
+  if (n < 90) return 'nilai-hijau';
+  return 'nilai-biru';
+}
 
 function renderNilaiSaya(payload) {
   const siswa = payload?.siswa || {};
@@ -7442,7 +7462,7 @@ function renderNilaiSaya(payload) {
     tb.innerHTML = rows.map((r, i) => {
       const cells = cols.map(c => {
         const val = r.scores?.[c];
-        const cls = 'ns-score' + (c === 'NR' ? ' ns-nr' : '');
+        const cls = ('ns-score' + (c === 'NR' ? ' ns-nr' : '') + ' ' + nsNilaiClass(val)).trim();
         return `<td class="${cls}">${nsFmt(val)}</td>`;
       }).join('');
       return `<tr>
@@ -7503,10 +7523,12 @@ async function initNilaiSayaPage() {
   const sess = getSession();
   const searchWrap = document.getElementById('nsSearchWrap');
   const isSiswa = sess?.role === 'siswa';
-  if (searchWrap) searchWrap.style.display = isSiswa ? 'none' : '';
+  // Kolom pencarian hanya admin/guru — siswa otomatis dari NISN login
+  if (searchWrap) searchWrap.style.display = (sess?.role === 'admin' || sess?.role === 'guru') ? '' : 'none';
 
   if (isSiswa) {
-    await loadNilaiSaya(sess.user?.nisn || '');
+    const nisn = sess.user?.nisn || sess.user?.kode || '';
+    await loadNilaiSaya(String(nisn).replace(/\D/g, '') || nisn);
   } else if (sess?.role === 'admin' || sess?.role === 'guru') {
     renderNilaiSaya({ siswa: {}, rows: [], columns: ['NRH', 'NR'] });
     const tb = document.getElementById('tbodyNilaiSaya');
@@ -7625,6 +7647,12 @@ function renderSyaratResult(data) {
   set('syaratPersen', (Math.round(persen * 100) / 100) + '%');
   set('syaratPersenSub',
     `Nilai Hadir: ${st.nilai_hadir ?? 0} / ${st.sesi_efektif || 0} (Batas: ${SYARAT_BATAS}%) · TW=1 · TL=0.8`);
+  const persenEl = document.getElementById('syaratPersen');
+  if (persenEl) {
+    persenEl.classList.remove('nilai-merah', 'nilai-oranye', 'nilai-hijau', 'nilai-biru');
+    const pc = nsNilaiClass(persen);
+    if (pc) persenEl.classList.add(pc);
+  }
 
   // foto
   const photo = document.getElementById('syaratPhoto');
@@ -7683,13 +7711,13 @@ async function initSyaratNaikPage() {
   const sess = getSession();
   const searchWrap = document.getElementById('syaratSearchWrap');
   const isSiswa = sess?.role === 'siswa';
-  if (searchWrap) searchWrap.style.display = isSiswa ? 'none' : '';
+  // Kolom pencarian hanya admin/guru — siswa otomatis dari NISN login
+  if (searchWrap) searchWrap.style.display = (sess?.role === 'admin' || sess?.role === 'guru') ? '' : 'none';
 
   if (isSiswa) {
-    const nisn = sess.user?.nisn || '';
-    await loadSyaratFor(nisn);
+    const nisn = sess.user?.nisn || sess.user?.kode || '';
+    await loadSyaratFor(String(nisn).replace(/\D/g, '') || nisn);
   } else if (sess?.role === 'admin' || sess?.role === 'guru') {
-    // tampilkan kosong sampai cari
     renderSyaratResult({ siswa: {}, stats: {} });
     const banner = document.getElementById('syaratBanner');
     if (banner) {
@@ -7701,7 +7729,7 @@ async function initSyaratNaikPage() {
     const banner = document.getElementById('syaratBanner');
     if (banner) {
       banner.className = 'syarat-banner warn';
-      banner.innerHTML = '<span>Login sebagai siswa / admin untuk melihat syarat.</span>';
+      banner.innerHTML = '<span>Login sebagai siswa untuk melihat syarat.</span>';
     }
   }
 }
