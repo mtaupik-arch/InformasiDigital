@@ -577,33 +577,50 @@
 
   /* ===== NILAI SAYA ===== */
   .ns-table-wrap {
-    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    overflow-x:visible;
     background:#fff; border-radius:10px; border:1px solid #e2e8f0;
   }
   table.ns-table {
-    width:100%; border-collapse:collapse; font-size:11.5px;
-    min-width:0; table-layout:auto;
+    width:100% !important; border-collapse:collapse; font-size:11px;
+    min-width:0 !important; table-layout:fixed;
   }
   table.ns-table thead th {
-    background:#0000E6; color:#fff; padding:8px 6px; font-size:10.5px;
-    font-weight:700; text-align:center; white-space:nowrap;
+    background:#0000E6 !important; color:#ffffff !important;
+    padding:7px 4px; font-size:10px; font-weight:700;
+    text-align:center; white-space:nowrap;
+    letter-spacing:.2px; border:none !important;
   }
-  table.ns-table thead th.ns-mapel { text-align:left; }
+  table.ns-table thead th.ns-mapel {
+    text-align:left !important; color:#ffffff !important; padding-left:8px;
+  }
+  table.ns-table thead th.ns-no { color:#ffffff !important; }
   table.ns-table tbody td {
-    padding:6px 5px; border-bottom:1px solid #eef2f6; text-align:center;
-    color:#333; font-size:11.5px;
+    padding:5px 3px; border-bottom:1px solid #eef2f6; text-align:center;
+    color:#333; font-size:11px; overflow:hidden; text-overflow:ellipsis;
   }
   table.ns-table tbody tr:nth-child(even) { background:#e3f2fd; }
   table.ns-table tbody tr:nth-child(odd) { background:#fff; }
-  table.ns-table .ns-no { width:28px; color:#666; font-size:10.5px; }
+  table.ns-table .ns-no {
+    width:26px; max-width:28px; color:#666; font-size:10px;
+    text-align:center; padding-left:2px; padding-right:2px;
+  }
+  table.ns-table thead th.ns-no { width:26px; }
   table.ns-table .ns-mapel {
-    text-align:left; font-weight:600; color:#1a237e;
-    white-space:normal; word-break:break-word; line-height:1.25; min-width:100px;
+    text-align:left !important; font-weight:600; color:#1a237e;
+    white-space:normal; word-break:break-word; line-height:1.2;
+    padding-left:6px !important; padding-right:4px !important;
+    width:auto;
+  }
+  /* kolom nilai (NRH, PTS, … NR) — sempit, rapat ke mapel */
+  table.ns-table thead th.ns-score,
+  table.ns-table tbody td.ns-score {
+    width:40px; max-width:44px; padding:5px 2px !important;
+    text-align:center; white-space:nowrap;
   }
   table.ns-table .ns-nr { font-weight:800; color:#0000E6; }
   .ns-legend {
-    margin-top:10px; font-size:11px; color:#555; line-height:1.55;
-    background:#f8fafc; border-radius:10px; padding:10px 12px; border:1px solid #e8eef5;
+    margin-top:8px; font-size:11px; color:#555; line-height:1.5;
+    background:#f8fafc; border-radius:10px; padding:8px 10px; border:1px solid #e8eef5;
   }
   .ns-legend b { color:#222; }
   .ns-legend code {
@@ -612,9 +629,12 @@
   #page-nilai-saya .page-title { font-size:14px; margin-bottom:8px; }
   #page-nilai-saya .syarat-profile { margin-bottom:8px; }
   @media(max-width:480px){
-    table.ns-table { font-size:10.5px; }
-    table.ns-table thead th { padding:6px 4px; font-size:9.5px; }
-    table.ns-table tbody td { padding:5px 3px; font-size:10.5px; }
+    table.ns-table { font-size:10px; }
+    table.ns-table thead th { padding:6px 2px; font-size:9px; }
+    table.ns-table thead th.ns-mapel { padding-left:6px; }
+    table.ns-table tbody td { padding:4px 2px; font-size:10px; }
+    table.ns-table thead th.ns-score,
+    table.ns-table tbody td.ns-score { width:36px; max-width:38px; }
   }
 
   @media(max-width:480px){
@@ -2293,8 +2313,8 @@
           <tr>
             <th class="ns-no">No</th>
             <th class="ns-mapel">Mata Pelajaran</th>
-            <th>NRH</th>
-            <th>NR</th>
+            <th class="ns-score">NRH</th>
+            <th class="ns-score">NR</th>
           </tr>
         </thead>
         <tbody id="tbodyNilaiSaya">
@@ -7411,7 +7431,7 @@ function renderNilaiSaya(payload) {
     thead.innerHTML = `<tr>
       <th class="ns-no">No</th>
       <th class="ns-mapel">Mata Pelajaran</th>
-      ${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}
+      ${cols.map(c => `<th class="ns-score">${escapeHtml(c)}</th>`).join('')}
     </tr>`;
   }
   const tb = document.getElementById('tbodyNilaiSaya');
@@ -7422,7 +7442,7 @@ function renderNilaiSaya(payload) {
     tb.innerHTML = rows.map((r, i) => {
       const cells = cols.map(c => {
         const val = r.scores?.[c];
-        const cls = c === 'NR' ? 'ns-nr' : '';
+        const cls = 'ns-score' + (c === 'NR' ? ' ns-nr' : '');
         return `<td class="${cls}">${nsFmt(val)}</td>`;
       }).join('');
       return `<tr>
