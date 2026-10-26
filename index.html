@@ -13,7 +13,7 @@
   :root {
     --biru:#2196F3; --hijau:#4CAF50; --orange:#FF9800;
     --kuning:#FFC107; --pink:#E91E63; --merah:#C62828;
-    --primary:#1e3a5f; --primary-light:#2c5282;
+    --primary:#0000E6; --primary-light:#1a1aff;
     --topbar-h:60px; --footer-h:40px; --sidebar-w:270px;
   }
   body { background:#f0f2f5; color:#333; padding-top:var(--topbar-h); padding-bottom:var(--footer-h); }
@@ -108,7 +108,7 @@
   .sidebar-overlay.active { opacity:1; visibility:visible; }
   .sidebar {
     position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w); z-index:1200;
-    background:#14263d; color:#cfd8e3; transform:translateX(-100%); transition:.3s ease;
+    background:#0000E6; color:#cfd8e3; transform:translateX(-100%); transition:.3s ease;
     display:flex; flex-direction:column; overflow-y:auto;
   }
   .sidebar.active { transform:translateX(0); }
@@ -475,45 +475,69 @@
 
   /* ===== CEK SYARAT NAIK / LULUS ===== */
   .syarat-profile {
-    background:#fff; border-radius:14px; box-shadow:0 1px 8px rgba(0,0,0,.06);
-    border:1px solid #e8eef5; padding:16px; margin-bottom:14px;
-    display:flex; flex-direction:row; align-items:center; gap:14px;
+    background:#fff; border-radius:10px; box-shadow:0 1px 6px rgba(0,0,0,.06);
+    border:1px solid #e8eef5; padding:10px 12px; margin-bottom:8px;
+    display:flex; flex-direction:row; align-items:center; gap:10px;
   }
   .syarat-profile .sp-photo {
-    width:84px; height:84px; min-width:84px; border-radius:50%;
-    background:linear-gradient(135deg,#1565c0,#1e88e5); color:#fff;
+    width:56px; height:56px; min-width:56px; border-radius:50%;
+    background:linear-gradient(135deg,#0000E6,#3333ff); color:#fff;
     display:flex; align-items:center; justify-content:center;
-    font-size:28px; font-weight:800; overflow:hidden;
-    box-shadow:0 3px 10px rgba(25,118,210,.25);
+    font-size:20px; font-weight:800; overflow:hidden;
+    box-shadow:0 2px 8px rgba(0,0,230,.25);
   }
   .syarat-profile .sp-photo img {
     width:100%; height:100%; object-fit:cover; border-radius:50%;
   }
   .syarat-profile .sp-info { flex:1; min-width:0; }
   .syarat-profile .sp-name {
-    font-size:15px; font-weight:800; color:#1a237e; text-transform:uppercase;
-    letter-spacing:.3px; margin-bottom:6px; line-height:1.25;
+    font-size:13px; font-weight:800; color:#0000E6; text-transform:uppercase;
+    letter-spacing:.2px; margin-bottom:2px; line-height:1.2;
   }
   .syarat-profile .sp-info p {
-    font-size:12.5px; margin-bottom:3px; color:#555; display:flex; gap:6px;
+    font-size:11px; margin-bottom:1px; color:#555; display:flex; gap:4px; line-height:1.3;
   }
-  .syarat-profile .sp-info p b { color:#222; min-width:72px; font-weight:600; }
+  .syarat-profile .sp-info p b { color:#222; min-width:52px; font-weight:600; }
+  .syarat-search {
+    position:relative; display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; align-items:center;
+  }
+  .syarat-search input {
+    flex:1; min-width:140px; padding:8px 10px; border:1.5px solid #cfd8dc;
+    border-radius:8px; font-size:12.5px; outline:none;
+  }
+  .syarat-search input:focus { border-color:#0000E6; }
+  .syarat-search .btn { padding:8px 12px; font-size:12px; }
+  .syarat-suggest {
+    display:none; position:absolute; left:0; right:0; top:100%; z-index:20;
+    background:#fff; border:1px solid #d0d7e2; border-radius:8px;
+    box-shadow:0 6px 16px rgba(0,0,0,.12); max-height:160px; overflow-y:auto;
+    margin-top:2px;
+  }
+  .syarat-suggest.open { display:block; }
+  .syarat-suggest-item {
+    padding:8px 12px; cursor:pointer; font-size:12.5px; border-bottom:1px solid #f0f3f7;
+    display:flex; flex-direction:column; gap:1px;
+  }
+  .syarat-suggest-item:last-child { border-bottom:none; }
+  .syarat-suggest-item:hover, .syarat-suggest-item.active { background:#eef0ff; }
+  .syarat-suggest-item strong { color:#111; font-weight:700; }
+  .syarat-suggest-item small { color:#78909c; font-size:11px; }
   .syarat-meta {
-    background:#eef5ff; border-radius:14px; padding:12px 14px; margin-bottom:12px;
-    border:1px solid #c5daf8;
+    background:#eef0ff; border-radius:10px; padding:6px 10px; margin-bottom:6px;
+    border:1px solid #c5c8f8;
   }
   .syarat-meta .sm-row {
     display:flex; align-items:center; justify-content:space-between;
-    padding:6px 0; font-size:13.5px; color:#1a237e; font-weight:600;
+    padding:4px 0; font-size:12px; color:#0000E6; font-weight:600;
   }
-  .syarat-meta .sm-row + .sm-row { border-top:1px solid rgba(25,118,210,.12); }
-  .syarat-meta .sm-row .sm-val { font-weight:800; color:#0d47a1; }
+  .syarat-meta .sm-row + .sm-row { border-top:1px solid rgba(0,0,230,.1); }
+  .syarat-meta .sm-row .sm-val { font-weight:800; color:#0000E6; }
   .syarat-row {
     display:flex; align-items:center; justify-content:space-between;
-    border-radius:14px; padding:14px 16px; margin-bottom:10px;
-    font-size:14px; font-weight:700; border:1.5px solid transparent;
+    border-radius:10px; padding:7px 12px; margin-bottom:5px;
+    font-size:12.5px; font-weight:700; border:1px solid transparent;
   }
-  .syarat-row .sr-val { font-size:18px; font-weight:800; min-width:36px; text-align:right; }
+  .syarat-row .sr-val { font-size:15px; font-weight:800; min-width:28px; text-align:right; }
   .syarat-row.sr-tw { background:#e8f5e9; border-color:#a5d6a7; color:#2e7d32; }
   .syarat-row.sr-tl { background:#fff8e1; border-color:#ffe082; color:#ef6c00; }
   .syarat-row.sr-sakit { background:#f3e5f5; border-color:#ce93d8; color:#7b1fa2; }
@@ -521,24 +545,24 @@
   .syarat-row.sr-alpa { background:#ffebee; border-color:#ef9a9a; color:#c62828; }
   .syarat-row.sr-bolos { background:#ffcdd2; border-color:#ef9a9a; color:#b71c1c; }
   .syarat-pct {
-    background:linear-gradient(180deg,#eef4ff,#e3edff); border-radius:16px;
-    padding:18px 16px; text-align:center; margin:14px 0 12px;
-    border:1px solid #c5d4f5;
+    background:linear-gradient(180deg,#eef0ff,#e3e6ff); border-radius:12px;
+    padding:10px 12px; text-align:center; margin:8px 0 6px;
+    border:1px solid #c5c8f8;
   }
   .syarat-pct .sp-label {
-    font-size:12px; font-weight:700; color:#5c6bc0; letter-spacing:.8px;
-    text-transform:uppercase; margin-bottom:6px;
+    font-size:10px; font-weight:700; color:#0000E6; letter-spacing:.6px;
+    text-transform:uppercase; margin-bottom:2px;
   }
   .syarat-pct .sp-num {
-    font-size:36px; font-weight:900; color:#1a237e; line-height:1.1;
+    font-size:26px; font-weight:900; color:#0000E6; line-height:1.1;
   }
   .syarat-pct .sp-sub {
-    font-size:12px; color:#607d8b; margin-top:8px; line-height:1.4;
+    font-size:10.5px; color:#607d8b; margin-top:4px; line-height:1.3;
   }
   .syarat-banner {
-    border-radius:14px; padding:16px; text-align:center;
-    font-size:15px; font-weight:800; letter-spacing:.3px;
-    display:flex; align-items:center; justify-content:center; gap:10px;
+    border-radius:10px; padding:10px 12px; text-align:center;
+    font-size:13px; font-weight:800; letter-spacing:.2px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
   }
   .syarat-banner.ok {
     background:#e8f5e9; color:#1b5e20; border:1.5px solid #81c784;
@@ -549,14 +573,14 @@
   .syarat-banner.warn {
     background:#fff8e1; color:#e65100; border:1.5px solid #ffb74d;
   }
-  .syarat-search {
-    display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center;
+  #page-syarat-naik .page-title { font-size:14px; margin-bottom:8px; }
+  @media(max-width:480px){
+    .syarat-profile .sp-photo { width:48px; height:48px; min-width:48px; font-size:16px; }
+    .syarat-row { padding:6px 10px; margin-bottom:4px; font-size:12px; }
+    .syarat-row .sr-val { font-size:14px; }
+    .syarat-pct .sp-num { font-size:22px; }
+    .syarat-banner { font-size:12px; padding:8px 10px; }
   }
-  .syarat-search input {
-    flex:1; min-width:160px; padding:10px 12px; border:1.5px solid #cfd8dc;
-    border-radius:10px; font-size:13px; outline:none;
-  }
-  .syarat-search input:focus { border-color:#1565c0; }
 
   /* ===== PAGE CRUD ===== */
   .page { display:none; }
@@ -2134,12 +2158,6 @@
       <span class="periode-badge" id="badgePeriodeSyarat">—</span>
     </div>
 
-    <div class="syarat-search" id="syaratSearchWrap" style="display:none">
-      <input type="search" id="syaratQ" placeholder="Cari siswa (nama / NISN)…" autocomplete="off" />
-      <button type="button" class="btn btn-primary" id="btnSyaratCari">Cek</button>
-      <div id="syaratSuggest" style="display:none;width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:8px;max-height:180px;overflow:auto"></div>
-    </div>
-
     <div class="syarat-profile" id="syaratProfile">
       <div class="sp-photo" id="syaratPhoto">?</div>
       <div class="sp-info">
@@ -2148,6 +2166,12 @@
         <p><b>Kelas</b> <span id="syaratKelas">: —</span></p>
         <p><b>Status</b> <span id="syaratStatus">: —</span></p>
       </div>
+    </div>
+
+    <div class="syarat-search" id="syaratSearchWrap" style="display:none">
+      <input type="search" id="syaratQ" placeholder="Cari nama / NISN (min. 2 huruf)…" autocomplete="off" />
+      <button type="button" class="btn btn-primary" id="btnSyaratCari">Cek</button>
+      <div class="syarat-suggest" id="syaratSuggest"></div>
     </div>
 
     <div class="syarat-meta">
@@ -7367,29 +7391,90 @@ async function initSyaratNaikPage() {
   }
 }
 
+function syaratSearchList(q) {
+  const qq = String(q || '').toLowerCase().trim();
+  if (qq.length < 2) return [];
+  const dig = qq.replace(/\D/g, '');
+  return (store.siswa || []).filter(s => {
+    const st = String(s.status || 'Aktif').toLowerCase();
+    if (!(st === 'aktif' || st === '' || st === 'null')) return false;
+    const nama = String(s.nama || '').toLowerCase();
+    const nisn = String(s.nisn || '');
+    if (nama.includes(qq)) return true;
+    if (nama.split(/\s+/).some(w => w.startsWith(qq))) return true;
+    if (dig.length >= 2 && nisn.includes(dig)) return true;
+    return false;
+  }).slice(0, 12).map(s => ({
+    label: s.nama,
+    meta: (s.nisn || '') + (s.kelas ? ' · ' + s.kelas : ''),
+    nisn: s.nisn,
+  }));
+}
+
+function showSyaratSuggest(items) {
+  const box = document.getElementById('syaratSuggest');
+  if (!box) return;
+  if (!items.length) { box.classList.remove('open'); box.innerHTML = ''; return; }
+  box.innerHTML = items.map(it =>
+    `<div class="syarat-suggest-item" data-nisn="${escapeHtml(it.nisn || '')}">
+      <strong>${escapeHtml(it.label || '')}</strong>
+      <small>${escapeHtml(it.meta || '')}</small>
+    </div>`
+  ).join('');
+  box.classList.add('open');
+  box.querySelectorAll('.syarat-suggest-item').forEach(el => {
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const nisn = el.getAttribute('data-nisn') || '';
+      const inp = document.getElementById('syaratQ');
+      if (inp) inp.value = el.querySelector('strong')?.textContent || nisn;
+      box.classList.remove('open');
+      if (nisn) loadSyaratFor(nisn);
+    });
+  });
+}
+
 document.getElementById('btnSyaratCari')?.addEventListener('click', () => {
   const q = document.getElementById('syaratQ')?.value?.trim() || '';
   if (!q) { toast('Isi nama atau NISN', 'err'); return; }
-  // jika angka → nisn
+  const box = document.getElementById('syaratSuggest');
+  if (box) box.classList.remove('open');
   const digits = q.replace(/\D/g, '');
-  if (digits.length >= 8) {
-    loadSyaratFor(digits);
-    return;
-  }
-  // cari di store
+  if (digits.length >= 8) { loadSyaratFor(digits); return; }
+  const list = syaratSearchList(q);
+  if (list.length === 1) { loadSyaratFor(list[0].nisn); return; }
+  if (list.length > 1) { showSyaratSuggest(list); toast('Pilih siswa dari daftar', 'ok'); return; }
   const hit = (store.siswa || []).find(s =>
     String(s.nama || '').toLowerCase().includes(q.toLowerCase()) ||
     String(s.nisn || '').includes(digits)
   );
   if (hit) loadSyaratFor(hit.nisn);
-  else toast('Siswa tidak ditemukan di data lokal. Coba NISN lengkap.', 'err');
+  else toast('Siswa tidak ditemukan', 'err');
 });
 
+document.getElementById('syaratQ')?.addEventListener('input', async () => {
+  const q = document.getElementById('syaratQ')?.value || '';
+  if (String(q).trim().length >= 2 && !(store.siswa || []).length) {
+    try {
+      const res = await apiCall('list_siswa', {});
+      if (res?.data) { store.siswa = res.data; saveStore(store); }
+    } catch (_) {}
+  }
+  showSyaratSuggest(syaratSearchList(q));
+});
 document.getElementById('syaratQ')?.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
+    const box = document.getElementById('syaratSuggest');
+    if (box) box.classList.remove('open');
     document.getElementById('btnSyaratCari')?.click();
   }
+});
+document.getElementById('syaratQ')?.addEventListener('blur', () => {
+  setTimeout(() => {
+    const box = document.getElementById('syaratSuggest');
+    if (box) box.classList.remove('open');
+  }, 180);
 });
 
 
