@@ -574,6 +574,49 @@
     background:#fff8e1; color:#e65100; border:1.5px solid #ffb74d;
   }
   #page-syarat-naik .page-title { font-size:14px; margin-bottom:8px; }
+
+  /* ===== NILAI SAYA ===== */
+  .ns-table-wrap {
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    background:#fff; border-radius:10px; border:1px solid #e2e8f0;
+  }
+  table.ns-table {
+    width:100%; border-collapse:collapse; font-size:11.5px;
+    min-width:0; table-layout:auto;
+  }
+  table.ns-table thead th {
+    background:#0000E6; color:#fff; padding:8px 6px; font-size:10.5px;
+    font-weight:700; text-align:center; white-space:nowrap;
+  }
+  table.ns-table thead th.ns-mapel { text-align:left; }
+  table.ns-table tbody td {
+    padding:6px 5px; border-bottom:1px solid #eef2f6; text-align:center;
+    color:#333; font-size:11.5px;
+  }
+  table.ns-table tbody tr:nth-child(even) { background:#e3f2fd; }
+  table.ns-table tbody tr:nth-child(odd) { background:#fff; }
+  table.ns-table .ns-no { width:28px; color:#666; font-size:10.5px; }
+  table.ns-table .ns-mapel {
+    text-align:left; font-weight:600; color:#1a237e;
+    white-space:normal; word-break:break-word; line-height:1.25; min-width:100px;
+  }
+  table.ns-table .ns-nr { font-weight:800; color:#0000E6; }
+  .ns-legend {
+    margin-top:10px; font-size:11px; color:#555; line-height:1.55;
+    background:#f8fafc; border-radius:10px; padding:10px 12px; border:1px solid #e8eef5;
+  }
+  .ns-legend b { color:#222; }
+  .ns-legend code {
+    background:#eef0ff; color:#0000E6; padding:1px 5px; border-radius:4px; font-size:10.5px;
+  }
+  #page-nilai-saya .page-title { font-size:14px; margin-bottom:8px; }
+  #page-nilai-saya .syarat-profile { margin-bottom:8px; }
+  @media(max-width:480px){
+    table.ns-table { font-size:10.5px; }
+    table.ns-table thead th { padding:6px 4px; font-size:9.5px; }
+    table.ns-table tbody td { padding:5px 3px; font-size:10.5px; }
+  }
+
   @media(max-width:480px){
     .syarat-profile .sp-photo { width:48px; height:48px; min-width:48px; font-size:16px; }
     .syarat-row { padding:6px 10px; margin-bottom:4px; font-size:12px; }
@@ -2221,6 +2264,57 @@
     </div>
   </div>
 
+
+  <!-- ========== PAGE: NILAI SAYA ========== -->
+  <div class="page" id="page-nilai-saya">
+    <div class="page-title">📈 Lihat Nilai Saya
+      <span class="periode-badge" id="badgePeriodeNilaiSaya">—</span>
+    </div>
+
+    <div class="syarat-profile" id="nsProfile">
+      <div class="sp-photo" id="nsPhoto">?</div>
+      <div class="sp-info">
+        <div class="sp-name" id="nsNama">—</div>
+        <p><b>NISN</b> <span id="nsNisn">: —</span></p>
+        <p><b>Kelas</b> <span id="nsKelas">: —</span></p>
+        <p><b>Status</b> <span id="nsStatus">: —</span></p>
+      </div>
+    </div>
+
+    <div class="syarat-search" id="nsSearchWrap" style="display:none">
+      <input type="search" id="nsQ" placeholder="Cari nama / NISN (min. 2 huruf)…" autocomplete="off" />
+      <button type="button" class="btn btn-primary" id="btnNsCari">Lihat</button>
+      <div class="syarat-suggest" id="nsSuggest"></div>
+    </div>
+
+    <div class="ns-table-wrap">
+      <table class="ns-table" id="tableNilaiSaya">
+        <thead id="theadNilaiSaya">
+          <tr>
+            <th class="ns-no">No</th>
+            <th class="ns-mapel">Mata Pelajaran</th>
+            <th>NRH</th>
+            <th>NR</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyNilaiSaya">
+          <tr><td colspan="4" style="padding:16px;color:#888">Memuat…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ns-legend" id="nsLegend">
+      <div><b>NRH</b> = Rerata Nilai Harian</div>
+      <div><b>PTS</b> = Penilaian Tengah Semester</div>
+      <div><b>ASAS</b> = Asesmen Akhir Semester</div>
+      <div><b>ASAJ</b> = Asesmen Akhir Jenjang</div>
+      <div style="margin-top:6px;color:#666">
+        Kolom muncul dinamis sesuai jenis penilaian yang sudah diisi.
+        Default: <code>NRH</code> &amp; <code>NR</code>. Bobot dari menu Mapel &amp; Kelas.
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -3248,7 +3342,7 @@ function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
 
@@ -3280,6 +3374,7 @@ function navigate(page, opts = {}) {
   if (target === 'reset-pin') initResetPinPage();
   if (target === 'naik-kelas') initNaikKelasPage();
   if (target === 'syarat-naik') initSyaratNaikPage();
+  if (target === 'nilai-saya') initNilaiSayaPage();
   if (target !== 'scan-barcode') stopQrScanner();
 
   // persist halaman agar refresh tidak kembali ke dashboard
@@ -7276,6 +7371,206 @@ function autoRefreshSesiUI() {
 }
 setInterval(autoRefreshSesiUI, 10000);
 
+
+
+
+/* ===== Lihat Nilai Saya ===== */
+function nsFmt(v) {
+  if (v == null || v === '' || (typeof v === 'number' && isNaN(v))) return '—';
+  const n = Number(v);
+  if (isNaN(n)) return '—';
+  return (Math.round(n * 100) / 100).toString();
+}
+
+function renderNilaiSaya(payload) {
+  const siswa = payload?.siswa || {};
+  const rows = payload?.rows || [];
+  const cols = payload?.columns || ['NRH', 'NR'];
+  const bobot = payload?.bobot || {};
+  const legend = payload?.legend || {};
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('nsNama', siswa.nama || '—');
+  set('nsNisn', ': ' + (siswa.nisn || '—'));
+  set('nsKelas', ': ' + (siswa.kelas || '—'));
+  set('nsStatus', ': ' + (siswa.status || 'Aktif'));
+
+  const photo = document.getElementById('nsPhoto');
+  if (photo) {
+    const fotoKey = String(siswa.nisn || '');
+    const fotoRec = (store.user_foto || []).find(f => f.role === 'siswa' && String(f.ref_key) === fotoKey);
+    const url = fotoRec?.foto_url || '';
+    const ini = (siswa.nama || '?').charAt(0).toUpperCase();
+    if (url) photo.innerHTML = `<img src="${url}" alt="" />`;
+    else photo.textContent = ini;
+  }
+
+  // thead
+  const thead = document.getElementById('theadNilaiSaya');
+  if (thead) {
+    thead.innerHTML = `<tr>
+      <th class="ns-no">No</th>
+      <th class="ns-mapel">Mata Pelajaran</th>
+      ${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}
+    </tr>`;
+  }
+  const tb = document.getElementById('tbodyNilaiSaya');
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="${2 + cols.length}" style="padding:14px;color:#888">Belum ada data nilai.</td></tr>`;
+  } else {
+    tb.innerHTML = rows.map((r, i) => {
+      const cells = cols.map(c => {
+        const val = r.scores?.[c];
+        const cls = c === 'NR' ? 'ns-nr' : '';
+        return `<td class="${cls}">${nsFmt(val)}</td>`;
+      }).join('');
+      return `<tr>
+        <td class="ns-no">${i + 1}</td>
+        <td class="ns-mapel">${escapeHtml(r.mapel_nama || r.mapel || '')}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
+  }
+
+  // legend dinamis
+  const leg = document.getElementById('nsLegend');
+  if (leg) {
+    const labels = {
+      NRH: 'Rerata Nilai Harian',
+      NH: 'Nilai Harian',
+      TGS: 'Tugas',
+      PTS: 'Penilaian Tengah Semester',
+      ASAS: 'Asesmen Akhir Semester',
+      ASAJ: 'Asesmen Akhir Jenjang',
+      ASAT: 'Asesmen Akhir Tahun',
+      NR: 'Nilai Rapor (tertimbang)',
+    };
+    const lines = cols.filter(c => c !== 'NR').map(c =>
+      `<div><b>${escapeHtml(c)}</b> = ${escapeHtml(labels[c] || c)}${bobot[c] != null && bobot[c] !== '' ? ` · bobot <code>${bobot[c]}%</code>` : ''}</div>`
+    );
+    lines.push(`<div><b>NR</b> = Nilai Rapor (tertimbang dari bobot jenis penilaian)</div>`);
+    // contoh rumus
+    const bobotParts = cols.filter(c => c !== 'NR' && Number(bobot[c]) > 0)
+      .map(c => `${bobot[c]}% × ${c}`);
+    if (bobotParts.length) {
+      lines.push(`<div style="margin-top:6px;color:#666">Rumus: <code>NR = ${bobotParts.join(' + ')}</code> (dibagi total bobot jika ≠ 100)</div>`);
+    } else {
+      lines.push(`<div style="margin-top:6px;color:#666">Kolom muncul dinamis sesuai penilaian yang sudah diisi. Default: <code>NRH</code> &amp; <code>NR</code>.</div>`);
+    }
+    leg.innerHTML = lines.join('');
+  }
+}
+
+async function loadNilaiSaya(nisn) {
+  const tb = document.getElementById('tbodyNilaiSaya');
+  if (tb) tb.innerHTML = `<tr><td colspan="6" style="padding:14px;color:#888">Memuat nilai…</td></tr>`;
+  try {
+    const res = await apiCall('nilai_saya', { nisn: nisn || '' });
+    renderNilaiSaya(res.data || res);
+  } catch (e) {
+    if (tb) tb.innerHTML = `<tr><td colspan="6" style="padding:14px;color:#c62828">${escapeHtml(errToText(e))}</td></tr>`;
+    toast(errToText(e), 'err');
+  }
+}
+
+async function initNilaiSayaPage() {
+  updatePeriodeBadges();
+  const badge = document.getElementById('badgePeriodeNilaiSaya');
+  const aktif = getActivePeriode();
+  if (badge) badge.textContent = aktif ? `${aktif.tahun_ajaran || ''} · ${aktif.semester || ''}` : '—';
+
+  const sess = getSession();
+  const searchWrap = document.getElementById('nsSearchWrap');
+  const isSiswa = sess?.role === 'siswa';
+  if (searchWrap) searchWrap.style.display = isSiswa ? 'none' : '';
+
+  if (isSiswa) {
+    await loadNilaiSaya(sess.user?.nisn || '');
+  } else if (sess?.role === 'admin' || sess?.role === 'guru') {
+    renderNilaiSaya({ siswa: {}, rows: [], columns: ['NRH', 'NR'] });
+    const tb = document.getElementById('tbodyNilaiSaya');
+    if (tb) tb.innerHTML = `<tr><td colspan="4" style="padding:14px;color:#888">Cari siswa untuk melihat nilai.</td></tr>`;
+  } else {
+    renderNilaiSaya({ siswa: {}, rows: [], columns: ['NRH', 'NR'] });
+    const tb = document.getElementById('tbodyNilaiSaya');
+    if (tb) tb.innerHTML = `<tr><td colspan="4" style="padding:14px;color:#888">Login sebagai siswa untuk melihat nilai.</td></tr>`;
+  }
+}
+
+function nsSearchList(q) {
+  const qq = String(q || '').toLowerCase().trim();
+  if (qq.length < 2) return [];
+  const dig = qq.replace(/\D/g, '');
+  return (store.siswa || []).filter(s => {
+    const st = String(s.status || 'Aktif').toLowerCase();
+    if (!(st === 'aktif' || st === '' || st === 'null')) return false;
+    const nama = String(s.nama || '').toLowerCase();
+    const nisn = String(s.nisn || '');
+    if (nama.includes(qq)) return true;
+    if (nama.split(/\s+/).some(w => w.startsWith(qq))) return true;
+    if (dig.length >= 2 && nisn.includes(dig)) return true;
+    return false;
+  }).slice(0, 12).map(s => ({
+    label: s.nama,
+    meta: (s.nisn || '') + (s.kelas ? ' · ' + s.kelas : ''),
+    nisn: s.nisn,
+  }));
+}
+function showNsSuggest(items) {
+  const box = document.getElementById('nsSuggest');
+  if (!box) return;
+  if (!items.length) { box.classList.remove('open'); box.innerHTML = ''; return; }
+  box.innerHTML = items.map(it =>
+    `<div class="syarat-suggest-item" data-nisn="${escapeHtml(it.nisn || '')}">
+      <strong>${escapeHtml(it.label || '')}</strong>
+      <small>${escapeHtml(it.meta || '')}</small>
+    </div>`
+  ).join('');
+  box.classList.add('open');
+  box.querySelectorAll('.syarat-suggest-item').forEach(el => {
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const nisn = el.getAttribute('data-nisn') || '';
+      const inp = document.getElementById('nsQ');
+      if (inp) inp.value = el.querySelector('strong')?.textContent || nisn;
+      box.classList.remove('open');
+      if (nisn) loadNilaiSaya(nisn);
+    });
+  });
+}
+
+document.getElementById('btnNsCari')?.addEventListener('click', () => {
+  const q = document.getElementById('nsQ')?.value?.trim() || '';
+  if (!q) { toast('Isi nama atau NISN', 'err'); return; }
+  document.getElementById('nsSuggest')?.classList.remove('open');
+  const digits = q.replace(/\D/g, '');
+  if (digits.length >= 8) { loadNilaiSaya(digits); return; }
+  const list = nsSearchList(q);
+  if (list.length === 1) { loadNilaiSaya(list[0].nisn); return; }
+  if (list.length > 1) { showNsSuggest(list); return; }
+  toast('Siswa tidak ditemukan', 'err');
+});
+document.getElementById('nsQ')?.addEventListener('input', async () => {
+  const q = document.getElementById('nsQ')?.value || '';
+  if (String(q).trim().length >= 2 && !(store.siswa || []).length) {
+    try {
+      const res = await apiCall('list_siswa', {});
+      if (res?.data) { store.siswa = res.data; saveStore(store); }
+    } catch (_) {}
+  }
+  showNsSuggest(nsSearchList(q));
+});
+document.getElementById('nsQ')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('nsSuggest')?.classList.remove('open');
+    document.getElementById('btnNsCari')?.click();
+  }
+});
+document.getElementById('nsQ')?.addEventListener('blur', () => {
+  setTimeout(() => document.getElementById('nsSuggest')?.classList.remove('open'), 180);
+});
 
 
 /* ===== Cek Syarat Naik Kelas / Lulus ===== */
