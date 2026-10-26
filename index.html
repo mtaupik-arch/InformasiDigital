@@ -73,15 +73,19 @@
     opacity:0; visibility:hidden; transform:translateY(-8px); transition:.2s; z-index:1001;
     pointer-events:none;
   }
-  .profile-wrap:hover .profile-menu,
+  /* Buka hanya lewat class .open (klik) — hindari sticky :hover di HP */
   .profile-wrap.open .profile-menu,
   .profile-menu.open {
     opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto;
   }
-  /* Setelah logout paksa tutup (override hover residual di mobile) */
   .profile-wrap.force-close .profile-menu,
-  .profile-wrap.force-close:hover .profile-menu {
+  .profile-wrap.force-close.open .profile-menu {
     opacity:0 !important; visibility:hidden !important; pointer-events:none !important;
+  }
+  @media (hover:hover) and (pointer:fine) {
+    .profile-wrap:hover:not(.force-close) .profile-menu {
+      opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto;
+    }
   }
   .profile-menu .pm-header { padding:12px 14px; background:#f8f9fa; border-bottom:1px solid #eee; font-size:12px; color:#666; }
   .profile-menu a { display:flex; align-items:center; gap:10px; padding:10px 14px; color:#333;
@@ -2620,8 +2624,15 @@ document.addEventListener('click', (e) => {
 });
 
 document.querySelectorAll('.menu-group-title').forEach(title => {
-  title.addEventListener('click', () => {
-    title.parentElement.classList.toggle('open');
+  title.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const parent = title.parentElement;
+    const willOpen = !parent.classList.contains('open');
+    document.querySelectorAll('.menu-group.open').forEach(g => {
+      if (g !== parent) g.classList.remove('open');
+    });
+    parent.classList.toggle('open', willOpen);
   });
 });
 
@@ -2922,11 +2933,24 @@ function closeProfileMenu() {
   if (wrap) {
     wrap.classList.remove('open');
     wrap.classList.add('force-close');
-    // lepas force-close setelah hover residual selesai
-    setTimeout(() => wrap.classList.remove('force-close'), 600);
+    setTimeout(() => wrap.classList.remove('force-close'), 400);
   }
 }
-// Setiap klik item di menu profil → langsung tutup
+function openProfileMenu() {
+  const wrap = document.querySelector('.profile-wrap');
+  const menu = document.getElementById('profileMenu');
+  if (wrap) {
+    wrap.classList.remove('force-close');
+    wrap.classList.add('open');
+  }
+  if (menu) menu.classList.add('open');
+}
+function toggleProfileMenu() {
+  const wrap = document.querySelector('.profile-wrap');
+  if (!wrap) return;
+  if (wrap.classList.contains('open')) closeProfileMenu();
+  else openProfileMenu();
+}
 document.getElementById('profileMenu')?.addEventListener('click', (e) => {
   if (e.target.closest('a')) closeProfileMenu();
 });
@@ -2943,19 +2967,18 @@ document.getElementById('btnLogout').addEventListener('click', (e) => {
   showBigPopup('ok', 'Logout Berhasil', 'Anda telah keluar dari sistem.<br>Silakan login kembali untuk mengakses fitur.', 2800);
 });
 
-// Tutup menu profil saat klik di luar
 document.addEventListener('click', (e) => {
   const wrap = document.querySelector('.profile-wrap');
   if (!wrap) return;
   if (!wrap.contains(e.target)) closeProfileMenu();
 });
-// Toggle menu profil saat ketuk avatar (mobile tidak punya hover stabil)
-document.getElementById('avatarInitial')?.addEventListener('click', (e) => {
+// Toggle saat ketuk avatar / area profil
+document.querySelector('.profile-wrap')?.addEventListener('click', (e) => {
+  if (e.target.closest('#profileMenu a')) return;
+  if (e.target.closest('#profileMenu') && !e.target.closest('.avatar')) return;
+  e.preventDefault();
   e.stopPropagation();
-  const wrap = document.querySelector('.profile-wrap');
-  if (!wrap) return;
-  wrap.classList.remove('force-close');
-  wrap.classList.toggle('open');
+  toggleProfileMenu();
 });
 
 /* ============================================================
@@ -3458,9 +3481,11 @@ function closeTopOverlay() {
   return false;
 }
 
-/** Pasang "perangkap" history agar tombol back selalu memicu popstate di dalam app */
+/** Perangkap history; ignore popstate semu segera setelah push sendiri */
+let navSuppressPopUntil = 0;
 function armBackTrap() {
   try {
+    navSuppressPopUntil = Date.now() + 200;
     history.pushState({ sisTrap: true, page: navCurrent, t: Date.now() }, '', '#' + (navCurrent || 'dashboard'));
     navTrapArmed = true;
   } catch (_) {}
@@ -3534,6 +3559,7 @@ function navigate(page, opts = {}) {
     }
   } catch (_) {}
 
+  try { closeProfileMenu(); } catch (_) {}
   tutupSidebar();
   if (!opts.noScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -3612,15 +3638,19 @@ document.getElementById('exitOverlay')?.addEventListener('click', (e) => {
 
 window.addEventListener('popstate', function onSisPopState(e) {
   if (!navReady) return;
-  // Setiap back dari trap / history app
+  if (Date.now() < navSuppressPopUntil) {
+    // popstate semu → pasang trap lagi, jangan tampilkan dialog keluar
+    try { armBackTrap(); } catch (_) {}
+    return;
+  }
   handleAppBack();
 });
 
 document.querySelectorAll('.submenu a[data-page]').forEach(a => {
   a.addEventListener('click', (e) => {
     e.preventDefault();
+    try { closeProfileMenu(); } catch (_) {}
     navigate(a.dataset.page);
-    // setelah pindah halaman, pastikan trap aktif
     armBackTrap();
   });
 });
