@@ -1150,6 +1150,27 @@
   .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
   .toast.err { background:#c62828; }
   .toast.ok { background:#2e7d32; }
+
+  /* Exit confirm */
+  .exit-overlay {
+    display:none; position:fixed; inset:0; z-index:99999;
+    background:rgba(0,0,0,.45); align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .exit-overlay.show { display:flex; }
+  .exit-box {
+    background:#fff; border-radius:14px; padding:20px 18px; max-width:320px; width:100%;
+    box-shadow:0 12px 40px rgba(0,0,0,.25); text-align:center;
+  }
+  .exit-box p { font-size:15px; color:#222; margin-bottom:16px; font-weight:600; line-height:1.4; }
+  .exit-actions { display:flex; gap:10px; }
+  .exit-actions button {
+    flex:1; border:none; border-radius:10px; padding:12px 10px;
+    font-size:14px; font-weight:700; cursor:pointer;
+  }
+  .exit-btn-cancel { background:#eceff1; color:#37474f; }
+  .exit-btn-ok { background:#c62828; color:#fff; }
+
 </style>
 </head>
 <body>
@@ -2351,6 +2372,18 @@
 
 </main>
 
+<!-- Exit confirm -->
+<div class="exit-overlay" id="exitOverlay" role="dialog" aria-modal="true">
+  <div class="exit-box">
+    <p>Yakin ingin menutup aplikasi?</p>
+    <div class="exit-actions">
+      <button type="button" class="exit-btn-cancel" id="exitBtnCancel">Batal</button>
+      <button type="button" class="exit-btn-ok" id="exitBtnOk">OK</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- Modal Form generik -->
 <div class="modal-overlay" id="crudModal">
   <div class="modal-box wide" id="crudModalBox">
@@ -3371,7 +3404,8 @@ async function renderDashboard() {
 /* ===== Navigasi + tombol kembali HP ===== */
 let navStack = ['dashboard'];
 let navCurrent = 'dashboard';
-let navReady = false; // hindari popstate saat init
+let navReady = false;
+let navTrapArmed = false;
 
 function resolveNavTarget(page) {
   const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya'];
@@ -3380,11 +3414,16 @@ function resolveNavTarget(page) {
   return target;
 }
 
-/** Tutup overlay (modal/sidebar) dulu jika terbuka — dianggap "back" berhasil */
 function closeTopOverlay() {
+  const exitOv = document.getElementById('exitOverlay');
+  if (exitOv && exitOv.classList.contains('show')) {
+    hideExitConfirm();
+    return true;
+  }
   const login = document.getElementById('loginOverlay');
-  if (login && login.classList.contains('active')) {
+  if (login && (login.classList.contains('active') || login.style.display === 'flex')) {
     login.classList.remove('active');
+    login.style.display = 'none';
     return true;
   }
   const modal = document.querySelector('.modal-overlay.active');
@@ -3402,6 +3441,14 @@ function closeTopOverlay() {
     return true;
   }
   return false;
+}
+
+/** Pasang "perangkap" history agar tombol back selalu memicu popstate di dalam app */
+function armBackTrap() {
+  try {
+    history.pushState({ sisTrap: true, page: navCurrent, t: Date.now() }, '', '#' + (navCurrent || 'dashboard'));
+    navTrapArmed = true;
+  } catch (_) {}
 }
 
 function navigate(page, opts = {}) {
@@ -3434,7 +3481,6 @@ function navigate(page, opts = {}) {
   if (target === 'sidik-jari-siswa') initSidikJariPage();
   if (target === 'scan-barcode') initScanPage();
   if (target === 'sesi-libur') initSesiLiburPage();
-  if (target === 'input-izin') { /* no special init */ }
   if (target === 'input-daftar-nilai') initNilaiPage();
   if (target === 'rekap-data') initRekapPage();
   if (target === 'reset-pin') initResetPinPage();
@@ -3443,88 +3489,107 @@ function navigate(page, opts = {}) {
   if (target === 'nilai-saya') initNilaiSayaPage();
   if (target !== 'scan-barcode') stopQrScanner();
 
+  const prev = navCurrent;
   navCurrent = target;
 
-  // Stack & history (tombol kembali HP)
   try {
     sessionStorage.setItem('sis_last_page', target);
-    if (opts.fromBack) {
-      // hanya update URL, jangan push stack
-      history.replaceState({ sis: true, page: target, stack: navStack.slice() }, '', '#' + target);
-    } else if (opts.replace || opts.fromHash) {
-      // init / sinkron hash: set stack ujung = target
-      if (!navStack.length) navStack = ['dashboard'];
-      if (navStack[navStack.length - 1] !== target) {
-        // jika dari hash langsung, anggap 1 level dari dashboard
+    // Stack navigasi (maju = push, back = dari handleAppBack)
+    if (!opts.fromBack) {
+      if (opts.init || opts.fromHash) {
         if (target === 'dashboard') navStack = ['dashboard'];
-        else if (navStack.length === 1 && navStack[0] === 'dashboard') navStack.push(target);
-        else {
-          // ganti ujung jika refresh di halaman dalam
-          if (opts.fromHash && opts.init) navStack = target === 'dashboard' ? ['dashboard'] : ['dashboard', target];
-          else navStack.push(target);
-        }
-      }
-      history.replaceState({ sis: true, page: target, stack: navStack.slice() }, '', '#' + target);
-    } else {
-      // navigasi maju (klik menu)
-      if (navStack[navStack.length - 1] !== target) {
+        else navStack = ['dashboard', target];
+      } else if (navStack[navStack.length - 1] !== target) {
         navStack.push(target);
-        history.pushState({ sis: true, page: target, stack: navStack.slice() }, '', '#' + target);
-      } else {
-        history.replaceState({ sis: true, page: target, stack: navStack.slice() }, '', '#' + target);
       }
+      try { sessionStorage.setItem('sis_nav_stack', JSON.stringify(navStack)); } catch (_) {}
+      // Ganti URL tanpa menambah history browser berlebih; trap terpisah
+      history.replaceState({ sis: true, page: target }, '', '#' + target);
+    } else {
+      try { sessionStorage.setItem('sis_nav_stack', JSON.stringify(navStack)); } catch (_) {}
+      history.replaceState({ sis: true, page: target }, '', '#' + target);
     }
-    try { sessionStorage.setItem('sis_nav_stack', JSON.stringify(navStack)); } catch (_) {}
   } catch (_) {}
 
   tutupSidebar();
   if (!opts.noScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/** Dipanggil saat tombol kembali (popstate) */
 function handleAppBack() {
+  // 1) Tutup overlay dulu
   if (closeTopOverlay()) {
-    // tetap jaga entry history agar back berikutnya tertangkap
-    history.pushState({ sis: true, page: navCurrent, stack: navStack.slice() }, '', '#' + navCurrent);
+    armBackTrap();
     return;
   }
 
+  // 2) Masih ada riwayat halaman → mundur 1 level
   if (navStack.length > 1) {
     navStack.pop();
     const prev = navStack[navStack.length - 1] || 'dashboard';
     navigate(prev, { fromBack: true });
-    // pastikan ada state untuk back berikutnya
-    history.pushState({ sis: true, page: prev, stack: navStack.slice() }, '', '#' + prev);
+    armBackTrap();
     return;
   }
 
-  // Sudah di root (dashboard) → konfirmasi keluar
-  const ok = window.confirm('Yakin ingin menutup aplikasi?');
-  if (ok) {
-    navReady = false;
-    // keluar dari situs / tutup tab jika memungkinkan
-    try {
-      if (window.history.length > 1) {
-        history.go(-1);
-      }
-      setTimeout(() => {
-        try { window.close(); } catch (_) {}
-        // fallback: arahkan ke halaman kosong / biarkan browser handle
-        try { location.replace('about:blank'); } catch (_) {}
-      }, 150);
-    } catch (_) {
-      try { location.replace('about:blank'); } catch (__) {}
-    }
-  } else {
-    // Batal → tetap di dashboard
-    navStack = ['dashboard'];
-    navigate('dashboard', { fromBack: true });
-    history.pushState({ sis: true, page: 'dashboard', stack: ['dashboard'] }, '', '#dashboard');
-  }
+  // 3) Sudah di dashboard → tampilkan dialog konfirmasi keluar
+  showExitConfirm();
 }
 
-window.addEventListener('popstate', (e) => {
+function showExitConfirm() {
+  const ov = document.getElementById('exitOverlay');
+  if (!ov) {
+    // fallback native
+    const ok = window.confirm('Yakin ingin menutup aplikasi?');
+    if (ok) doExitApp();
+    else {
+      navStack = ['dashboard'];
+      navigate('dashboard', { fromBack: true, noScroll: true });
+      armBackTrap();
+    }
+    return;
+  }
+  ov.classList.add('show');
+}
+
+function hideExitConfirm() {
+  document.getElementById('exitOverlay')?.classList.remove('show');
+}
+
+function doExitApp() {
+  hideExitConfirm();
+  navReady = false;
+  navTrapArmed = false;
+  try { history.go(-1); } catch (_) {}
+  setTimeout(() => {
+    try { window.close(); } catch (_) {}
+    try {
+      if (typeof Android !== 'undefined' && Android.closeApp) Android.closeApp();
+    } catch (_) {}
+    // fallback terakhir
+    try { location.href = 'about:blank'; } catch (_) {}
+  }, 120);
+}
+
+document.getElementById('exitBtnCancel')?.addEventListener('click', () => {
+  hideExitConfirm();
+  navStack = ['dashboard'];
+  navigate('dashboard', { fromBack: true, noScroll: true });
+  armBackTrap();
+});
+document.getElementById('exitBtnOk')?.addEventListener('click', () => {
+  doExitApp();
+});
+// klik luar box = batal
+document.getElementById('exitOverlay')?.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'exitOverlay') {
+    document.getElementById('exitBtnCancel')?.click();
+  }
+});
+
+
+window.addEventListener('popstate', function onSisPopState(e) {
   if (!navReady) return;
+  // Setiap back dari trap / history app
   handleAppBack();
 });
 
@@ -3532,7 +3597,11 @@ document.querySelectorAll('.submenu a[data-page]').forEach(a => {
   a.addEventListener('click', (e) => {
     e.preventDefault();
     navigate(a.dataset.page);
+    // setelah pindah halaman, pastikan trap aktif
+    armBackTrap();
   });
+});
+
 });
 
 /* ----- Render tables ----- */
@@ -8329,7 +8398,6 @@ document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
   const fromHash = (location.hash || '').replace(/^#/, '');
   const fromStore = sessionStorage.getItem('sis_last_page') || '';
   let startPage = fromHash || fromStore || 'dashboard';
-  // pulihkan stack jika ada
   try {
     const raw = sessionStorage.getItem('sis_nav_stack');
     if (raw) {
@@ -8338,22 +8406,21 @@ document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
     }
   } catch (_) {}
   if (!navStack.length) navStack = ['dashboard'];
-  // pastikan ujung stack = startPage
   if (navStack[navStack.length - 1] !== startPage) {
-    if (startPage === 'dashboard') navStack = ['dashboard'];
-    else navStack = ['dashboard', startPage];
+    navStack = startPage === 'dashboard' ? ['dashboard'] : ['dashboard', startPage];
   }
   navigate(startPage, { fromHash: true, init: true, noScroll: true });
-  // Entry ekstra agar tombol back HP selalu memicu popstate (bukan langsung keluar browser)
-  history.pushState({ sis: true, page: startPage, stack: navStack.slice() }, '', '#' + startPage);
+  // Perangkap back: 2x push agar tombol fisik HP selalu ketangkap
+  armBackTrap();
+  armBackTrap();
   navReady = true;
-  // hashchange manual (tautan eksternal) — sinkron tanpa merusak stack besar
+
   window.addEventListener('hashchange', () => {
     if (!navReady) return;
     const p = (location.hash || '').replace(/^#/, '') || 'dashboard';
     if (p === navCurrent) return;
-    // anggap navigasi maju dari luar
-    navigate(p, { replace: false });
+    navigate(p);
+    armBackTrap();
   });
 })();
 </script>
