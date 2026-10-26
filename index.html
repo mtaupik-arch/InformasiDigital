@@ -22,7 +22,7 @@
   .topbar {
     position:fixed; top:0; left:0; right:0; height:var(--topbar-h);
     background:linear-gradient(135deg,var(--primary),var(--primary-light));
-    color:#FFFFFF; display:flex; align-items:center; padding:0 12px; z-index:1000;
+    color:#fff; display:flex; align-items:center; padding:0 12px; z-index:1000;
     box-shadow:0 2px 8px rgba(0,0,0,.25);
   }
   .topbar-left { display:flex; align-items:center; gap:8px; }
@@ -471,6 +471,92 @@
     background:var(--primary); color:#fff; border:none; padding:6px 14px; border-radius:8px;
     font-size:12px; font-weight:600; cursor:pointer;
   }
+
+
+  /* ===== CEK SYARAT NAIK / LULUS ===== */
+  .syarat-profile {
+    background:#fff; border-radius:14px; box-shadow:0 1px 8px rgba(0,0,0,.06);
+    border:1px solid #e8eef5; padding:16px; margin-bottom:14px;
+    display:flex; flex-direction:row; align-items:center; gap:14px;
+  }
+  .syarat-profile .sp-photo {
+    width:84px; height:84px; min-width:84px; border-radius:50%;
+    background:linear-gradient(135deg,#1565c0,#1e88e5); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px; font-weight:800; overflow:hidden;
+    box-shadow:0 3px 10px rgba(25,118,210,.25);
+  }
+  .syarat-profile .sp-photo img {
+    width:100%; height:100%; object-fit:cover; border-radius:50%;
+  }
+  .syarat-profile .sp-info { flex:1; min-width:0; }
+  .syarat-profile .sp-name {
+    font-size:15px; font-weight:800; color:#1a237e; text-transform:uppercase;
+    letter-spacing:.3px; margin-bottom:6px; line-height:1.25;
+  }
+  .syarat-profile .sp-info p {
+    font-size:12.5px; margin-bottom:3px; color:#555; display:flex; gap:6px;
+  }
+  .syarat-profile .sp-info p b { color:#222; min-width:72px; font-weight:600; }
+  .syarat-meta {
+    background:#eef5ff; border-radius:14px; padding:12px 14px; margin-bottom:12px;
+    border:1px solid #c5daf8;
+  }
+  .syarat-meta .sm-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 0; font-size:13.5px; color:#1a237e; font-weight:600;
+  }
+  .syarat-meta .sm-row + .sm-row { border-top:1px solid rgba(25,118,210,.12); }
+  .syarat-meta .sm-row .sm-val { font-weight:800; color:#0d47a1; }
+  .syarat-row {
+    display:flex; align-items:center; justify-content:space-between;
+    border-radius:14px; padding:14px 16px; margin-bottom:10px;
+    font-size:14px; font-weight:700; border:1.5px solid transparent;
+  }
+  .syarat-row .sr-val { font-size:18px; font-weight:800; min-width:36px; text-align:right; }
+  .syarat-row.sr-tw { background:#e8f5e9; border-color:#a5d6a7; color:#2e7d32; }
+  .syarat-row.sr-tl { background:#fff8e1; border-color:#ffe082; color:#ef6c00; }
+  .syarat-row.sr-sakit { background:#f3e5f5; border-color:#ce93d8; color:#7b1fa2; }
+  .syarat-row.sr-izin { background:#e3f2fd; border-color:#90caf9; color:#1565c0; }
+  .syarat-row.sr-alpa { background:#ffebee; border-color:#ef9a9a; color:#c62828; }
+  .syarat-row.sr-bolos { background:#ffcdd2; border-color:#ef9a9a; color:#b71c1c; }
+  .syarat-pct {
+    background:linear-gradient(180deg,#eef4ff,#e3edff); border-radius:16px;
+    padding:18px 16px; text-align:center; margin:14px 0 12px;
+    border:1px solid #c5d4f5;
+  }
+  .syarat-pct .sp-label {
+    font-size:12px; font-weight:700; color:#5c6bc0; letter-spacing:.8px;
+    text-transform:uppercase; margin-bottom:6px;
+  }
+  .syarat-pct .sp-num {
+    font-size:36px; font-weight:900; color:#1a237e; line-height:1.1;
+  }
+  .syarat-pct .sp-sub {
+    font-size:12px; color:#607d8b; margin-top:8px; line-height:1.4;
+  }
+  .syarat-banner {
+    border-radius:14px; padding:16px; text-align:center;
+    font-size:15px; font-weight:800; letter-spacing:.3px;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .syarat-banner.ok {
+    background:#e8f5e9; color:#1b5e20; border:1.5px solid #81c784;
+  }
+  .syarat-banner.fail {
+    background:#ffebee; color:#b71c1c; border:1.5px solid #e57373;
+  }
+  .syarat-banner.warn {
+    background:#fff8e1; color:#e65100; border:1.5px solid #ffb74d;
+  }
+  .syarat-search {
+    display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center;
+  }
+  .syarat-search input {
+    flex:1; min-width:160px; padding:10px 12px; border:1.5px solid #cfd8dc;
+    border-radius:10px; font-size:13px; outline:none;
+  }
+  .syarat-search input:focus { border-color:#1565c0; }
 
   /* ===== PAGE CRUD ===== */
   .page { display:none; }
@@ -2041,6 +2127,76 @@
     </div>
   </div>
 
+
+  <!-- ========== PAGE: CEK SYARAT NAIK / LULUS ========== -->
+  <div class="page" id="page-syarat-naik">
+    <div class="page-title">📋 Cek Syarat Naik Kelas / Lulus
+      <span class="periode-badge" id="badgePeriodeSyarat">—</span>
+    </div>
+
+    <div class="syarat-search" id="syaratSearchWrap" style="display:none">
+      <input type="search" id="syaratQ" placeholder="Cari siswa (nama / NISN)…" autocomplete="off" />
+      <button type="button" class="btn btn-primary" id="btnSyaratCari">Cek</button>
+      <div id="syaratSuggest" style="display:none;width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:8px;max-height:180px;overflow:auto"></div>
+    </div>
+
+    <div class="syarat-profile" id="syaratProfile">
+      <div class="sp-photo" id="syaratPhoto">?</div>
+      <div class="sp-info">
+        <div class="sp-name" id="syaratNama">—</div>
+        <p><b>NISN</b> <span id="syaratNisn">: —</span></p>
+        <p><b>Kelas</b> <span id="syaratKelas">: —</span></p>
+        <p><b>Status</b> <span id="syaratStatus">: —</span></p>
+      </div>
+    </div>
+
+    <div class="syarat-meta">
+      <div class="sm-row">
+        <span>📅 Hari Sesi Berjalan</span>
+        <span class="sm-val" id="syaratHari">0 hari</span>
+      </div>
+      <div class="sm-row">
+        <span>◎ Akumulasi Sesi Efektif</span>
+        <span class="sm-val" id="syaratSesiEfektif">0 sesi</span>
+      </div>
+    </div>
+
+    <div class="syarat-row sr-tw">
+      <span>Tepat Waktu (TW = 1)</span>
+      <span class="sr-val" id="syaratTw">0</span>
+    </div>
+    <div class="syarat-row sr-tl">
+      <span>Terlambat (TL = 0.8)</span>
+      <span class="sr-val" id="syaratTl">0</span>
+    </div>
+    <div class="syarat-row sr-sakit">
+      <span>Sakit (0.75 hadir)</span>
+      <span class="sr-val" id="syaratSakit">0</span>
+    </div>
+    <div class="syarat-row sr-izin">
+      <span>Izin (0.5 hadir)</span>
+      <span class="sr-val" id="syaratIzin">0</span>
+    </div>
+    <div class="syarat-row sr-alpa">
+      <span>Alpa</span>
+      <span class="sr-val" id="syaratAlpa">0</span>
+    </div>
+    <div class="syarat-row sr-bolos">
+      <span>Bolos</span>
+      <span class="sr-val" id="syaratBolos">0</span>
+    </div>
+
+    <div class="syarat-pct">
+      <div class="sp-label">Persentase Kehadiran Akurat</div>
+      <div class="sp-num" id="syaratPersen">0%</div>
+      <div class="sp-sub" id="syaratPersenSub">Nilai Hadir: 0 / 0 (Batas: 80%) · TW=1 · TL=0.8</div>
+    </div>
+
+    <div class="syarat-banner warn" id="syaratBanner">
+      <span>⏳ Memuat data…</span>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -3068,7 +3224,7 @@ function navigate(page, opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.submenu a').forEach(a => a.classList.remove('active'));
 
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
 
@@ -3099,6 +3255,7 @@ function navigate(page, opts = {}) {
   if (target === 'rekap-data') initRekapPage();
   if (target === 'reset-pin') initResetPinPage();
   if (target === 'naik-kelas') initNaikKelasPage();
+  if (target === 'syarat-naik') initSyaratNaikPage();
   if (target !== 'scan-barcode') stopQrScanner();
 
   // persist halaman agar refresh tidak kembali ke dashboard
@@ -7094,6 +7251,146 @@ function autoRefreshSesiUI() {
   }
 }
 setInterval(autoRefreshSesiUI, 10000);
+
+
+
+/* ===== Cek Syarat Naik Kelas / Lulus ===== */
+const SYARAT_BOBOT = { TW: 1, TL: 0.8, SAKIT: 0.75, IZIN: 0.5, ALPA: 0, BOLOS: 0 };
+const SYARAT_BATAS = 80; // persen
+
+function nkIsKelasAkhirLocal(kelas) {
+  if (typeof nkIsKelasAkhir === 'function') return nkIsKelasAkhir(kelas);
+  const k = String(kelas || '').trim().toUpperCase();
+  if (/\bIX\b/.test(k) || /(^|[\s\-_.])9([A-Z0-9\s\-_.]|$)/.test(k)) return true;
+  return false;
+}
+
+function renderSyaratResult(data) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const siswa = data?.siswa || {};
+  const st = data?.stats || {};
+  set('syaratNama', siswa.nama || '—');
+  set('syaratNisn', ': ' + (siswa.nisn || '—'));
+  set('syaratKelas', ': ' + (siswa.kelas || '—'));
+  set('syaratStatus', ': ' + (siswa.status || 'Aktif'));
+  set('syaratHari', (st.hari_sesi_berjalan || 0) + ' hari');
+  set('syaratSesiEfektif', (st.sesi_efektif || 0) + ' sesi');
+  set('syaratTw', st.tw || 0);
+  set('syaratTl', st.tl || 0);
+  set('syaratSakit', st.sakit || 0);
+  set('syaratIzin', st.izin || 0);
+  set('syaratAlpa', st.alpa || 0);
+  set('syaratBolos', st.bolos || 0);
+
+  const persen = st.persen != null ? Number(st.persen) : 0;
+  set('syaratPersen', (Math.round(persen * 100) / 100) + '%');
+  set('syaratPersenSub',
+    `Nilai Hadir: ${st.nilai_hadir ?? 0} / ${st.sesi_efektif || 0} (Batas: ${SYARAT_BATAS}%) · TW=1 · TL=0.8`);
+
+  // foto
+  const photo = document.getElementById('syaratPhoto');
+  if (photo) {
+    const fotoKey = String(siswa.nisn || '');
+    const fotoRec = (store.user_foto || []).find(f => f.role === 'siswa' && String(f.ref_key) === fotoKey);
+    const url = fotoRec?.foto_url || siswa.foto_url || '';
+    const ini = (siswa.nama || '?').charAt(0).toUpperCase();
+    if (url) photo.innerHTML = `<img src="${url}" alt="" />`;
+    else photo.textContent = ini;
+  }
+
+  const banner = document.getElementById('syaratBanner');
+  if (!banner) return;
+  const isLulus = nkIsKelasAkhirLocal(siswa.kelas);
+  const lulusLabel = isLulus ? 'LULUS' : 'NAIK KELAS';
+  const ok = persen >= SYARAT_BATAS;
+  if (!siswa.nisn && !siswa.nama) {
+    banner.className = 'syarat-banner warn';
+    banner.innerHTML = '<span>Pilih / login sebagai siswa untuk melihat syarat.</span>';
+    return;
+  }
+  if (ok) {
+    banner.className = 'syarat-banner ok';
+    banner.innerHTML = `<span>↑</span> <span>MEMENUHI SYARAT ${lulusLabel}</span>`;
+  } else {
+    banner.className = 'syarat-banner fail';
+    banner.innerHTML = `<span>↓</span> <span>BELUM MEMENUHI SYARAT ${lulusLabel}</span>`;
+  }
+}
+
+async function loadSyaratFor(nisn) {
+  const banner = document.getElementById('syaratBanner');
+  if (banner) {
+    banner.className = 'syarat-banner warn';
+    banner.innerHTML = '<span>⏳ Memuat data kehadiran…</span>';
+  }
+  try {
+    const res = await apiCall('cek_syarat_kehadiran', { nisn: nisn || '' });
+    renderSyaratResult(res.data || res);
+  } catch (e) {
+    if (banner) {
+      banner.className = 'syarat-banner fail';
+      banner.innerHTML = `<span>${escapeHtml(errToText(e))}</span>`;
+    }
+    toast(errToText(e), 'err');
+  }
+}
+
+async function initSyaratNaikPage() {
+  updatePeriodeBadges();
+  const badge = document.getElementById('badgePeriodeSyarat');
+  const aktif = getActivePeriode();
+  if (badge) badge.textContent = aktif ? `${aktif.tahun_ajaran || ''} · ${aktif.semester || ''}` : '—';
+
+  const sess = getSession();
+  const searchWrap = document.getElementById('syaratSearchWrap');
+  const isSiswa = sess?.role === 'siswa';
+  if (searchWrap) searchWrap.style.display = isSiswa ? 'none' : '';
+
+  if (isSiswa) {
+    const nisn = sess.user?.nisn || '';
+    await loadSyaratFor(nisn);
+  } else if (sess?.role === 'admin' || sess?.role === 'guru') {
+    // tampilkan kosong sampai cari
+    renderSyaratResult({ siswa: {}, stats: {} });
+    const banner = document.getElementById('syaratBanner');
+    if (banner) {
+      banner.className = 'syarat-banner warn';
+      banner.innerHTML = '<span>Cari nama / NISN siswa untuk cek syarat kehadiran.</span>';
+    }
+  } else {
+    renderSyaratResult({ siswa: {}, stats: {} });
+    const banner = document.getElementById('syaratBanner');
+    if (banner) {
+      banner.className = 'syarat-banner warn';
+      banner.innerHTML = '<span>Login sebagai siswa / admin untuk melihat syarat.</span>';
+    }
+  }
+}
+
+document.getElementById('btnSyaratCari')?.addEventListener('click', () => {
+  const q = document.getElementById('syaratQ')?.value?.trim() || '';
+  if (!q) { toast('Isi nama atau NISN', 'err'); return; }
+  // jika angka → nisn
+  const digits = q.replace(/\D/g, '');
+  if (digits.length >= 8) {
+    loadSyaratFor(digits);
+    return;
+  }
+  // cari di store
+  const hit = (store.siswa || []).find(s =>
+    String(s.nama || '').toLowerCase().includes(q.toLowerCase()) ||
+    String(s.nisn || '').includes(digits)
+  );
+  if (hit) loadSyaratFor(hit.nisn);
+  else toast('Siswa tidak ditemukan di data lokal. Coba NISN lengkap.', 'err');
+});
+
+document.getElementById('syaratQ')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btnSyaratCari')?.click();
+  }
+});
 
 
 /* ===== Naik Kelas & Kelulusan ===== */
