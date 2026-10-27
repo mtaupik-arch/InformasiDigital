@@ -659,6 +659,54 @@
     .syarat-banner { font-size:12px; padding:8px 10px; }
   }
 
+  /* ===== IZIN SIDIK JARI & UJIAN (switch) ===== */
+  .izin-switch-list { display:flex; flex-direction:column; gap:12px; }
+  .izin-switch-row {
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:#fff; border:1px solid #e2e8f0; border-radius:12px;
+    padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.04);
+  }
+  .izin-switch-row .iz-info { flex:1; min-width:0; }
+  .izin-switch-row .iz-title {
+    font-size:14px; font-weight:800; color:#1a237e; margin-bottom:3px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .izin-switch-row .iz-desc { font-size:12px; color:#607d8b; line-height:1.35; }
+  .izin-switch {
+    position:relative; width:52px; height:30px; flex-shrink:0;
+  }
+  .izin-switch input {
+    opacity:0; width:0; height:0; position:absolute;
+  }
+  .izin-switch .slider {
+    position:absolute; cursor:pointer; inset:0;
+    background:#cfd8dc; border-radius:30px; transition:.25s;
+  }
+  .izin-switch .slider:before {
+    content:""; position:absolute; height:24px; width:24px; left:3px; bottom:3px;
+    background:#fff; border-radius:50%; transition:.25s;
+    box-shadow:0 1px 4px rgba(0,0,0,.2);
+  }
+  .izin-switch input:checked + .slider { background:#2e7d32; }
+  .izin-switch input:checked + .slider:before { transform:translateX(22px); }
+  .izin-switch input:disabled + .slider { opacity:.55; cursor:not-allowed; }
+  .izin-meta {
+    margin-top:12px; font-size:11.5px; color:#78909c;
+    background:#f5f7fa; border-radius:8px; padding:8px 12px;
+  }
+  .izin-status-pill {
+    display:inline-block; padding:2px 8px; border-radius:10px;
+    font-size:10px; font-weight:800; letter-spacing:.3px;
+  }
+  .izin-status-pill.on { background:#e8f5e9; color:#2e7d32; }
+  .izin-status-pill.off { background:#ffebee; color:#c62828; }
+
+  .ujian-locked {
+    text-align:center; padding:28px 16px; color:#78909c;
+  }
+  .ujian-locked .ul-ico { font-size:42px; margin-bottom:8px; }
+  .ujian-locked h4 { color:#1565c0; font-size:15px; margin-bottom:6px; }
+
   /* ===== PAGE CRUD ===== */
   .page { display:none; }
   .page.active { display:block; }
@@ -2370,6 +2418,80 @@
     </div>
   </div>
 
+  <!-- ========== PAGE: IZIN SIDIK JARI & UJIAN ========== -->
+  <div class="page" id="page-izin-sidik">
+    <div class="page-title">🔐 Izin Sidik Jari & Ujian</div>
+    <div class="card">
+      <p style="font-size:12.5px;color:#555;margin-bottom:14px;line-height:1.45">
+        Aktifkan atau nonaktifkan fitur secara global. Perubahan langsung berlaku di server (Supabase).
+        Hanya <b>Admin</b> yang dapat mengubah pengaturan ini.
+      </p>
+      <div class="izin-switch-list">
+        <div class="izin-switch-row">
+          <div class="iz-info">
+            <div class="iz-title">👆 Sidik Jari Guru
+              <span class="izin-status-pill off" id="pillFpGuru">OFF</span>
+            </div>
+            <div class="iz-desc">Izinkan guru mendaftar & absen mandiri lewat sensor sidik jari perangkat.</div>
+          </div>
+          <label class="izin-switch">
+            <input type="checkbox" id="swFpGuru" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="izin-switch-row">
+          <div class="iz-info">
+            <div class="iz-title">👆 Sidik Jari Siswa
+              <span class="izin-status-pill off" id="pillFpSiswa">OFF</span>
+            </div>
+            <div class="iz-desc">Izinkan siswa mendaftar & absen lewat menu Sidik Jari Siswa (WebAuthn).</div>
+          </div>
+          <label class="izin-switch">
+            <input type="checkbox" id="swFpSiswa" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="izin-switch-row">
+          <div class="iz-info">
+            <div class="iz-title">📝 Izin Ujian
+              <span class="izin-status-pill off" id="pillIzinUjian">OFF</span>
+            </div>
+            <div class="iz-desc">Buka akses menu <b>Kerjakan Tugas / Ujian</b> untuk siswa. Matikan saat tidak ada ujian.</div>
+          </div>
+          <label class="izin-switch">
+            <input type="checkbox" id="swIzinUjian" />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="izin-meta" id="izinMeta">Memuat pengaturan…</div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-primary" id="btnSaveIzin">💾 Simpan Pengaturan</button>
+        <button type="button" class="btn btn-outline" id="btnReloadIzin">↻ Muat Ulang</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: TUGAS / UJIAN ========== -->
+  <div class="page" id="page-tugas-ujian">
+    <div class="page-title">📝 Kerjakan Tugas / Ujian <span class="periode-badge" id="badgePeriodeUjian">Periode: -</span></div>
+    <div class="card" id="ujianContent">
+      <div class="ujian-locked" id="ujianLocked">
+        <div class="ul-ico">🔒</div>
+        <h4>Ujian Belum Dibuka</h4>
+        <p style="font-size:13px;line-height:1.4">Admin belum mengaktifkan <b>Izin Ujian</b>. Silakan cek lagi nanti.</p>
+      </div>
+      <div id="ujianOpen" style="display:none">
+        <p style="font-size:13px;color:#555;margin-bottom:12px">
+          Akses ujian dibuka. Fitur bank soal / pengerjaan akan terhubung di sini.
+        </p>
+        <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:12px 14px;font-size:13px;color:#2e7d32;font-weight:600">
+          ✓ Izin Ujian aktif — siswa dapat mengerjakan tugas/ujian.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -3446,7 +3568,7 @@ let navReady = false;
 let navTrapArmed = false;
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   return target;
@@ -3533,6 +3655,8 @@ function navigate(page, opts = {}) {
   if (target === 'naik-kelas') runPage(() => initNaikKelasPage());
   if (target === 'syarat-naik') runPage(() => initSyaratNaikPage());
   if (target === 'nilai-saya') runPage(() => initNilaiSayaPage());
+  if (target === 'izin-sidik') runPage(() => initIzinSidikPage());
+  if (target === 'tugas-ujian') runPage(() => initTugasUjianPage());
   if (target !== 'scan-barcode') {
     try { stopQrScanner(); } catch (_) {}
   }
@@ -5371,6 +5495,11 @@ async function fpMainActionSiswa() {
     showAbsenResult(resultEl, 'err', info.msg);
     return;
   }
+  try { await assertFpIzin('siswa'); } catch (e) {
+    showAbsenResult(resultEl, 'err', e.message || String(e));
+    showBigPopup('err', 'Izin Sidik Jari', e.message || String(e), 0);
+    return;
+  }
   if (!fpIsRegistered(info.identity)) {
     try {
       await fpRegisterIdentity(info.identity, info.display);
@@ -5405,6 +5534,11 @@ async function fpMainActionGuru() {
   if (!info.ok) {
     showAbsenResult(resultEl, 'err', info.msg);
     showBigPopup('err', 'Sidik Jari', info.msg, 0);
+    return;
+  }
+  try { await assertFpIzin('guru'); } catch (e) {
+    showAbsenResult(resultEl, 'err', e.message || String(e));
+    showBigPopup('err', 'Izin Sidik Jari', e.message || String(e), 0);
     return;
   }
   if (!fpIsRegistered(info.identity)) {
@@ -8428,6 +8562,133 @@ document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
 });
 
 
+
+/* ===== Izin Sidik Jari & Ujian ===== */
+let _izinCache = { fp_guru: true, fp_siswa: true, izin_ujian: false };
+
+async function fetchIzinSettings(force) {
+  if (!force && _izinCache && _izinCache._loaded) return _izinCache;
+  try {
+    const res = await apiCall('get_izin_settings', {});
+    const d = res?.data || {};
+    _izinCache = {
+      fp_guru: d.fp_guru !== false,
+      fp_siswa: d.fp_siswa !== false,
+      izin_ujian: d.izin_ujian === true,
+      updated_at: d.updated_at || null,
+      updated_by: d.updated_by || null,
+      _loaded: true,
+    };
+  } catch (e) {
+    console.warn('get_izin_settings', e);
+    _izinCache = { fp_guru: true, fp_siswa: true, izin_ujian: false, _loaded: true };
+  }
+  return _izinCache;
+}
+
+function applyIzinPills(izin) {
+  const setPill = (id, on) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = on ? 'ON' : 'OFF';
+    el.classList.toggle('on', !!on);
+    el.classList.toggle('off', !on);
+  };
+  setPill('pillFpGuru', izin.fp_guru);
+  setPill('pillFpSiswa', izin.fp_siswa);
+  setPill('pillIzinUjian', izin.izin_ujian);
+}
+
+async function initIzinSidikPage() {
+  const isAdmin = getSession()?.role === 'admin';
+  const swG = document.getElementById('swFpGuru');
+  const swS = document.getElementById('swFpSiswa');
+  const swU = document.getElementById('swIzinUjian');
+  const btn = document.getElementById('btnSaveIzin');
+  const meta = document.getElementById('izinMeta');
+  [swG, swS, swU].forEach(el => { if (el) el.disabled = !isAdmin; });
+  if (btn) btn.disabled = !isAdmin;
+  if (meta) meta.textContent = 'Memuat pengaturan…';
+  const izin = await fetchIzinSettings(true);
+  if (swG) swG.checked = !!izin.fp_guru;
+  if (swS) swS.checked = !!izin.fp_siswa;
+  if (swU) swU.checked = !!izin.izin_ujian;
+  applyIzinPills(izin);
+  if (meta) {
+    const t = izin.updated_at ? new Date(izin.updated_at).toLocaleString('id-ID') : '—';
+    meta.textContent = isAdmin
+      ? `Terakhir diubah: ${t}${izin.updated_by ? ' · ' + izin.updated_by : ''}`
+      : 'Hanya Admin yang dapat mengubah pengaturan. Anda hanya dapat melihat status.';
+  }
+}
+
+document.getElementById('btnReloadIzin')?.addEventListener('click', () => initIzinSidikPage());
+document.getElementById('btnSaveIzin')?.addEventListener('click', async () => {
+  if (getSession()?.role !== 'admin') {
+    toast('Hanya admin', 'err');
+    return;
+  }
+  const payload = {
+    fp_guru: !!document.getElementById('swFpGuru')?.checked,
+    fp_siswa: !!document.getElementById('swFpSiswa')?.checked,
+    izin_ujian: !!document.getElementById('swIzinUjian')?.checked,
+  };
+  try {
+    const res = await apiCall('save_izin_settings', payload);
+    _izinCache = { ...payload, updated_at: res?.data?.updated_at, updated_by: res?.data?.updated_by, _loaded: true };
+    applyIzinPills(_izinCache);
+    toast(res.message || 'Pengaturan disimpan', 'ok');
+    showBigPopup('ok', 'Izin Disimpan',
+      `Sidik Jari Guru: <b>${payload.fp_guru ? 'ON' : 'OFF'}</b><br>` +
+      `Sidik Jari Siswa: <b>${payload.fp_siswa ? 'ON' : 'OFF'}</b><br>` +
+      `Izin Ujian: <b>${payload.izin_ujian ? 'ON' : 'OFF'}</b>`, 2800);
+    initIzinSidikPage();
+  } catch (e) {
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Gagal Simpan', errToText(e), 0);
+  }
+});
+// Live pill update saat toggle
+['swFpGuru', 'swFpSiswa', 'swIzinUjian'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', () => {
+    applyIzinPills({
+      fp_guru: !!document.getElementById('swFpGuru')?.checked,
+      fp_siswa: !!document.getElementById('swFpSiswa')?.checked,
+      izin_ujian: !!document.getElementById('swIzinUjian')?.checked,
+    });
+  });
+});
+
+async function initTugasUjianPage() {
+  updatePeriodeBadges();
+  const badge = document.getElementById('badgePeriodeUjian');
+  const aktif = getActivePeriode();
+  if (badge) badge.textContent = aktif ? `${aktif.tahun_ajaran || ''} · ${aktif.semester || ''}` : '—';
+  const locked = document.getElementById('ujianLocked');
+  const open = document.getElementById('ujianOpen');
+  const izin = await fetchIzinSettings(true);
+  if (izin.izin_ujian) {
+    if (locked) locked.style.display = 'none';
+    if (open) open.style.display = '';
+  } else {
+    if (locked) locked.style.display = '';
+    if (open) open.style.display = 'none';
+  }
+}
+
+/** Cek izin sebelum daftar/absen sidik jari (client-side, server tetap enforce) */
+async function assertFpIzin(roleTarget) {
+  const izin = await fetchIzinSettings(false);
+  const r = roleTarget === 'guru' || roleTarget === 'admin' ? 'guru' : 'siswa';
+  if (r === 'guru' && !izin.fp_guru) {
+    throw new Error('Sidik jari Guru dinonaktifkan oleh Admin. Hubungi admin sekolah.');
+  }
+  if (r === 'siswa' && !izin.fp_siswa) {
+    throw new Error('Sidik jari Siswa dinonaktifkan oleh Admin. Hubungi admin sekolah.');
+  }
+  return true;
+}
+
 /* ===== Init ===== */
 (async function init() {
   try {
@@ -8456,6 +8717,7 @@ document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
     if (session?.token) {
       try { await apiCall('apply_ab_status', {}); } catch (_) {}
     }
+    try { await fetchIzinSettings(true); } catch (_) {}
 
     try { _lastSesiKey = sesiStateKey(); } catch (_) {}
 
