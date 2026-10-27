@@ -2421,8 +2421,8 @@
       </div>
       <p style="font-size:12px;color:#555;margin:0 0 10px;line-height:1.45">
         <b>Jika di Klik Luluskan</b><br>
-        Siswa berstatus <b>Lulus</b> dipindahkan ke menu/tabel "Data Lulusan".<br>
-        <span style="color:#888">Hanya kelas akhir (IX / 9). Pilih baris lalu gunakan dropdown Status / Predikat untuk ubah massal.</span>
+        Status <b>Lulus</b>, <b>Ditangguhkan</b>, dan <b>Tidak Lulus</b> otomatis dipindah ke <b>Data Lulusan</b>.<br>
+        <span style="color:#888">Hanya kelas akhir (IX / 9). <b>Belum ditentukan</b> tidak dipindah. Gunakan dropdown Status / Predikat untuk ubah massal.</span>
       </p>
       <div class="data-card">
         <div class="data-table-wrap">
@@ -8628,6 +8628,12 @@ function renderNaikKelasTable() {
   }
 }
 
+function nkIsStatusFinal(st) {
+  const u = String(st || '').trim().toUpperCase();
+  if (!u || u.includes('BELUM')) return false;
+  return u.includes('LULUS') || u.includes('TANGGUH') || u.includes('TIDAK');
+}
+
 function renderKelulusanTable() {
   const tb = document.getElementById('tbodyKelulusan');
   if (!tb) return;
@@ -8679,10 +8685,19 @@ function renderKelulusanTable() {
     sel.addEventListener('change', async () => {
       if (!nkIsAdmin()) return;
       try {
-        await apiCall('update_naik_fields', { id: sel.getAttribute('data-id'), status_kelulusan: sel.value });
+        const res = await apiCall('update_naik_fields', { id: sel.getAttribute('data-id'), status_kelulusan: sel.value });
         const row = (store.siswa || []).find(x => String(x.id) === String(sel.getAttribute('data-id')));
-        if (row) row.status_kelulusan = sel.value;
-        toast('Status kelulusan disimpan', 'ok');
+        if (row) {
+          row.status_kelulusan = sel.value;
+          if (typeof nkIsStatusFinal === 'function' && nkIsStatusFinal(sel.value)) row.status = sel.value;
+        }
+        if (res.moved) {
+          toast('Disimpan & dipindah ke Data Lulusan', 'ok');
+          try { await refreshStoreFromDb(); } catch (_) {}
+          if (typeof renderLulusan === 'function') renderLulusan();
+        } else {
+          toast('Status kelulusan disimpan', 'ok');
+        }
       } catch (e) { toast(errToText(e), 'err'); }
     });
   });
@@ -8801,9 +8816,17 @@ document.getElementById('btnUbahStatusLulus')?.addEventListener('change', async 
     const res = await apiCall('update_naik_fields_bulk', { ids, status_kelulusan: st });
     ids.forEach(id => {
       const row = (store.siswa || []).find(x => String(x.id) === String(id));
-      if (row) row.status_kelulusan = st;
+      if (row) {
+        row.status_kelulusan = st;
+        if (nkIsStatusFinal(st)) row.status = st;
+      }
     });
     toast(res.message || `Status → ${st} (${ids.length})`, 'ok');
+    if (res.moved) {
+      showBigPopup('ok', 'Data Lulusan', res.message || `${res.moved} siswa dipindah ke Data Lulusan.`, 2500);
+      try { await refreshStoreFromDb(); } catch (_) {}
+      if (typeof renderLulusan === 'function') renderLulusan();
+    }
     renderKelulusanTable();
   } catch (err) { toast(errToText(err), 'err'); }
 });
@@ -8833,28 +8856,29 @@ document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
   if (!nkIsAdmin()) { toast('Hanya admin', 'err'); return; }
   let ids = [...document.querySelectorAll('.nk-check-lulus:checked')].map(c => c.getAttribute('data-id'));
   if (!ids.length) {
-    ids = (store.siswa || []).filter(s => nkIsKelasAkhir(s.kelas) && String(s.status_kelulusan || '') === 'Lulus').map(s => String(s.id));
+    // Semua yang sudah ditentukan (Lulus / Ditangguhkan / Tidak Lulus)
+    ids = (store.siswa || []).filter(s => nkIsKelasAkhir(s.kelas) && nkIsStatusFinal(s.status_kelulusan)).map(s => String(s.id));
   } else {
     ids = ids.filter(id => {
       const row = (store.siswa || []).find(x => String(x.id) === String(id));
-      return row && String(row.status_kelulusan || '') === 'Lulus';
+      return row && nkIsStatusFinal(row.status_kelulusan);
     });
   }
   if (!ids.length) {
-    toast('Tidak ada siswa berstatus "Lulus". Centang siswa + dropdown Ubah Status → Lulus.', 'err');
+    toast('Tidak ada siswa berstatus Lulus / Ditangguhkan / Tidak Lulus. Ubah status dulu (Belum ditentukan tidak dipindah).', 'err');
     return;
   }
-  if (!confirm(`Luluskan ${ids.length} siswa?\nData dipindah ke Data Lulusan.`)) return;
+  if (!confirm(`Pindahkan ${ids.length} siswa ke Data Lulusan?\n(Status Lulus, Ditangguhkan, Tidak Lulus)`)) return;
   try {
     const res = await apiCall('apply_kelulusan', { ids });
     toast(res.message || 'Kelulusan diterapkan', 'ok');
-    showBigPopup('ok', 'Kelulusan', res.message || `${ids.length} siswa dipindah.`, 2800);
+    showBigPopup('ok', 'Data Lulusan', res.message || `${ids.length} siswa dipindah.`, 2800);
     await refreshStoreFromDb();
     renderKelulusanTable();
     if (typeof renderLulusan === 'function') renderLulusan();
   } catch (e) {
     toast(errToText(e), 'err');
-    showBigPopup('err', 'Gagal Luluskan', errToText(e), 0);
+    showBigPopup('err', 'Gagal Memindah', errToText(e), 0);
   }
 });
 
