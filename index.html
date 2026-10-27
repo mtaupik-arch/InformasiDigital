@@ -2529,6 +2529,50 @@
     </div>
   </div>
 
+  <!-- ========== PAGE: ARSIP ABSENSI ========== -->
+  <div class="page" id="page-arsip-absensi">
+    <div class="page-title">🗂️ Arsip Absensi</div>
+
+    <div class="card" style="margin-bottom:12px">
+      <h3 style="font-size:14px;margin-bottom:12px;color:#1a237e">⚙️ Pengaturan Absensi (Syarat)</h3>
+      <div class="rekap-field" style="margin-bottom:10px">
+        <label style="width:120px">Mulai tanggal</label>
+        <input type="date" id="arsipTglMulai" style="flex:1;min-width:140px;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:13px" />
+      </div>
+      <div class="rekap-field" style="margin-bottom:10px">
+        <label style="width:120px">Berakhir tanggal</label>
+        <input type="date" id="arsipTglAkhir" style="flex:1;min-width:140px;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:13px" />
+      </div>
+      <div class="rekap-field" style="margin-bottom:12px">
+        <label style="width:120px">Minimal Hadir (%)</label>
+        <input type="number" id="arsipMinHadir" min="1" max="100" step="1" value="80"
+          style="flex:1;min-width:140px;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:13px" />
+      </div>
+      <button type="button" class="btn btn-primary" id="btnSimpanPengaturanAbsensi" style="width:100%;padding:12px;border-radius:12px;font-size:14px">
+        💾 Simpan Pengaturan Absensi
+      </button>
+      <p class="izin-meta" id="arsipPengaturanMeta" style="margin-top:10px;margin-bottom:0">—</p>
+      <p style="font-size:11px;color:#90a4ae;margin-top:6px;line-height:1.35">
+        Rentang tanggal &amp; minimal % ini dipakai di <b>Cek Syarat Naik Kelas / Lulus</b>
+        (jumlah hari/sesi berjalan &amp; batas kelulusan).
+      </p>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:14px;margin-bottom:10px;color:#1a237e">📦 Pindah ke Historis</h3>
+      <p id="arsipStatsText" style="font-size:13px;color:#455a64;margin-bottom:6px;line-height:1.45">Memuat statistik…</p>
+      <p style="font-size:12.5px;color:#546e7a;margin-bottom:8px">Pindahkan data s/d tanggal (inklusif), <b>selain hari ini</b></p>
+      <div class="rekap-field" style="margin-bottom:12px">
+        <input type="date" id="arsipUntil" style="flex:1;min-width:140px;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:13px" />
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button type="button" class="btn btn-primary" id="btnArsipCek" style="flex:1;min-width:120px;padding:11px;border-radius:10px">Cek Jumlah</button>
+        <button type="button" class="btn" id="btnArsipPindah" style="flex:1;min-width:140px;padding:11px;border-radius:10px;background:#e65100;color:#fff">📦 Pindahkan ke Historis</button>
+      </div>
+      <p class="izin-meta" id="arsipPindahMeta" style="margin-top:10px;margin-bottom:0"></p>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -3605,7 +3649,7 @@ let navReady = false;
 let navTrapArmed = false;
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   return target;
@@ -3694,6 +3738,7 @@ function navigate(page, opts = {}) {
   if (target === 'nilai-saya') runPage(() => initNilaiSayaPage());
   if (target === 'izin-sidik') runPage(() => initIzinSidikPage());
   if (target === 'tugas-ujian') runPage(() => initTugasUjianPage());
+  if (target === 'arsip-absensi') runPage(() => initArsipAbsensiPage());
   if (target !== 'scan-barcode') {
     try { stopQrScanner(); } catch (_) {}
   }
@@ -8044,8 +8089,9 @@ function renderSyaratResult(data) {
 
   const persen = st.persen != null ? Number(st.persen) : 0;
   set('syaratPersen', (Math.round(persen * 100) / 100) + '%');
+  const batasDyn = st.batas != null ? Number(st.batas) : SYARAT_BATAS;
   set('syaratPersenSub',
-    `Nilai Hadir: ${st.nilai_hadir ?? 0} / ${st.sesi_efektif || 0} (Batas: ${SYARAT_BATAS}%) · TW=1 · TL=0.8`);
+    `Nilai Hadir: ${st.nilai_hadir ?? 0} / ${st.sesi_efektif || 0} (Batas: ${batasDyn}%) · TW=1 · TL=0.8`);
   const persenEl = document.getElementById('syaratPersen');
   if (persenEl) {
     persenEl.classList.remove('nilai-merah', 'nilai-oranye', 'nilai-hijau', 'nilai-biru');
@@ -8068,7 +8114,7 @@ function renderSyaratResult(data) {
   if (!banner) return;
   const isLulus = nkIsKelasAkhirLocal(siswa.kelas);
   const lulusLabel = isLulus ? 'LULUS' : 'NAIK KELAS';
-  const ok = persen >= SYARAT_BATAS;
+  const ok = persen >= (st.batas != null ? Number(st.batas) : SYARAT_BATAS);
   if (!siswa.nisn && !siswa.nama) {
     banner.className = 'syarat-banner warn';
     banner.innerHTML = '<span>Pilih / login sebagai siswa untuk melihat syarat.</span>';
@@ -8863,6 +8909,134 @@ async function assertFpIzin(roleTarget, ownerKey) {
   }
   return true;
 }
+
+
+/* ===== Arsip Absensi ===== */
+function toInputDate(ymd) {
+  if (!ymd) return '';
+  return String(ymd).slice(0, 10);
+}
+function ymdTodayLocal() {
+  const n = new Date();
+  const y = n.getFullYear();
+  const m = String(n.getMonth() + 1).padStart(2, '0');
+  const d = String(n.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+async function loadArsipStats() {
+  const el = document.getElementById('arsipStatsText');
+  try {
+    const res = await apiCall('arsip_stats', {});
+    const d = res.data || {};
+    const range = (d.min_tanggal && d.max_tanggal)
+      ? `Rentang aktif: ${d.min_tanggal} → ${d.max_tanggal}`
+      : 'Rentang aktif: —';
+    if (el) {
+      el.innerHTML = `Tabel aktif: <b>${d.aktif ?? 0}</b> baris · Historis: <b>${d.historis ?? 0}</b> baris<br>${range}`;
+    }
+    // default until = max tanggal aktif (atau kemarin)
+    const untilEl = document.getElementById('arsipUntil');
+    if (untilEl && !untilEl.value) {
+      const today = d.today || ymdTodayLocal();
+      let u = d.max_tanggal || today;
+      if (u >= today) {
+        const dt = new Date(today + 'T00:00:00');
+        dt.setDate(dt.getDate() - 1);
+        u = dt.toISOString().slice(0, 10);
+      }
+      untilEl.value = u;
+    }
+  } catch (e) {
+    if (el) el.textContent = errToText(e);
+  }
+}
+
+async function loadPengaturanAbsensiForm() {
+  const meta = document.getElementById('arsipPengaturanMeta');
+  try {
+    const res = await apiCall('get_pengaturan_absensi', {});
+    const d = res.data || {};
+    const a = document.getElementById('arsipTglMulai');
+    const b = document.getElementById('arsipTglAkhir');
+    const m = document.getElementById('arsipMinHadir');
+    if (a && d.tgl_mulai) a.value = toInputDate(d.tgl_mulai);
+    if (b && d.tgl_akhir) b.value = toInputDate(d.tgl_akhir);
+    if (m) m.value = d.min_hadir != null ? d.min_hadir : 80;
+    if (meta) {
+      const mulai = d.tgl_mulai || '—';
+      const akhir = d.tgl_akhir || '—';
+      meta.textContent = `Aktif: ${mulai} s/d ${akhir} · Min hadir ${d.min_hadir ?? 80}%`;
+    }
+  } catch (e) {
+    if (meta) meta.textContent = errToText(e) + ' — pastikan tabel pengaturan_absensi sudah dibuat (SQL migrasi).';
+  }
+}
+
+async function initArsipAbsensiPage() {
+  if (getSession()?.role !== 'admin') {
+    const el = document.getElementById('arsipStatsText');
+    if (el) el.textContent = 'Hanya Admin yang dapat mengelola arsip absensi.';
+    ['btnSimpanPengaturanAbsensi', 'btnArsipCek', 'btnArsipPindah'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) b.disabled = true;
+    });
+    return;
+  }
+  await Promise.all([loadPengaturanAbsensiForm(), loadArsipStats()]);
+}
+
+document.getElementById('btnSimpanPengaturanAbsensi')?.addEventListener('click', async () => {
+  if (getSession()?.role !== 'admin') { toast('Hanya admin', 'err'); return; }
+  const tgl_mulai = document.getElementById('arsipTglMulai')?.value || '';
+  const tgl_akhir = document.getElementById('arsipTglAkhir')?.value || '';
+  const min_hadir = Number(document.getElementById('arsipMinHadir')?.value || 80);
+  if (!tgl_mulai || !tgl_akhir) { toast('Isi tanggal mulai & berakhir', 'err'); return; }
+  try {
+    const res = await apiCall('save_pengaturan_absensi', { tgl_mulai, tgl_akhir, min_hadir });
+    toast(res.message || 'Tersimpan', 'ok');
+    showBigPopup('ok', 'Pengaturan Disimpan',
+      `Syarat kehadiran: <b>${tgl_mulai}</b> s/d <b>${tgl_akhir}</b><br>Minimal hadir: <b>${min_hadir}%</b><br>Berlaku di Cek Syarat Naik/Lulus.`, 3000);
+    await loadPengaturanAbsensiForm();
+  } catch (e) {
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Gagal Simpan', errToText(e), 0);
+  }
+});
+
+document.getElementById('btnArsipCek')?.addEventListener('click', async () => {
+  const until = document.getElementById('arsipUntil')?.value || '';
+  const meta = document.getElementById('arsipPindahMeta');
+  if (!until) { toast('Pilih tanggal batas', 'err'); return; }
+  try {
+    const res = await apiCall('arsip_count', { until });
+    if (meta) meta.textContent = `${res.count || 0} baris akan dipindah (s/d ${until}, selain hari ini ${res.today || ''}).`;
+    toast(`${res.count || 0} baris siap dipindah`, 'ok');
+  } catch (e) {
+    if (meta) meta.textContent = errToText(e);
+    toast(errToText(e), 'err');
+  }
+});
+
+document.getElementById('btnArsipPindah')?.addEventListener('click', async () => {
+  if (getSession()?.role !== 'admin') { toast('Hanya admin', 'err'); return; }
+  const until = document.getElementById('arsipUntil')?.value || '';
+  const meta = document.getElementById('arsipPindahMeta');
+  if (!until) { toast('Pilih tanggal batas', 'err'); return; }
+  if (!confirm(`Pindahkan data absensi s/d ${until} ke historis?\nData hari ini tidak ikut dipindah.`)) return;
+  try {
+    if (meta) meta.textContent = 'Memindahkan…';
+    const res = await apiCall('arsip_pindah', { until });
+    toast(res.message || 'Selesai', 'ok');
+    showBigPopup('ok', 'Arsip Selesai', res.message || `${res.moved || 0} baris dipindah.`, 3000);
+    if (meta) meta.textContent = res.message || '';
+    await loadArsipStats();
+  } catch (e) {
+    if (meta) meta.textContent = errToText(e);
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Gagal Arsip', errToText(e), 0);
+  }
+});
 
 /* ===== Init ===== */
 (async function init() {
