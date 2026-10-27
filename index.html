@@ -2573,6 +2573,85 @@
     </div>
   </div>
 
+  <!-- ========== PAGE: INTEGRASI GOOGLE DRIVE ========== -->
+  <div class="page" id="page-integrasi-gdrive">
+    <div class="page-title">☁️ Integrasi Google Drive</div>
+
+    <div class="card" style="margin-bottom:12px">
+      <h3 style="font-size:14px;margin-bottom:8px;color:#1a237e">Status &amp; Konfigurasi</h3>
+      <p style="font-size:12.5px;color:#546e7a;line-height:1.45;margin-bottom:12px">
+        Semua gambar, audio, video, PDF (logo, foto profil, lampiran soal ujian, dsb.)
+        diunggah ke folder Google Drive sekolah jika integrasi <b>aktif</b>.
+        Jika nonaktif / gagal, sistem memakai Supabase Storage sebagai cadangan.
+      </p>
+
+      <div class="rekap-field" style="margin-bottom:10px;align-items:center">
+        <label style="width:130px">Aktifkan GDrive</label>
+        <label class="izin-switch" style="margin:0">
+          <input type="checkbox" id="gdriveEnabled" />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="rekap-field" style="margin-bottom:10px">
+        <label style="width:130px">Folder ID</label>
+        <input type="text" id="gdriveFolderId" placeholder="ID folder Drive yang dibagikan ke service account"
+          style="flex:1;min-width:140px;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:12px" />
+      </div>
+      <div class="rekap-field" style="margin-bottom:10px">
+        <label style="width:130px">Client Email</label>
+        <input type="text" id="gdriveClientEmail" placeholder="xxx@project.iam.gserviceaccount.com"
+          style="flex:1;min-width:140px;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:12px" />
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="display:block;font-size:12px;font-weight:600;color:#333;margin-bottom:6px">Private Key (PEM) — atau tempel JSON service account di bawah</label>
+        <textarea id="gdrivePrivateKey" rows="4" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:11px;font-family:monospace"></textarea>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:600;color:#333;margin-bottom:6px">Atau paste JSON Service Account (opsional)</label>
+        <textarea id="gdriveSaJson" rows="3" placeholder='{"type":"service_account","client_email":"...","private_key":"..."}'
+          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:11px;font-family:monospace"></textarea>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button type="button" class="btn btn-primary" id="btnGdriveSave" style="flex:1;min-width:120px;padding:11px;border-radius:10px">💾 Simpan</button>
+        <button type="button" class="btn btn-success" id="btnGdriveTest" style="flex:1;min-width:120px;padding:11px;border-radius:10px">🔌 Tes Koneksi</button>
+        <button type="button" class="btn btn-outline" id="btnGdriveReload" style="padding:11px;border-radius:10px">↻</button>
+      </div>
+      <p class="izin-meta" id="gdriveMeta" style="margin-top:10px;margin-bottom:0">—</p>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <h3 style="font-size:14px;margin-bottom:8px;color:#1a237e">Panduan singkat</h3>
+      <ol style="font-size:12.5px;color:#455a64;line-height:1.55;padding-left:18px;margin:0">
+        <li>Buat project di <b>Google Cloud Console</b> → aktifkan <b>Google Drive API</b>.</li>
+        <li>Buat <b>Service Account</b> → unduh JSON key.</li>
+        <li>Di Google Drive, buat folder (mis. <code>SIS-Media</code>) → <b>Share</b> ke email service account (Editor).</li>
+        <li>Salin <b>Folder ID</b> dari URL folder (<code>.../folders/<b>ID_INI</b></code>).</li>
+        <li>Tempel Folder ID + JSON di form atas → Simpan → Tes Koneksi.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:14px;margin-bottom:8px;color:#1a237e">File terunggah (indeks)</h3>
+      <p style="font-size:12px;color:#78909c;margin-bottom:8px">100 file terakhir yang tercatat di database setelah upload ke Drive.</p>
+      <div class="data-table-wrap" style="overflow-x:auto">
+        <table class="data-table" style="min-width:480px;font-size:11px">
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>MIME</th>
+              <th>Ukuran</th>
+              <th>Link</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyGdriveFiles">
+            <tr><td colspan="4" style="padding:12px;color:#888;text-align:center">Memuat…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -3649,7 +3728,7 @@ let navReady = false;
 let navTrapArmed = false;
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   return target;
@@ -3739,6 +3818,7 @@ function navigate(page, opts = {}) {
   if (target === 'izin-sidik') runPage(() => initIzinSidikPage());
   if (target === 'tugas-ujian') runPage(() => initTugasUjianPage());
   if (target === 'arsip-absensi') runPage(() => initArsipAbsensiPage());
+  if (target === 'integrasi-gdrive') runPage(() => initGdrivePage());
   if (target !== 'scan-barcode') {
     try { stopQrScanner(); } catch (_) {}
   }
@@ -9035,6 +9115,117 @@ document.getElementById('btnArsipPindah')?.addEventListener('click', async () =>
     if (meta) meta.textContent = errToText(e);
     toast(errToText(e), 'err');
     showBigPopup('err', 'Gagal Arsip', errToText(e), 0);
+  }
+});
+
+
+/* ===== Integrasi Google Drive ===== */
+async function initGdrivePage() {
+  const isAdmin = getSession()?.role === 'admin';
+  ['gdriveEnabled','gdriveFolderId','gdriveClientEmail','gdrivePrivateKey','gdriveSaJson','btnGdriveSave','btnGdriveTest'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !isAdmin;
+  });
+  if (!isAdmin) {
+    const meta = document.getElementById('gdriveMeta');
+    if (meta) meta.textContent = 'Hanya Admin yang dapat mengatur integrasi Google Drive.';
+    const tb = document.getElementById('tbodyGdriveFiles');
+    if (tb) tb.innerHTML = '<tr><td colspan="4" style="padding:12px;color:#c62828;text-align:center">Akses ditolak</td></tr>';
+    return;
+  }
+  await loadGdriveConfigForm();
+  await loadGdriveFilesList();
+}
+
+async function loadGdriveConfigForm() {
+  const meta = document.getElementById('gdriveMeta');
+  try {
+    const res = await apiCall('get_gdrive_config', {});
+    const d = res.data || {};
+    const en = document.getElementById('gdriveEnabled');
+    const fid = document.getElementById('gdriveFolderId');
+    const em = document.getElementById('gdriveClientEmail');
+    const pk = document.getElementById('gdrivePrivateKey');
+    if (en) en.checked = !!d.enabled;
+    if (fid) fid.value = d.folder_id || '';
+    if (em) em.value = d.client_email || '';
+    if (pk) pk.value = ''; // jangan tampilkan key penuh
+    if (pk) pk.placeholder = d.has_private_key
+      ? '(private key tersimpan — isi ulang hanya jika ingin mengganti)'
+      : '-----BEGIN PRIVATE KEY-----';
+    if (meta) {
+      meta.textContent = d.enabled
+        ? `Aktif · folder ${d.folder_id || '—'} · ${d.client_email || '—'}`
+        : `Nonaktif · ${d.has_private_key ? 'kredensial tersimpan' : 'belum ada kredensial'}`;
+    }
+  } catch (e) {
+    if (meta) meta.textContent = errToText(e) + ' — jalankan SQL migrasi gdrive jika belum.';
+  }
+}
+
+async function loadGdriveFilesList() {
+  const tb = document.getElementById('tbodyGdriveFiles');
+  if (!tb) return;
+  try {
+    const res = await apiCall('list_gdrive_files', {});
+    const rows = res.data || [];
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="4" style="padding:12px;color:#888;text-align:center">Belum ada file terindeks.</td></tr>';
+      return;
+    }
+    tb.innerHTML = rows.map(r => {
+      const sz = r.size_bytes != null ? (Math.round(r.size_bytes / 1024) + ' KB') : '—';
+      const link = r.web_view_link || r.web_content_link || '';
+      return `<tr>
+        <td style="max-width:160px;word-break:break-all;font-size:10.5px">${escapeHtml(r.path || '')}</td>
+        <td style="font-size:10px">${escapeHtml(r.mime || '')}</td>
+        <td>${sz}</td>
+        <td>${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">buka</a>` : '—'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="4" style="padding:12px;color:#c62828">${escapeHtml(errToText(e))}</td></tr>`;
+  }
+}
+
+document.getElementById('btnGdriveReload')?.addEventListener('click', () => initGdrivePage());
+document.getElementById('btnGdriveSave')?.addEventListener('click', async () => {
+  if (getSession()?.role !== 'admin') { toast('Hanya admin', 'err'); return; }
+  const payload = {
+    enabled: !!document.getElementById('gdriveEnabled')?.checked,
+    folder_id: document.getElementById('gdriveFolderId')?.value?.trim() || '',
+    client_email: document.getElementById('gdriveClientEmail')?.value?.trim() || '',
+    private_key: document.getElementById('gdrivePrivateKey')?.value?.trim() || '',
+  };
+  const sa = document.getElementById('gdriveSaJson')?.value?.trim() || '';
+  if (sa) payload.service_account_json = sa;
+  try {
+    const res = await apiCall('save_gdrive_config', payload);
+    toast(res.message || 'Tersimpan', 'ok');
+    showBigPopup('ok', 'GDrive Disimpan', res.message || 'Konfigurasi Google Drive diperbarui.', 2500);
+    const pk = document.getElementById('gdrivePrivateKey');
+    const sj = document.getElementById('gdriveSaJson');
+    if (pk) pk.value = '';
+    if (sj) sj.value = '';
+    await loadGdriveConfigForm();
+  } catch (e) {
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Gagal Simpan', errToText(e), 0);
+  }
+});
+document.getElementById('btnGdriveTest')?.addEventListener('click', async () => {
+  if (getSession()?.role !== 'admin') return;
+  const meta = document.getElementById('gdriveMeta');
+  try {
+    if (meta) meta.textContent = 'Menguji koneksi…';
+    const res = await apiCall('test_gdrive', {});
+    toast(res.message || 'OK', 'ok');
+    showBigPopup('ok', 'Koneksi OK', res.message || 'Google Drive dapat diakses.', 2500);
+    if (meta) meta.textContent = res.message || 'OK';
+  } catch (e) {
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Tes Gagal', errToText(e), 0);
+    if (meta) meta.textContent = errToText(e);
   }
 });
 
