@@ -665,6 +665,102 @@
   .ujian-locked .ul-ico { font-size:42px; margin-bottom:8px; }
   .ujian-locked h4 { color:#1565c0; font-size:15px; margin-bottom:6px; }
 
+  /* ===== PENGUMUMAN KELULUSAN (muat 1 layar HP) ===== */
+  #page-pengumuman-lulus {
+    max-width: 480px; margin: 0 auto;
+  }
+  #page-pengumuman-lulus .page-title { font-size: 14px; margin-bottom: 6px; }
+  .pl-sheet {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 8px rgba(0,0,0,.08);
+    border: 1px solid #e8eef5;
+    padding: 10px 12px 12px;
+    text-align: center;
+    color: #222;
+    line-height: 1.25;
+  }
+  .pl-logo {
+    width: 52px; height: 52px; margin: 0 auto 4px;
+    object-fit: contain; display: block;
+  }
+  .pl-logo-fallback {
+    width: 52px; height: 52px; margin: 0 auto 4px;
+    border-radius: 50%; background: linear-gradient(135deg,#1565c0,#42a5f5);
+    color: #fff; font-weight: 800; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pl-title {
+    font-size: 13px; font-weight: 800; letter-spacing: .4px;
+    text-transform: uppercase; margin: 2px 0 6px; color: #111;
+  }
+  .pl-sk {
+    font-size: 10.5px; color: #333; text-align: left;
+    display: inline-block; max-width: 100%; margin: 0 auto 6px;
+  }
+  .pl-sk .pl-row {
+    display: grid; grid-template-columns: 64px 8px 1fr;
+    gap: 0 2px; margin-bottom: 1px;
+  }
+  .pl-sk .pl-row span:last-child { word-break: break-word; }
+  .pl-about {
+    font-size: 10.5px; color: #333; margin: 4px 0 2px; font-style: italic;
+  }
+  .pl-about b { font-style: normal; font-weight: 700; }
+  .pl-memutus {
+    font-size: 11px; font-weight: 700; margin: 6px 0 4px; color: #222;
+  }
+  .pl-siswa {
+    font-size: 11.5px; margin: 4px 0; text-align: left;
+    display: inline-block; max-width: 100%;
+  }
+  .pl-siswa .pl-row {
+    display: grid; grid-template-columns: 48px 8px 1fr;
+    gap: 0 2px; margin-bottom: 1px;
+  }
+  .pl-siswa .pl-nama { font-weight: 800; text-transform: uppercase; }
+  .pl-dinyatakan {
+    font-size: 11px; margin-top: 6px; color: #333;
+  }
+  .pl-status {
+    font-size: 22px; font-weight: 900; letter-spacing: 1px;
+    margin: 2px 0 4px; line-height: 1.1;
+  }
+  .pl-status.LULUS { color: #1b5e20; }
+  .pl-status.DITANGGUHKAN { color: #e65100; }
+  .pl-status.TIDAK { color: #b71c1c; }
+  .pl-predikat {
+    font-size: 11px; color: #333; margin-bottom: 6px;
+  }
+  .pl-ket {
+    text-align: left; font-size: 9.5px; color: #455a64;
+    border-top: 1px solid #e0e6ed; padding-top: 6px; margin-top: 4px;
+    line-height: 1.35;
+  }
+  .pl-ket b { color: #1565c0; }
+  .pl-search {
+    display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: nowrap;
+  }
+  .pl-search input {
+    flex: 1; min-width: 0; padding: 8px 10px; border: 1.5px solid #cfd8dc;
+    border-radius: 8px; font-size: 12px; outline: none;
+  }
+  .pl-search .btn { flex-shrink: 0; padding: 8px 12px; font-size: 12px; }
+  .pl-empty {
+    font-size: 12px; color: #78909c; padding: 16px 8px;
+  }
+  @media(max-height:700px){
+    .pl-logo, .pl-logo-fallback { width: 44px; height: 44px; font-size: 16px; }
+    .pl-title { font-size: 12px; }
+    .pl-status { font-size: 20px; }
+    .pl-sheet { padding: 8px 10px 10px; }
+  }
+  @media(max-height:600px){
+    .pl-ket { font-size: 9px; }
+    .pl-sk, .pl-about, .pl-siswa, .pl-predikat { font-size: 10px; }
+    .pl-status { font-size: 18px; }
+  }
+
   /* ===== PAGE CRUD ===== */
   .page { display:none; }
   .page.active { display:block; }
@@ -2652,6 +2748,43 @@
     </div>
   </div>
 
+  <!-- ========== PAGE: PENGUMUMAN KELULUSAN ========== -->
+  <div class="page" id="page-pengumuman-lulus">
+    <div class="page-title">📢 Pengumuman Kelulusan</div>
+    <div class="pl-search" id="plSearchWrap">
+      <input type="search" id="plQ" placeholder="Cari NISN / nama lulusan…" autocomplete="off" />
+      <button type="button" class="btn btn-primary" id="btnPlCari">Cari</button>
+    </div>
+    <div class="pl-sheet" id="plSheet">
+      <div class="pl-empty" id="plEmpty">Masukkan NISN atau login sebagai siswa untuk melihat pengumuman.</div>
+      <div id="plContent" style="display:none">
+        <img class="pl-logo" id="plLogo" alt="Logo" style="display:none" />
+        <div class="pl-logo-fallback" id="plLogoFb">S</div>
+        <div class="pl-title">Pengumuman Kelulusan</div>
+        <div class="pl-sk">
+          <div class="pl-row"><span>Berdasarkan</span><span></span><span id="plDasar">Keputusan Kepala Sekolah</span></div>
+          <div class="pl-row"><span>No</span><span>:</span><span id="plNoSk">—</span></div>
+          <div class="pl-row"><span>Tanggal</span><span>:</span><span id="plTglSk">—</span></div>
+        </div>
+        <div class="pl-about">Tentang<br><b>Penetapan Kelulusan Peserta Didik Tahun Ajaran <span id="plTahun">—</span></b></div>
+        <div class="pl-memutus">Memutuskan :</div>
+        <div class="pl-siswa">
+          <div class="pl-row"><span>Nama</span><span>:</span><span class="pl-nama" id="plNama">—</span></div>
+          <div class="pl-row"><span>NISN</span><span>:</span><span id="plNisn">—</span></div>
+        </div>
+        <div class="pl-dinyatakan">Dinyatakan</div>
+        <div class="pl-status LULUS" id="plStatus">LULUS</div>
+        <div class="pl-predikat" id="plPredikatLine">Dari <span id="plSekolahNama">—</span> dengan Predikat <b id="plPredikat">—</b></div>
+        <div class="pl-ket">
+          <b>Ket status kelulusan :</b><br>
+          <b>1. LULUS</b> : Dari <span id="plKetSekolah">sekolah</span> Tahun Ajaran <span id="plKetTahun">—</span><br>
+          <b>2. DITANGGUHKAN</b> : Jika sampai batas H-2 akhir Tahun Ajaran tidak menyelesaikan sebagian syarat LULUS yang tertunda maka statusnya menjadi “TIDAK LULUS” permanen.<br>
+          <b>3. TIDAK LULUS</b> : Tidak memenuhi syarat-syarat kelulusan yang telah ditentukan
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -3728,7 +3861,7 @@ let navReady = false;
 let navTrapArmed = false;
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   return target;
@@ -3819,6 +3952,7 @@ function navigate(page, opts = {}) {
   if (target === 'tugas-ujian') runPage(() => initTugasUjianPage());
   if (target === 'arsip-absensi') runPage(() => initArsipAbsensiPage());
   if (target === 'integrasi-gdrive') runPage(() => initGdrivePage());
+  if (target === 'pengumuman-lulus') runPage(() => initPengumumanLulusPage());
   if (target !== 'scan-barcode') {
     try { stopQrScanner(); } catch (_) {}
   }
@@ -9226,6 +9360,166 @@ document.getElementById('btnGdriveTest')?.addEventListener('click', async () => 
     toast(errToText(e), 'err');
     showBigPopup('err', 'Tes Gagal', errToText(e), 0);
     if (meta) meta.textContent = errToText(e);
+  }
+});
+
+
+/* ===== Pengumuman Kelulusan ===== */
+function plFmtDateId(d) {
+  if (!d) return '—';
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return String(d);
+  const bulan = ['', 'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  return `${Number(m[3])} ${bulan[Number(m[2])] || m[2]} ${m[1]}`;
+}
+
+function renderPengumumanLulus(data) {
+  const empty = document.getElementById('plEmpty');
+  const content = document.getElementById('plContent');
+  if (!data || !data.siswa) {
+    if (empty) { empty.style.display = ''; empty.textContent = 'Data tidak ditemukan.'; }
+    if (content) content.style.display = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (content) content.style.display = '';
+
+  const s = data.siswa || {};
+  const p = data.periode || {};
+  const sek = data.sekolah || store.sekolah || {};
+  const namaSek = sek.nama || 'Sekolah';
+  const tahun = p.tahun_ajaran || s.tahun_lulus || '—';
+
+  const logo = document.getElementById('plLogo');
+  const logoFb = document.getElementById('plLogoFb');
+  if (sek.logo_url && logo) {
+    logo.src = sek.logo_url;
+    logo.style.display = 'block';
+    if (logoFb) logoFb.style.display = 'none';
+    logo.onerror = () => {
+      logo.style.display = 'none';
+      if (logoFb) { logoFb.style.display = 'flex'; logoFb.textContent = (namaSek || 'S').charAt(0); }
+    };
+  } else {
+    if (logo) logo.style.display = 'none';
+    if (logoFb) {
+      logoFb.style.display = 'flex';
+      logoFb.textContent = (namaSek || 'S').charAt(0).toUpperCase();
+    }
+  }
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('plDasar', 'Keputusan Kepala ' + namaSek);
+  set('plNoSk', p.sk_kelulusan || '—');
+  set('plTglSk', plFmtDateId(p.tgl_kelulusan || s.tgl_lulus));
+  set('plTahun', tahun);
+  set('plNama', s.nama || '—');
+  set('plNisn', s.nisn || '—');
+  set('plSekolahNama', namaSek);
+  set('plPredikat', (s.predikat || '—').toUpperCase());
+  set('plKetSekolah', namaSek);
+  set('plKetTahun', tahun);
+
+  const stEl = document.getElementById('plStatus');
+  const key = String(s.status_key || s.status || 'LULUS').toUpperCase();
+  if (stEl) {
+    stEl.textContent = key.includes('TANGGUH') ? 'DITANGGUHKAN' : (key.includes('TIDAK') ? 'TIDAK LULUS' : 'LULUS');
+    stEl.className = 'pl-status';
+    if (stEl.textContent === 'LULUS') stEl.classList.add('LULUS');
+    else if (stEl.textContent === 'DITANGGUHKAN') stEl.classList.add('DITANGGUHKAN');
+    else stEl.classList.add('TIDAK');
+  }
+  const predLine = document.getElementById('plPredikatLine');
+  if (predLine) {
+    if (stEl && stEl.textContent === 'LULUS') {
+      predLine.style.display = '';
+      predLine.innerHTML = `Dari ${escapeHtml(namaSek)} dengan Predikat <b id="plPredikat">${escapeHtml((s.predikat || '—').toUpperCase())}</b>`;
+    } else {
+      predLine.style.display = '';
+      predLine.textContent = `Dari ${namaSek}`;
+    }
+  }
+}
+
+async function loadPengumumanLulus(nisn) {
+  const empty = document.getElementById('plEmpty');
+  if (empty) { empty.style.display = ''; empty.textContent = 'Memuat…'; }
+  document.getElementById('plContent') && (document.getElementById('plContent').style.display = 'none');
+  try {
+    const res = await apiCall('pengumuman_kelulusan', { nisn: String(nisn || '').replace(/\D/g, '') });
+    renderPengumumanLulus(res.data || res);
+  } catch (e) {
+    if (empty) { empty.style.display = ''; empty.textContent = errToText(e); }
+    document.getElementById('plContent') && (document.getElementById('plContent').style.display = 'none');
+  }
+}
+
+async function initPengumumanLulusPage() {
+  const sess = getSession();
+  const wrap = document.getElementById('plSearchWrap');
+  const isSiswa = sess?.role === 'siswa';
+  // siswa: otomatis; admin/guru/tamu boleh cari
+  if (wrap) wrap.style.display = isSiswa ? 'none' : '';
+
+  // logo default dari store
+  const sek = store.sekolah || {};
+  if (sek.logo_url) {
+    const logo = document.getElementById('plLogo');
+    const logoFb = document.getElementById('plLogoFb');
+    if (logo) { logo.src = sek.logo_url; logo.style.display = 'block'; }
+    if (logoFb) logoFb.style.display = 'none';
+  }
+
+  if (isSiswa) {
+    const nisn = sess.user?.nisn || sess.user?.kode || '';
+    await loadPengumumanLulus(nisn);
+  } else {
+    const empty = document.getElementById('plEmpty');
+    const content = document.getElementById('plContent');
+    if (content) content.style.display = 'none';
+    if (empty) {
+      empty.style.display = '';
+      empty.textContent = 'Cari NISN / nama pada data lulusan untuk menampilkan pengumuman.';
+    }
+  }
+}
+
+document.getElementById('btnPlCari')?.addEventListener('click', async () => {
+  const q = document.getElementById('plQ')?.value?.trim() || '';
+  if (!q) { toast('Isi NISN atau nama', 'err'); return; }
+  const dig = q.replace(/\D/g, '');
+  if (dig.length >= 8) {
+    await loadPengumumanLulus(dig);
+    return;
+  }
+  // cari di store.lulusan by nama
+  const qq = q.toLowerCase();
+  let list = (store.lulusan || []).filter(l =>
+    String(l.nama || '').toLowerCase().includes(qq) || String(l.nisn || '').includes(dig)
+  );
+  if (!list.length) {
+    try {
+      const res = await apiCall('list_lulusan', {});
+      if (res?.data) {
+        store.lulusan = res.data;
+        list = res.data.filter(l =>
+          String(l.nama || '').toLowerCase().includes(qq) || String(l.nisn || '').includes(dig)
+        );
+      }
+    } catch (_) {}
+  }
+  if (list.length === 1) {
+    await loadPengumumanLulus(list[0].nisn);
+  } else if (list.length > 1) {
+    toast(`Ditemukan ${list.length} data — ketik NISN lebih spesifik`, 'err');
+  } else {
+    toast('Data lulusan tidak ditemukan', 'err');
+  }
+});
+document.getElementById('plQ')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btnPlCari')?.click();
   }
 });
 
