@@ -1481,7 +1481,7 @@
       <div class="submenu">
         <a href="#" class="active" data-page="dashboard"><span class="ico">📊</span> Dashboard</a>
         <a href="#" data-page="cari-siswa"><span class="ico">🔍</span> Cari Data Siswa</a>
-        <a href="#" data-page="validasi-lulusan"><span class="ico">✅</span> Validasi Data Lulusan</a>
+        <a href="#" data-page="validasi-lulusan" id="navValidasiLulusan"><span class="ico">✅</span> <span id="navValidasiLulusanLabel">Validasi Data Lulusan</span></a>
       </div>
     </div>
 
@@ -1494,7 +1494,6 @@
         <a href="#" data-page="syarat-naik"><span class="ico">📋</span> Cek Syarat Naik Kelas / Lulus</a>
         <a href="#" data-page="tugas-ujian"><span class="ico">📝</span> Kerjakan Tugas / Ujian</a>
         <a href="#" data-page="nilai-saya"><span class="ico">📈</span> Lihat Nilai Saya</a>
-        <a href="#" data-page="pengumuman-lulus"><span class="ico">📢</span> Pengumuman Kelulusan</a>
       </div>
     </div>
 
@@ -1734,6 +1733,7 @@
       <button type="button" class="btn btn-success" data-crud="lulusan" data-act="tambah">➕ Tambah</button>
       <button type="button" class="btn btn-primary" data-crud="lulusan" data-act="impor">📥 Impor</button>
       <button type="button" class="btn btn-outline" data-crud="lulusan" data-act="template">📄 Template</button>
+      <button type="button" class="btn" id="btnBatalLulusanMassal" style="background:#ef6c00;color:#fff">↩ Batalkan Terpilih</button>
       <button type="button" class="btn btn-danger" data-crud="lulusan" data-act="hapus-massal">🗑️ Hapus Massal</button>
       <div class="spacer"></div>
       <input type="search" class="search-box" id="searchLulusan" placeholder="Cari nama / NISN…" />
@@ -2853,21 +2853,39 @@
       <div id="vlContent" style="display:none">
         <img class="vl-logo" id="vlLogo" alt="Logo" style="display:none" />
         <div class="vl-logo-fb" id="vlLogoFb">S</div>
-        <div class="vl-title">Validasi Data Lulusan</div>
-        <div class="vl-fields">
-          <div class="vl-row"><span>Nama</span><span>:</span><span class="vl-val emph" id="vlNama">—</span></div>
-          <div class="vl-row"><span>NISN</span><span>:</span><span class="vl-val" id="vlNisn">—</span></div>
-          <div class="vl-row"><span>T. Lahir</span><span>:</span><span class="vl-val" id="vlTlahir">—</span></div>
-          <div class="vl-row"><span>Status Awal</span><span>:</span><span class="vl-val" id="vlStatusAwal">—</span></div>
-          <div class="vl-row"><span>Tanggal Masuk</span><span>:</span><span class="vl-val" id="vlTglMasuk">—</span></div>
-          <div class="vl-row"><span>Tanggal Lulus</span><span>:</span><span class="vl-val" id="vlTglLulus">—</span></div>
-          <div class="vl-row"><span>Lama Belajar</span><span>:</span><span class="vl-val" id="vlLama">—</span></div>
-          <div class="vl-row"><span>Status Lulus</span><span>:</span><span class="vl-val emph" id="vlStatus">—</span></div>
-          <div class="vl-row"><span>Predikat Lulus</span><span>:</span><span class="vl-val emph" id="vlPredikat">—</span></div>
+        <div class="vl-title" id="vlSheetTitle">Validasi Data Lulusan</div>
+        <div id="vlFieldsBlock">
+          <div class="vl-fields">
+            <div class="vl-row"><span>Nama</span><span>:</span><span class="vl-val emph" id="vlNama">—</span></div>
+            <div class="vl-row"><span>NISN</span><span>:</span><span class="vl-val" id="vlNisn">—</span></div>
+            <div class="vl-row"><span>T. Lahir</span><span>:</span><span class="vl-val" id="vlTlahir">—</span></div>
+            <div class="vl-row"><span>Status Awal</span><span>:</span><span class="vl-val" id="vlStatusAwal">—</span></div>
+            <div class="vl-row"><span>Tanggal Masuk</span><span>:</span><span class="vl-val" id="vlTglMasuk">—</span></div>
+            <div class="vl-row"><span>Tanggal Lulus</span><span>:</span><span class="vl-val" id="vlTglLulus">—</span></div>
+            <div class="vl-row"><span>Lama Belajar</span><span>:</span><span class="vl-val" id="vlLama">—</span></div>
+            <div class="vl-row"><span>Status Lulus</span><span>:</span><span class="vl-val emph" id="vlStatus">—</span></div>
+            <div class="vl-row"><span>Predikat Lulus</span><span>:</span><span class="vl-val emph" id="vlPredikat">—</span></div>
+          </div>
+          <div class="vl-skt">
+            <button type="button" class="linkish" id="btnVlSkt">Link SKT Validasi Data Lulusan</button>
+            <div id="vlSktInfo" style="font-size:11px;color:#546e7a;margin-top:6px"></div>
+          </div>
         </div>
-        <div class="vl-skt">
-          <button type="button" class="linkish" id="btnVlSkt">Link SKT Validasi Data Lulusan</button>
-          <div id="vlSktInfo" style="font-size:11px;color:#546e7a;margin-top:6px"></div>
+        <div id="plContentEmbed" style="display:none">
+          <div class="pl-sk" style="text-align:left;display:inline-block;max-width:100%;font-size:10.5px;margin-bottom:6px">
+            <div class="pl-row" style="display:grid;grid-template-columns:64px 8px 1fr;gap:0 2px"><span>Berdasarkan</span><span></span><span id="plDasarEmbed">—</span></div>
+            <div class="pl-row" style="display:grid;grid-template-columns:64px 8px 1fr;gap:0 2px"><span>No</span><span>:</span><span id="plNoSkEmbed">—</span></div>
+            <div class="pl-row" style="display:grid;grid-template-columns:64px 8px 1fr;gap:0 2px"><span>Tanggal</span><span>:</span><span id="plTglSkEmbed">—</span></div>
+          </div>
+          <div style="font-size:10.5px;margin:4px 0">Tentang<br><b>Penetapan Kelulusan Peserta Didik Tahun Ajaran <span id="plTahunEmbed">—</span></b></div>
+          <div style="font-size:11px;font-weight:700;margin:6px 0 4px">Memutuskan :</div>
+          <div style="font-size:11.5px;text-align:left;display:inline-block">
+            <div style="display:grid;grid-template-columns:48px 8px 1fr"><span>Nama</span><span>:</span><span class="pl-nama" id="plNamaEmbed" style="font-weight:800">—</span></div>
+            <div style="display:grid;grid-template-columns:48px 8px 1fr"><span>NISN</span><span>:</span><span id="plNisnEmbed">—</span></div>
+          </div>
+          <div style="font-size:11px;margin-top:6px">Dinyatakan</div>
+          <div class="pl-status LULUS" id="plStatusEmbed" style="font-size:22px;font-weight:900">LULUS</div>
+          <div id="plPredikatLineEmbed" style="font-size:11px;margin-bottom:6px">—</div>
         </div>
       </div>
     </div>
@@ -3952,6 +3970,7 @@ function resolveNavTarget(page) {
   const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
+  if (page === 'pengumuman-lulus') target = 'validasi-lulusan';
   return target;
 }
 
@@ -4040,8 +4059,7 @@ function navigate(page, opts = {}) {
   if (target === 'tugas-ujian') runPage(() => initTugasUjianPage());
   if (target === 'arsip-absensi') runPage(() => initArsipAbsensiPage());
   if (target === 'integrasi-gdrive') runPage(() => initGdrivePage());
-  if (target === 'pengumuman-lulus') runPage(() => initPengumumanLulusPage());
-  if (target === 'validasi-lulusan') runPage(() => initValidasiLulusanPage());
+  if (target === 'pengumuman-lulus' || target === 'validasi-lulusan') runPage(() => initValidasiLulusanPage());
   if (target !== 'scan-barcode') {
     try { stopQrScanner(); } catch (_) {}
   }
@@ -4390,6 +4408,7 @@ function renderLulusan(filter) {
       <td>${escapeHtml(l.asal_sekolah || '-')}</td>
       <td>
         <button type="button" class="btn btn-outline btn-sm" data-edit="lulusan" data-id="${l.id}">✏️</button>
+        <button type="button" class="btn btn-sm" data-batal-lulusan="${l.id}" style="background:#ef6c00;color:#fff" title="Batalkan & kembalikan ke Data Siswa">↩ Batalkan</button>
         <button type="button" class="btn btn-danger btn-sm" data-del="lulusan" data-id="${l.id}">🗑️</button>
       </td>
     </tr>`;
@@ -9769,39 +9788,137 @@ async function loadValidasiLulusan(nisn) {
   }
 }
 
+let _kelulusanMenuMode = null; // { mode: 'validasi'|'pengumuman', ... }
+
+async function refreshKelulusanMenuMode() {
+  try {
+    const res = await apiCall('kelulusan_menu_mode', {});
+    _kelulusanMenuMode = res.data || res;
+  } catch (_) {
+    _kelulusanMenuMode = { mode: 'validasi', label: 'Validasi Data Lulusan' };
+  }
+  const label = _kelulusanMenuMode.label || 'Validasi Data Lulusan';
+  const navLab = document.getElementById('navValidasiLulusanLabel');
+  if (navLab) navLab.textContent = label;
+  const title = document.querySelector('#page-validasi-lulusan .page-title');
+  if (title) {
+    title.innerHTML = (_kelulusanMenuMode.mode === 'pengumuman' ? '📢 ' : '✅ ') + label;
+  }
+  return _kelulusanMenuMode;
+}
+
 async function initValidasiLulusanPage() {
+  const mode = await refreshKelulusanMenuMode();
   const sess = getSession();
   const wrap = document.getElementById('vlSearchWrap');
   const isSiswa = sess?.role === 'siswa';
+  // Di mode pengumuman: siswa aktif boleh lihat; alumni (tidak login siswa) harus cari — tapi API tolak alumni
   if (wrap) wrap.style.display = isSiswa ? 'none' : '';
+
+  // Toggle sheet: validasi fields vs pengumuman sheet
+  const vlContent = document.getElementById('vlContent');
+  const plContent = document.getElementById('plContentEmbed');
+  applyKelulusanSheetMode(mode.mode);
 
   const sek = store.sekolah || {};
   if (sek.logo_url) {
-    const logo = document.getElementById('vlLogo');
-    const logoFb = document.getElementById('vlLogoFb');
-    if (logo) { logo.src = sek.logo_url; logo.style.display = 'block'; }
-    if (logoFb) logoFb.style.display = 'none';
+    ['vlLogo', 'plLogoEmbed'].forEach(id => {
+      const logo = document.getElementById(id);
+      if (logo) { logo.src = sek.logo_url; logo.style.display = 'block'; }
+    });
+    ['vlLogoFb', 'plLogoFbEmbed'].forEach(id => {
+      const fb = document.getElementById(id);
+      if (fb) fb.style.display = 'none';
+    });
   }
 
+  const empty = document.getElementById('vlEmpty');
   if (isSiswa) {
-    await loadValidasiLulusan(sess.user?.nisn || sess.user?.kode || '');
+    const nisn = sess.user?.nisn || sess.user?.kode || '';
+    if (mode.mode === 'pengumuman') await loadPengumumanViaValidasiPage(nisn);
+    else await loadValidasiLulusan(nisn);
   } else {
-    const empty = document.getElementById('vlEmpty');
-    const content = document.getElementById('vlContent');
-    if (content) content.style.display = 'none';
+    if (vlContent) vlContent.style.display = 'none';
+    if (plContent) plContent.style.display = 'none';
     if (empty) {
       empty.style.display = '';
-      empty.textContent = 'Cari NISN / nama pada Data Lulusan untuk validasi.';
+      empty.textContent = mode.mode === 'pengumuman'
+        ? 'Mode Pengumuman Kelulusan (H-2 s/d H+2). Cari NISN peserta didik tahun ajaran berjalan.'
+        : 'Cari NISN / nama pada Data Lulusan untuk validasi.';
     }
   }
 }
+
+function applyKelulusanSheetMode(mode) {
+  const vlFields = document.getElementById('vlFieldsBlock');
+  const plBlock = document.getElementById('plContentEmbed');
+  const vlTitle = document.getElementById('vlSheetTitle');
+  if (mode === 'pengumuman') {
+    if (vlFields) vlFields.style.display = 'none';
+    if (plBlock) plBlock.style.display = '';
+    if (vlTitle) vlTitle.textContent = 'Pengumuman Kelulusan';
+  } else {
+    if (vlFields) vlFields.style.display = '';
+    if (plBlock) plBlock.style.display = 'none';
+    if (vlTitle) vlTitle.textContent = 'Validasi Data Lulusan';
+  }
+}
+
+async function loadPengumumanViaValidasiPage(nisn) {
+  const empty = document.getElementById('vlEmpty');
+  const content = document.getElementById('vlContent');
+  if (empty) { empty.style.display = ''; empty.textContent = 'Memuat…'; }
+  if (content) content.style.display = 'none';
+  try {
+    const res = await apiCall('pengumuman_kelulusan', { nisn: String(nisn || '').replace(/\D/g, '') });
+    const data = res.data || res;
+    if (empty) empty.style.display = 'none';
+    if (content) content.style.display = '';
+    applyKelulusanSheetMode('pengumuman');
+    // reuse renderPengumuman into embed ids
+    renderPengumumanEmbed(data);
+  } catch (e) {
+    if (empty) { empty.style.display = ''; empty.textContent = errToText(e); }
+    if (content) content.style.display = 'none';
+  }
+}
+
+function renderPengumumanEmbed(data) {
+  const s = data.siswa || {};
+  const p = data.periode || {};
+  const sek = data.sekolah || store.sekolah || {};
+  const namaSek = sek.nama || 'Sekolah';
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('plDasarEmbed', 'Keputusan Kepala ' + namaSek);
+  set('plNoSkEmbed', p.sk_kelulusan || '—');
+  set('plTglSkEmbed', typeof plFmtDateId === 'function' ? plFmtDateId(p.tgl_kelulusan || s.tgl_lulus) : (p.tgl_kelulusan || '—'));
+  set('plTahunEmbed', p.tahun_ajaran || s.tahun_lulus || '—');
+  set('plNamaEmbed', s.nama || '—');
+  set('plNisnEmbed', s.nisn || '—');
+  const stEl = document.getElementById('plStatusEmbed');
+  const key = String(s.status_key || s.status || 'LULUS').toUpperCase();
+  const label = key.includes('TANGGUH') ? 'DITANGGUHKAN' : (key.includes('TIDAK') ? 'TIDAK LULUS' : 'LULUS');
+  if (stEl) {
+    stEl.textContent = label;
+    stEl.className = 'pl-status ' + (label === 'LULUS' ? 'LULUS' : (label === 'DITANGGUHKAN' ? 'DITANGGUHKAN' : 'TIDAK'));
+  }
+  const pred = document.getElementById('plPredikatLineEmbed');
+  if (pred) {
+    pred.innerHTML = label === 'LULUS'
+      ? `Dari ${escapeHtml(namaSek)} dengan Predikat <b>${escapeHtml(String(s.predikat || '—').toUpperCase())}</b>`
+      : `Dari ${escapeHtml(namaSek)}`;
+  }
+}
+
 
 document.getElementById('btnVlCari')?.addEventListener('click', async () => {
   const q = document.getElementById('vlQ')?.value?.trim() || '';
   if (!q) { toast('Isi NISN atau nama', 'err'); return; }
   const dig = q.replace(/\D/g, '');
+  const mode = (_kelulusanMenuMode && _kelulusanMenuMode.mode) || 'validasi';
   if (dig.length >= 8) {
-    await loadValidasiLulusan(dig);
+    if (mode === 'pengumuman') await loadPengumumanViaValidasiPage(dig);
+    else await loadValidasiLulusan(dig);
     return;
   }
   const qq = q.toLowerCase();
@@ -9819,7 +9936,10 @@ document.getElementById('btnVlCari')?.addEventListener('click', async () => {
       }
     } catch (_) {}
   }
-  if (list.length === 1) await loadValidasiLulusan(list[0].nisn);
+  if (list.length === 1) {
+    if (((_kelulusanMenuMode&&_kelulusanMenuMode.mode)||'validasi')==='pengumuman') await loadPengumumanViaValidasiPage(list[0].nisn);
+    else await loadValidasiLulusan(list[0].nisn);
+  }
   else if (list.length > 1) toast(`Ditemukan ${list.length} data — ketik NISN lebih spesifik`, 'err');
   else toast('Data lulusan tidak ditemukan', 'err');
 });
@@ -9880,6 +10000,43 @@ document.getElementById('btnCleanupLulusan')?.addEventListener('click', async ()
   }
 });
 
+
+/* Batalkan lulusan → kembalikan ke Data Siswa */
+document.getElementById('tbodyLulusan')?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-batal-lulusan]');
+  if (!btn) return;
+  if (getSession()?.role !== 'admin') { toast('Hanya admin', 'err'); return; }
+  const id = btn.getAttribute('data-batal-lulusan');
+  if (!confirm('Batalkan kelulusan siswa ini?\nData dihapus dari Lulusan dan dikembalikan ke Data Siswa.')) return;
+  try {
+    const res = await apiCall('batal_lulusan', { id });
+    toast(res.message || 'Dibatalkan', 'ok');
+    await refreshStoreFromDb();
+    renderLulusan();
+    if (typeof renderSiswa === 'function') renderSiswa();
+  } catch (err) {
+    toast(errToText(err), 'err');
+    showBigPopup('err', 'Gagal Batalkan', errToText(err), 0);
+  }
+});
+document.getElementById('btnBatalLulusanMassal')?.addEventListener('click', async () => {
+  if (getSession()?.role !== 'admin') { toast('Hanya admin', 'err'); return; }
+  const ids = [...document.querySelectorAll('#tbodyLulusan .row-check:checked')].map(c => c.value);
+  if (!ids.length) { toast('Pilih baris terlebih dahulu', 'err'); return; }
+  if (!confirm(`Batalkan ${ids.length} lulusan dan kembalikan ke Data Siswa?`)) return;
+  try {
+    const res = await apiCall('batal_lulusan', { ids });
+    toast(res.message || 'Selesai', 'ok');
+    showBigPopup('ok', 'Batalkan Lulusan', res.message || '', 2800);
+    await refreshStoreFromDb();
+    renderLulusan();
+    if (typeof renderSiswa === 'function') renderSiswa();
+  } catch (err) {
+    toast(errToText(err), 'err');
+    showBigPopup('err', 'Gagal', errToText(err), 0);
+  }
+});
+
 /* ===== Init ===== */
 (async function init() {
   try {
@@ -9887,6 +10044,7 @@ document.getElementById('btnCleanupLulusan')?.addEventListener('click', async ()
     const session = getSession();
     try { renderUserUI(session); } catch (e) { console.warn(e); }
     try { applySekolahToUI(); } catch (e) { console.warn(e); }
+  try { if (typeof refreshKelulusanMenuMode === 'function') refreshKelulusanMenuMode(); } catch (_) {}
     try { updatePeriodeBadges(); } catch (e) { console.warn(e); }
 
     // 2) Tampilkan dashboard dari cache segera
