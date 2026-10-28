@@ -4226,6 +4226,43 @@ function renderGuru(filter) {
   }).join('');
 }
 
+function resolvePeriodeRow(periodeId) {
+  if (periodeId) {
+    const p = (store.periode || []).find(x => String(x.id) === String(periodeId));
+    if (p) return p;
+  }
+  return getActivePeriode();
+}
+
+/** TGL LULUS dari periode.tgl_kelulusan (fallback tgl_akhir) */
+function tglLulusFromPeriode(periodeId, fallback) {
+  const p = resolvePeriodeRow(periodeId);
+  const t = p?.tgl_kelulusan || p?.tgl_akhir || fallback;
+  return t ? String(t).slice(0, 10) : '';
+}
+
+/** Lama belajar: Siswa Baru = 3 tahun; Pindahan = mulai_sekolah → akhir tahun ajaran */
+function hitungLamaBelajarClient(statusAwal, mulaiSekolah, periodeId) {
+  const sa = String(statusAwal || '').toLowerCase();
+  if (sa.includes('baru')) return '3 tahun';
+  const p = resolvePeriodeRow(periodeId);
+  const start = mulaiSekolah ? String(mulaiSekolah).slice(0, 10) : '';
+  const end = (p?.tgl_kelulusan || p?.tgl_akhir || '') ? String(p.tgl_kelulusan || p.tgl_akhir).slice(0, 10) : '';
+  if (!start || !end) return sa.includes('pindah') ? '—' : '3 tahun';
+  const [ys, ms, ds] = start.split('-').map(Number);
+  const [ye, me, de] = end.split('-').map(Number);
+  if (!ys || !ye) return '—';
+  let months = (ye - ys) * 12 + (me - ms);
+  if (de < ds) months -= 1;
+  if (months < 0) months = 0;
+  const th = Math.floor(months / 12);
+  const bl = months % 12;
+  if (th <= 0 && bl <= 0) return '0 bulan';
+  if (th > 0 && bl > 0) return th + ' tahun ' + bl + ' bulan';
+  if (th > 0) return th + ' tahun';
+  return bl + ' bulan';
+}
+
 function renderLulusan(filter) {
   updatePeriodeBadges();
   const q = (filter || document.getElementById('searchLulusan')?.value || '').toLowerCase();
@@ -4242,7 +4279,10 @@ function renderLulusan(filter) {
     tb.innerHTML = '<tr class="empty-row"><td colspan="15">Belum ada data lulusan</td></tr>';
     return;
   }
-  tb.innerHTML = rows.map((l, i) => `
+  tb.innerHTML = rows.map((l, i) => {
+    const tglLulus = tglLulusFromPeriode(l.periode_id, l.tgl_lulus);
+    const lama = hitungLamaBelajarClient(l.status_awal, l.mulai_sekolah, l.periode_id) || l.lama_belajar || '-';
+    return `
     <tr data-id="${l.id}">
       <td><input type="checkbox" class="row-check" value="${l.id}" /></td>
       <td>${i + 1}</td>
@@ -4254,16 +4294,17 @@ function renderLulusan(filter) {
       <td>${escapeHtml(l.tmp_lahir || '-')}</td>
       <td>${fmtDate(l.tgl_lahir)}</td>
       <td>${fmtDate(l.mulai_sekolah)}</td>
-      <td>${fmtDate(l.tgl_lulus)}</td>
+      <td>${fmtDate(tglLulus)}</td>
       <td>${escapeHtml(l.tahun_lulus || '-')}</td>
-      <td>${escapeHtml(l.lama_belajar || '-')}</td>
+      <td>${escapeHtml(lama)}</td>
       <td>${escapeHtml(l.status_awal || '-')}</td>
       <td>${escapeHtml(l.asal_sekolah || '-')}</td>
       <td>
         <button type="button" class="btn btn-outline btn-sm" data-edit="lulusan" data-id="${l.id}">✏️</button>
         <button type="button" class="btn btn-danger btn-sm" data-del="lulusan" data-id="${l.id}">🗑️</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 function renderPeriode(filter) {
@@ -4331,9 +4372,9 @@ const FORM_FIELDS = {
     { key: 'tmp_lahir', label: 'Tempat Lahir' },
     { key: 'tgl_lahir', label: 'Tanggal Lahir', type: 'date' },
     { key: 'mulai_sekolah', label: 'Mulai Sekolah', type: 'date' },
-    { key: 'tgl_lulus', label: 'Tanggal Lulus', type: 'date' },
+    { key: 'tgl_lulus', label: 'Tgl Lulus (otomatis dari Periode)', type: 'date' },
     { key: 'tahun_lulus', label: 'Tahun Lulus', type: 'number' },
-    { key: 'lama_belajar', label: 'Lama Belajar' },
+    { key: 'lama_belajar', label: 'Lama Belajar (otomatis)' },
     { key: 'status_awal', label: 'Status Awal' },
     { key: 'asal_sekolah', label: 'Asal Sekolah', full: true },
   ],
