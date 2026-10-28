@@ -2455,6 +2455,7 @@
     <div id="nkPanelLulus" style="display:none">
       <div class="crud-toolbar" style="margin-bottom:10px;flex-wrap:wrap">
         <button type="button" class="btn" id="btnLuluskan" style="background:#1565c0;color:#fff">Luluskan</button>
+        <button type="button" class="btn btn-outline" id="btnCleanupLulusan" title="Pindahkan sisa status final ke Data Lulusan">↻ Sync Lulusan</button>
         <select id="btnUbahStatusLulus" class="btn btn-success" title="Ubah status kelulusan massal"
           style="appearance:auto;padding:6px 10px;border:none;border-radius:3px;background:#2e7d32;color:#fff;font-size:11px;font-weight:600;cursor:pointer">
           <option value="">Ubah Status ▾</option>
@@ -8952,9 +8953,11 @@ document.getElementById('btnUbahStatusLulus')?.addEventListener('change', async 
     });
     toast(res.message || `Status → ${st} (${ids.length})`, 'ok');
     if (res.moved) {
-      showBigPopup('ok', 'Data Lulusan', res.message || `${res.moved} siswa dipindah ke Data Lulusan.`, 2500);
+      try { await apiCall('cleanup_lulusan_siswa', {}); } catch (_) {}
+      showBigPopup('ok', 'Data Lulusan', res.message || `${res.moved} siswa dipindah & dihapus dari Data Siswa.`, 2800);
       try { await refreshStoreFromDb(); } catch (_) {}
       if (typeof renderLulusan === 'function') renderLulusan();
+      if (typeof renderSiswa === 'function') renderSiswa();
     }
     renderKelulusanTable();
   } catch (err) { toast(errToText(err), 'err'); }
@@ -9000,10 +9003,17 @@ document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
   if (!confirm(`Pindahkan ${ids.length} siswa ke Data Lulusan?\nData akan dihapus dari Data Siswa.\n(Status Lulus, Ditangguhkan, Tidak Lulus)`)) return;
   try {
     const res = await apiCall('apply_kelulusan', { ids });
-    toast(res.message || 'Kelulusan diterapkan', 'ok');
-    showBigPopup('ok', 'Data Lulusan', res.message || `${ids.length} siswa dipindah.`, 2800);
+    // Bersihkan sisa siswa yang status final masih nyangkut di tabel siswa
+    let cleanMsg = '';
+    try {
+      const c = await apiCall('cleanup_lulusan_siswa', {});
+      if (c.moved) cleanMsg = ` · cleanup +${c.moved}`;
+    } catch (_) {}
+    toast((res.message || 'Kelulusan diterapkan') + cleanMsg, 'ok');
+    showBigPopup('ok', 'Data Lulusan', (res.message || `${ids.length} siswa dipindah.`) + cleanMsg, 3200);
     await refreshStoreFromDb();
     renderKelulusanTable();
+    if (typeof renderSiswa === 'function') renderSiswa();
     if (typeof renderLulusan === 'function') renderLulusan();
   } catch (e) {
     toast(errToText(e), 'err');
@@ -9850,6 +9860,24 @@ document.getElementById('btnVlSkt')?.addEventListener('click', () => {
   const w = window.open('', '_blank');
   if (w) { w.document.write(html); w.document.close(); }
   else toast('Izinkan pop-up untuk membuka SKT', 'err');
+});
+
+
+document.getElementById('btnCleanupLulusan')?.addEventListener('click', async () => {
+  if (!nkIsAdmin()) { toast('Hanya admin', 'err'); return; }
+  if (!confirm('Pindahkan semua siswa berstatus Lulus / Ditangguhkan / Tidak Lulus ke Data Lulusan dan hapus dari Data Siswa?')) return;
+  try {
+    const res = await apiCall('cleanup_lulusan_siswa', {});
+    toast(res.message || 'Selesai', res.moved ? 'ok' : 'err');
+    showBigPopup(res.moved ? 'ok' : 'err', 'Sync Lulusan', res.message || '', res.moved ? 3000 : 0);
+    await refreshStoreFromDb();
+    renderKelulusanTable();
+    if (typeof renderSiswa === 'function') renderSiswa();
+    if (typeof renderLulusan === 'function') renderLulusan();
+  } catch (e) {
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Gagal Sync', errToText(e), 0);
+  }
 });
 
 /* ===== Init ===== */
