@@ -2476,8 +2476,8 @@
       </div>
       <p style="font-size:12px;color:#555;margin:0 0 10px;line-height:1.45">
         <b>Jika di Klik Luluskan</b><br>
-        Status <b>Lulus</b>, <b>Ditangguhkan</b>, dan <b>Tidak Lulus</b> otomatis dipindah ke <b>Data Lulusan</b>.<br>
-        <span style="color:#888">Hanya kelas akhir (IX / 9). <b>Belum ditentukan</b> tidak dipindah. Gunakan dropdown Status / Predikat untuk ubah massal.</span>
+        Status <b>Lulus</b>, <b>Ditangguhkan</b>, dan <b>Tidak Lulus</b> dipindah ke <b>Data Lulusan</b> dan <b>dihapus dari Data Siswa</b>.<br>
+        <span style="color:#888">Hanya kelas akhir (IX / 9). <b>Belum ditentukan</b> tidak dipindah. Setelah dipindah, login siswa tidak berlaku (akses seperti tamu).</span>
       </p>
       <div class="data-card">
         <div class="data-table-wrap">
@@ -8821,7 +8821,7 @@ function renderKelulusanTable() {
           if (typeof nkIsStatusFinal === 'function' && nkIsStatusFinal(sel.value)) row.status = sel.value;
         }
         if (res.moved) {
-          toast('Disimpan & dipindah ke Data Lulusan', 'ok');
+          toast('Dipindah ke Data Lulusan & dihapus dari Data Siswa', 'ok');
           try { await refreshStoreFromDb(); } catch (_) {}
           if (typeof renderLulusan === 'function') renderLulusan();
         } else {
@@ -8997,7 +8997,7 @@ document.getElementById('btnLuluskan')?.addEventListener('click', async () => {
     toast('Tidak ada siswa berstatus Lulus / Ditangguhkan / Tidak Lulus. Ubah status dulu (Belum ditentukan tidak dipindah).', 'err');
     return;
   }
-  if (!confirm(`Pindahkan ${ids.length} siswa ke Data Lulusan?\n(Status Lulus, Ditangguhkan, Tidak Lulus)`)) return;
+  if (!confirm(`Pindahkan ${ids.length} siswa ke Data Lulusan?\nData akan dihapus dari Data Siswa.\n(Status Lulus, Ditangguhkan, Tidak Lulus)`)) return;
   try {
     const res = await apiCall('apply_kelulusan', { ids });
     toast(res.message || 'Kelulusan diterapkan', 'ok');
