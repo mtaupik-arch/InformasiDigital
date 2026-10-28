@@ -761,6 +761,61 @@
     .pl-status { font-size: 18px; }
   }
 
+  /* ===== VALIDASI DATA LULUSAN ===== */
+  #page-validasi-lulusan { max-width: 480px; margin: 0 auto; }
+  #page-validasi-lulusan .page-title { font-size: 14px; margin-bottom: 6px; }
+  .vl-sheet {
+    background: #fff; border-radius: 10px; border: 1px solid #e8eef5;
+    box-shadow: 0 1px 8px rgba(0,0,0,.08); padding: 12px 14px 14px;
+    text-align: center; color: #222; line-height: 1.3;
+  }
+  .vl-logo {
+    width: 56px; height: 56px; margin: 0 auto 6px; object-fit: contain; display: block;
+  }
+  .vl-logo-fb {
+    width: 56px; height: 56px; margin: 0 auto 6px; border-radius: 50%;
+    background: linear-gradient(135deg,#1565c0,#42a5f5); color: #fff;
+    font-weight: 800; font-size: 20px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .vl-title {
+    font-size: 13px; font-weight: 800; letter-spacing: .3px;
+    text-transform: uppercase; margin: 2px 0 10px; color: #111;
+  }
+  .vl-fields {
+    text-align: left; font-size: 12px; color: #222;
+    display: inline-block; max-width: 100%; width: 100%;
+  }
+  .vl-row {
+    display: grid; grid-template-columns: 110px 10px 1fr;
+    gap: 2px 4px; margin-bottom: 4px; align-items: start;
+  }
+  .vl-row .vl-val { font-weight: 600; word-break: break-word; }
+  .vl-row .vl-val.emph { font-weight: 800; text-transform: uppercase; }
+  .vl-skt {
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid #e0e6ed;
+    font-size: 12px;
+  }
+  .vl-skt a, .vl-skt button.linkish {
+    background: none; border: none; color: #1565c0; font-weight: 700;
+    text-decoration: underline; cursor: pointer; font-size: 12px; padding: 0;
+  }
+  .vl-search {
+    display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: nowrap;
+  }
+  .vl-search input {
+    flex: 1; min-width: 0; padding: 8px 10px; border: 1.5px solid #cfd8dc;
+    border-radius: 8px; font-size: 12px;
+  }
+  .vl-search .btn { flex-shrink: 0; padding: 8px 12px; font-size: 12px; }
+  .vl-empty { font-size: 12px; color: #78909c; padding: 16px 8px; }
+  @media(max-height:640px){
+    .vl-logo, .vl-logo-fb { width: 44px; height: 44px; font-size: 16px; }
+    .vl-title { font-size: 12px; margin-bottom: 6px; }
+    .vl-fields { font-size: 11px; }
+    .vl-row { margin-bottom: 2px; }
+  }
+
   /* ===== PAGE CRUD ===== */
   .page { display:none; }
   .page.active { display:block; }
@@ -2785,6 +2840,38 @@
     </div>
   </div>
 
+  <!-- ========== PAGE: VALIDASI DATA LULUSAN ========== -->
+  <div class="page" id="page-validasi-lulusan">
+    <div class="page-title">✅ Validasi Data Lulusan</div>
+    <div class="vl-search" id="vlSearchWrap">
+      <input type="search" id="vlQ" placeholder="Cari NISN / nama lulusan…" autocomplete="off" />
+      <button type="button" class="btn btn-primary" id="btnVlCari">Cari</button>
+    </div>
+    <div class="vl-sheet" id="vlSheet">
+      <div class="vl-empty" id="vlEmpty">Masukkan NISN atau login sebagai siswa untuk memvalidasi data lulusan.</div>
+      <div id="vlContent" style="display:none">
+        <img class="vl-logo" id="vlLogo" alt="Logo" style="display:none" />
+        <div class="vl-logo-fb" id="vlLogoFb">S</div>
+        <div class="vl-title">Validasi Data Lulusan</div>
+        <div class="vl-fields">
+          <div class="vl-row"><span>Nama</span><span>:</span><span class="vl-val emph" id="vlNama">—</span></div>
+          <div class="vl-row"><span>NISN</span><span>:</span><span class="vl-val" id="vlNisn">—</span></div>
+          <div class="vl-row"><span>T. Lahir</span><span>:</span><span class="vl-val" id="vlTlahir">—</span></div>
+          <div class="vl-row"><span>Status Awal</span><span>:</span><span class="vl-val" id="vlStatusAwal">—</span></div>
+          <div class="vl-row"><span>Tanggal Masuk</span><span>:</span><span class="vl-val" id="vlTglMasuk">—</span></div>
+          <div class="vl-row"><span>Tanggal Lulus</span><span>:</span><span class="vl-val" id="vlTglLulus">—</span></div>
+          <div class="vl-row"><span>Lama Belajar</span><span>:</span><span class="vl-val" id="vlLama">—</span></div>
+          <div class="vl-row"><span>Status Lulus</span><span>:</span><span class="vl-val emph" id="vlStatus">—</span></div>
+          <div class="vl-row"><span>Predikat Lulus</span><span>:</span><span class="vl-val emph" id="vlPredikat">—</span></div>
+        </div>
+        <div class="vl-skt">
+          <button type="button" class="linkish" id="btnVlSkt">Link SKT Validasi Data Lulusan</button>
+          <div id="vlSktInfo" style="font-size:11px;color:#546e7a;margin-top:6px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -3861,7 +3948,7 @@ let navReady = false;
 let navTrapArmed = false;
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   return target;
@@ -3953,6 +4040,7 @@ function navigate(page, opts = {}) {
   if (target === 'arsip-absensi') runPage(() => initArsipAbsensiPage());
   if (target === 'integrasi-gdrive') runPage(() => initGdrivePage());
   if (target === 'pengumuman-lulus') runPage(() => initPengumumanLulusPage());
+  if (target === 'validasi-lulusan') runPage(() => initValidasiLulusanPage());
   if (target !== 'scan-barcode') {
     try { stopQrScanner(); } catch (_) {}
   }
@@ -9586,6 +9674,182 @@ document.getElementById('plQ')?.addEventListener('keydown', (e) => {
     e.preventDefault();
     document.getElementById('btnPlCari')?.click();
   }
+});
+
+
+/* ===== Validasi Data Lulusan ===== */
+function vlFmtLongDate(d) {
+  if (!d) return '—';
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return String(d);
+  const bulan = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  return `${Number(m[3])} ${bulan[Number(m[2])] || m[2]} ${m[1]}`;
+}
+
+let _vlLastData = null;
+
+function renderValidasiLulusan(data) {
+  _vlLastData = data;
+  const empty = document.getElementById('vlEmpty');
+  const content = document.getElementById('vlContent');
+  if (!data || !data.siswa) {
+    if (empty) { empty.style.display = ''; empty.textContent = 'Data tidak ditemukan.'; }
+    if (content) content.style.display = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (content) content.style.display = '';
+
+  const s = data.siswa || {};
+  const sek = data.sekolah || store.sekolah || {};
+  const namaSek = sek.nama || 'Sekolah';
+  const p = data.periode || {};
+
+  const logo = document.getElementById('vlLogo');
+  const logoFb = document.getElementById('vlLogoFb');
+  if (sek.logo_url && logo) {
+    logo.src = sek.logo_url;
+    logo.style.display = 'block';
+    if (logoFb) logoFb.style.display = 'none';
+    logo.onerror = () => {
+      logo.style.display = 'none';
+      if (logoFb) { logoFb.style.display = 'flex'; logoFb.textContent = (namaSek || 'S').charAt(0); }
+    };
+  } else {
+    if (logo) logo.style.display = 'none';
+    if (logoFb) {
+      logoFb.style.display = 'flex';
+      logoFb.textContent = (namaSek || 'S').charAt(0).toUpperCase();
+    }
+  }
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('vlNama', (s.nama || '—').toUpperCase());
+  set('vlNisn', s.nisn || '—');
+  const tLahir = [s.tmp_lahir, vlFmtLongDate(s.tgl_lahir)].filter(x => x && x !== '—').join(', ');
+  set('vlTlahir', tLahir || '—');
+  set('vlStatusAwal', s.status_awal || '—');
+  set('vlTglMasuk', vlFmtLongDate(s.mulai_sekolah));
+  set('vlTglLulus', vlFmtLongDate(s.tgl_lulus));
+  set('vlLama', s.lama_belajar || '—');
+  set('vlStatus', String(s.status || 'LULUS').toUpperCase());
+  set('vlPredikat', s.predikat ? String(s.predikat).toUpperCase() : '—');
+
+  const sktInfo = document.getElementById('vlSktInfo');
+  if (sktInfo) {
+    const parts = [];
+    if (p.sk_kelulusan) parts.push('No SK: ' + p.sk_kelulusan);
+    if (p.tgl_kelulusan) parts.push('Tgl SK: ' + vlFmtLongDate(p.tgl_kelulusan));
+    if (p.tahun_ajaran) parts.push('TA ' + p.tahun_ajaran);
+    sktInfo.textContent = parts.join(' · ') || 'SK mengacu pada periode aktif / data lulusan.';
+  }
+}
+
+async function loadValidasiLulusan(nisn) {
+  const empty = document.getElementById('vlEmpty');
+  if (empty) { empty.style.display = ''; empty.textContent = 'Memuat…'; }
+  const content = document.getElementById('vlContent');
+  if (content) content.style.display = 'none';
+  try {
+    const res = await apiCall('validasi_lulusan', { nisn: String(nisn || '').replace(/\D/g, '') });
+    renderValidasiLulusan(res.data || res);
+  } catch (e) {
+    if (empty) { empty.style.display = ''; empty.textContent = errToText(e); }
+    if (content) content.style.display = 'none';
+  }
+}
+
+async function initValidasiLulusanPage() {
+  const sess = getSession();
+  const wrap = document.getElementById('vlSearchWrap');
+  const isSiswa = sess?.role === 'siswa';
+  if (wrap) wrap.style.display = isSiswa ? 'none' : '';
+
+  const sek = store.sekolah || {};
+  if (sek.logo_url) {
+    const logo = document.getElementById('vlLogo');
+    const logoFb = document.getElementById('vlLogoFb');
+    if (logo) { logo.src = sek.logo_url; logo.style.display = 'block'; }
+    if (logoFb) logoFb.style.display = 'none';
+  }
+
+  if (isSiswa) {
+    await loadValidasiLulusan(sess.user?.nisn || sess.user?.kode || '');
+  } else {
+    const empty = document.getElementById('vlEmpty');
+    const content = document.getElementById('vlContent');
+    if (content) content.style.display = 'none';
+    if (empty) {
+      empty.style.display = '';
+      empty.textContent = 'Cari NISN / nama pada Data Lulusan untuk validasi.';
+    }
+  }
+}
+
+document.getElementById('btnVlCari')?.addEventListener('click', async () => {
+  const q = document.getElementById('vlQ')?.value?.trim() || '';
+  if (!q) { toast('Isi NISN atau nama', 'err'); return; }
+  const dig = q.replace(/\D/g, '');
+  if (dig.length >= 8) {
+    await loadValidasiLulusan(dig);
+    return;
+  }
+  const qq = q.toLowerCase();
+  let list = (store.lulusan || []).filter(l =>
+    String(l.nama || '').toLowerCase().includes(qq) || String(l.nisn || '').includes(dig)
+  );
+  if (!list.length) {
+    try {
+      const res = await apiCall('list_lulusan', {});
+      if (res?.data) {
+        store.lulusan = res.data;
+        list = res.data.filter(l =>
+          String(l.nama || '').toLowerCase().includes(qq) || String(l.nisn || '').includes(dig)
+        );
+      }
+    } catch (_) {}
+  }
+  if (list.length === 1) await loadValidasiLulusan(list[0].nisn);
+  else if (list.length > 1) toast(`Ditemukan ${list.length} data — ketik NISN lebih spesifik`, 'err');
+  else toast('Data lulusan tidak ditemukan', 'err');
+});
+document.getElementById('vlQ')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btnVlCari')?.click();
+  }
+});
+document.getElementById('btnVlSkt')?.addEventListener('click', () => {
+  if (!_vlLastData?.siswa) { toast('Belum ada data ditampilkan', 'err'); return; }
+  // Cetak / tampil ringkas di jendela baru
+  const s = _vlLastData.siswa;
+  const p = _vlLastData.periode || {};
+  const sek = _vlLastData.sekolah || store.sekolah || {};
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SKT Validasi ${escapeHtml(s.nama||'')}</title>
+  <style>
+    body{font-family:system-ui,sans-serif;max-width:420px;margin:24px auto;padding:12px;color:#111}
+    h1{font-size:15px;text-align:center;margin:8px 0 14px}
+    .row{display:grid;grid-template-columns:120px 12px 1fr;font-size:13px;margin:4px 0}
+    .logo{width:64px;height:64px;object-fit:contain;display:block;margin:0 auto}
+    .foot{margin-top:16px;font-size:12px;color:#555;text-align:center}
+  </style></head><body>
+  ${sek.logo_url ? `<img class="logo" src="${sek.logo_url}" />` : ''}
+  <h1>VALIDASI DATA LULUSAN</h1>
+  <div class="row"><span>Nama</span><span>:</span><b>${escapeHtml(s.nama||'')}</b></div>
+  <div class="row"><span>NISN</span><span>:</span><span>${escapeHtml(s.nisn||'')}</span></div>
+  <div class="row"><span>T. Lahir</span><span>:</span><span>${escapeHtml([s.tmp_lahir, vlFmtLongDate(s.tgl_lahir)].filter(Boolean).join(', '))}</span></div>
+  <div class="row"><span>Status Awal</span><span>:</span><span>${escapeHtml(s.status_awal||'')}</span></div>
+  <div class="row"><span>Tanggal Masuk</span><span>:</span><span>${vlFmtLongDate(s.mulai_sekolah)}</span></div>
+  <div class="row"><span>Tanggal Lulus</span><span>:</span><span>${vlFmtLongDate(s.tgl_lulus)}</span></div>
+  <div class="row"><span>Lama Belajar</span><span>:</span><span>${escapeHtml(s.lama_belajar||'')}</span></div>
+  <div class="row"><span>Status Lulus</span><span>:</span><b>${escapeHtml(String(s.status||'').toUpperCase())}</b></div>
+  <div class="row"><span>Predikat Lulus</span><span>:</span><b>${escapeHtml(String(s.predikat||'').toUpperCase())}</b></div>
+  <div class="foot">${escapeHtml(sek.nama||'')}${p.sk_kelulusan ? ' · No SK: '+escapeHtml(p.sk_kelulusan) : ''}${p.tahun_ajaran ? ' · TA '+escapeHtml(p.tahun_ajaran) : ''}</div>
+  <script>window.onload=function(){window.print()}<\/script>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(html); w.document.close(); }
+  else toast('Izinkan pop-up untuk membuka SKT', 'err');
 });
 
 /* ===== Init ===== */
