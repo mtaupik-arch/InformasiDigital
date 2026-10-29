@@ -817,6 +817,122 @@
   }
 
 
+
+  /* ===== CARI DATA SISWA ===== */
+  #page-cari-siswa { max-width: 720px; margin: 0 auto; }
+  #page-cari-siswa .page-title { font-size: 15px; margin-bottom: 8px; }
+  .cs-filter {
+    background:#fff; border-radius:10px; border:1px solid #e8eef5;
+    box-shadow:0 1px 6px rgba(0,0,0,.06); padding:12px; margin-bottom:10px;
+  }
+  .cs-filter-row {
+    display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;
+  }
+  .cs-field { display:flex; flex-direction:column; gap:4px; flex:1; min-width:120px; }
+  .cs-field label { font-size:11px; font-weight:600; color:#546e7a; }
+  .cs-field input {
+    padding:8px 10px; border:1.5px solid #cfd8dc; border-radius:8px;
+    font-size:13px; outline:none; width:100%;
+  }
+  .cs-field input:focus { border-color:#0000E6; }
+  .cs-field.cs-q { flex:2; min-width:160px; position:relative; }
+  .cs-suggest {
+    display:none; position:absolute; left:0; right:0; top:100%; z-index:30;
+    background:#fff; border:1px solid #d0d7e2; border-radius:8px;
+    box-shadow:0 6px 16px rgba(0,0,0,.12); max-height:200px; overflow-y:auto;
+    margin-top:2px;
+  }
+  .cs-suggest.open { display:block; }
+  .cs-suggest-item {
+    padding:8px 12px; cursor:pointer; font-size:12.5px; border-bottom:1px solid #f0f3f7;
+    display:flex; flex-direction:column; gap:1px;
+  }
+  .cs-suggest-item:last-child { border-bottom:none; }
+  .cs-suggest-item:hover, .cs-suggest-item.active { background:#eef0ff; }
+  .cs-suggest-item strong { color:#111; font-weight:700; }
+  .cs-suggest-item small { color:#78909c; font-size:11px; }
+  .cs-hint { font-size:11px; color:#78909c; margin-top:8px; line-height:1.4; }
+  .cs-profile {
+    background:#fff; border-radius:10px; border:1px solid #e8eef5;
+    padding:10px 12px; margin-bottom:8px;
+    display:flex; flex-direction:row; align-items:center; gap:10px;
+  }
+  .cs-profile .cs-photo {
+    width:52px; height:52px; min-width:52px; border-radius:50%;
+    background:linear-gradient(135deg,#0000E6,#3333ff); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; font-weight:800; overflow:hidden;
+  }
+  .cs-profile .cs-photo img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  .cs-profile .cs-info { flex:1; min-width:0; }
+  .cs-profile .cs-name {
+    font-size:13px; font-weight:800; color:#0000E6; text-transform:uppercase;
+    letter-spacing:.2px; margin-bottom:2px;
+  }
+  .cs-profile .cs-info p {
+    font-size:11px; margin-bottom:1px; color:#555; display:flex; gap:4px;
+  }
+  .cs-profile .cs-info p b { color:#222; min-width:48px; font-weight:600; }
+  .cs-summary {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:10px;
+  }
+  @media(min-width:480px){ .cs-summary { grid-template-columns:repeat(6,1fr); } }
+  .cs-stat {
+    border-radius:8px; padding:8px 4px; text-align:center;
+    border:1px solid transparent; font-size:11px;
+  }
+  .cs-stat .n { font-size:16px; font-weight:800; line-height:1.2; }
+  .cs-stat .l { font-size:10px; font-weight:700; margin-top:2px; }
+  .cs-stat.c-tw { background:rgba(25,118,210,.12); border-color:rgba(25,118,210,.35); color:#1565c0; }
+  .cs-stat.c-tl { background:rgba(67,160,71,.12); border-color:rgba(67,160,71,.35); color:#2e7d32; }
+  .cs-stat.c-izin { background:rgba(253,216,53,.2); border-color:rgba(249,168,37,.4); color:#f9a825; }
+  .cs-stat.c-sakit { background:rgba(251,140,0,.12); border-color:rgba(251,140,0,.4); color:#e65100; }
+  .cs-stat.c-alpa { background:rgba(194,24,91,.1); border-color:rgba(194,24,91,.35); color:#ad1457; }
+  .cs-stat.c-bolos { background:rgba(255,82,82,.14); border-color:rgba(255,82,82,.45); color:#ff1744; }
+  .cs-meta-bar {
+    background:#eef0ff; border:1px solid #c5c8f8; border-radius:8px;
+    padding:8px 10px; margin-bottom:8px; font-size:12px; color:#0000E6; font-weight:600;
+  }
+  .cs-day-table-wrap { overflow-x:auto; background:#fff; border-radius:10px; border:1px solid #e8eef5; }
+  table.cs-day-table {
+    width:100%; border-collapse:collapse; font-size:11.5px; min-width:0; table-layout:fixed;
+  }
+  table.cs-day-table thead th {
+    background:#0000E6; color:#fff; padding:7px 6px; font-size:10px;
+    text-align:center; font-weight:700;
+  }
+  table.cs-day-table thead th.cs-tgl { text-align:left; padding-left:8px; }
+  table.cs-day-table tbody td {
+    padding:6px 4px; border-bottom:1px solid #eef2f6; text-align:center; vertical-align:top;
+  }
+  table.cs-day-table tbody tr:nth-child(even) { background:#f7f9fd; }
+  table.cs-day-table .cs-tgl {
+    text-align:left; padding-left:8px; font-weight:600; color:#1a237e;
+    white-space:nowrap; font-size:11px;
+  }
+  table.cs-day-table .cs-jml { font-weight:800; color:#1565c0; width:48px; }
+  .cs-sesi-stack {
+    display:flex; flex-direction:column; gap:3px; align-items:stretch;
+  }
+  .cs-sesi-chip {
+    display:flex; flex-direction:column; align-items:center;
+    border-radius:6px; padding:3px 4px; line-height:1.15; font-size:10px;
+  }
+  .cs-sesi-chip .nm { font-weight:700; font-size:9.5px; opacity:.85; }
+  .cs-sesi-chip .st { font-weight:800; font-size:11px; }
+  .cs-sesi-chip .jm { font-size:9px; font-weight:600; }
+  .cs-sesi-chip.st-tw { background:rgba(25,118,210,.1); color:#1565c0; }
+  .cs-sesi-chip.st-tl { background:rgba(67,160,71,.12); color:#2e7d32; }
+  .cs-sesi-chip.st-izin { background:rgba(253,216,53,.18); color:#f9a825; }
+  .cs-sesi-chip.st-sakit { background:rgba(251,140,0,.12); color:#e65100; }
+  .cs-sesi-chip.st-alpa { background:rgba(194,24,91,.1); color:#ad1457; }
+  .cs-sesi-chip.st-bolos { background:rgba(255,82,82,.14); color:#ff1744; }
+  .cs-sesi-chip.st-empty { background:#f5f5f5; color:#bbb; }
+  .cs-empty {
+    text-align:center; padding:28px 12px; color:#78909c; font-size:13px;
+  }
+  .cs-empty .ico { font-size:36px; margin-bottom:6px; }
+
   /* ===== JADWAL MAPEL KELAS ===== */
   #page-jadwal-mapel-kelas .jmk-toolbar {
     display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px;
@@ -3036,6 +3152,66 @@
     <input type="file" id="jmkFileInput" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" style="display:none" />
   </div>
 
+
+  <!-- ========== PAGE: CARI DATA SISWA ========== -->
+  <div class="page" id="page-cari-siswa">
+    <div class="page-title">🔍 Cari Data Siswa</div>
+    <div class="cs-filter">
+      <div class="cs-filter-row">
+        <div class="cs-field cs-q">
+          <label>Nama / NISN</label>
+          <input type="text" id="csQ" placeholder="Ketik nama atau NISN…" autocomplete="off" />
+          <div class="cs-suggest" id="csSuggest"></div>
+        </div>
+        <div class="cs-field">
+          <label>Dari Tanggal</label>
+          <input type="date" id="csDari" />
+        </div>
+        <div class="cs-field">
+          <label>Sampai Tanggal</label>
+          <input type="date" id="csSampai" />
+        </div>
+        <button type="button" class="btn btn-primary" id="btnCsCari" style="padding:8px 14px;font-size:12.5px">🔍 Cari</button>
+      </div>
+      <p class="cs-hint" id="csHint">
+        Kosongkan tanggal untuk menampilkan seluruh absensi dari <b>tanggal mulai berlaku</b>
+        sampai <b>tanggal akhir absensi</b> (pengaturan admin). Isi rentang tanggal jika ingin memfilter.
+      </p>
+    </div>
+
+    <div id="csEmpty" class="cs-empty">
+      <div class="ico">🔎</div>
+      <div>Cari nama atau NISN siswa untuk melihat status absensi per tanggal.</div>
+    </div>
+
+    <div id="csResult" style="display:none">
+      <div class="cs-profile" id="csProfile">
+        <div class="cs-photo" id="csPhoto">S</div>
+        <div class="cs-info">
+          <div class="cs-name" id="csNama">—</div>
+          <p><b>NISN</b> <span id="csNisn">—</span></p>
+          <p><b>Kelas</b> <span id="csKelas">—</span></p>
+        </div>
+      </div>
+      <div class="cs-meta-bar" id="csMetaBar">—</div>
+      <div class="cs-summary" id="csSummary"></div>
+      <div class="cs-day-table-wrap">
+        <table class="cs-day-table">
+          <thead>
+            <tr>
+              <th class="cs-tgl">Tanggal</th>
+              <th style="width:44px">Sesi</th>
+              <th>Status per Sesi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyCsDays">
+            <tr><td colspan="3" style="padding:16px;color:#888">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -4112,7 +4288,7 @@ let navReady = false;
 let navTrapArmed = false;
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   if (page === 'pengumuman-lulus') target = 'validasi-lulusan';
@@ -4206,6 +4382,7 @@ function navigate(page, opts = {}) {
   if (target === 'integrasi-gdrive') runPage(() => initGdrivePage());
   if (target === 'jadwal-mapel') runPage(() => initJadwalMapelPage());
   if (target === 'jadwal-mapel-kelas') runPage(() => initJadwalMapelKelasPage());
+  if (target === 'cari-siswa') runPage(() => initCariSiswaPage());
   if (target === 'pengumuman-lulus' || target === 'validasi-lulusan') runPage(() => initValidasiLulusanPage());
   if (target !== 'scan-barcode') {
     try { stopQrScanner(); } catch (_) {}
@@ -10595,6 +10772,285 @@ document.getElementById('jmkFileInput')?.addEventListener('change', async (e) =>
   } catch (err) {
     toast(errToText(err), 'err');
     if (typeof showBigPopup === 'function') showBigPopup('err', 'Upload Gagal', errToText(err), 0);
+  }
+});
+
+
+
+/* ===== Cari Data Siswa ===== */
+let _csSelectedNisn = '';
+let _csSuggestItems = [];
+
+function csFmtDateId(ymd) {
+  if (!ymd) return '—';
+  const m = String(ymd).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return String(ymd);
+  const bl = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  return `${Number(m[3])} ${bl[Number(m[2])] || m[2]} ${m[1]}`;
+}
+
+function csStatusClass(st) {
+  const u = String(st || '').toUpperCase();
+  if (u === 'TW' || u === 'TEPAT WAKTU' || u === 'HADIR') return 'st-tw';
+  if (u === 'TL' || u === 'TERLAMBAT') return 'st-tl';
+  if (u === 'IZIN' || u === 'I') return 'st-izin';
+  if (u === 'SAKIT' || u === 'S') return 'st-sakit';
+  if (u === 'ALPA' || u === 'A') return 'st-alpa';
+  if (u === 'BOLOS' || u === 'B') return 'st-bolos';
+  return 'st-empty';
+}
+
+function csStatusLabel(st) {
+  const u = String(st || '').toUpperCase();
+  if (u === 'TW' || u === 'TEPAT WAKTU') return 'TW';
+  if (u === 'TL' || u === 'TERLAMBAT') return 'TL';
+  if (u === 'IZIN' || u === 'I') return 'Izin';
+  if (u === 'SAKIT' || u === 'S') return 'Sakit';
+  if (u === 'ALPA' || u === 'A') return 'Alpa';
+  if (u === 'BOLOS' || u === 'B') return 'Bolos';
+  if (u === 'HADIR') return 'TW';
+  return st || '—';
+}
+
+async function initCariSiswaPage() {
+  _csSelectedNisn = '';
+  const empty = document.getElementById('csEmpty');
+  const result = document.getElementById('csResult');
+  if (empty) empty.style.display = '';
+  if (result) result.style.display = 'none';
+  const q = document.getElementById('csQ');
+  if (q && !q.value) q.value = '';
+  // hint dengan rentang default dari pengaturan (opsional)
+  try {
+    const res = await apiCall('get_pengaturan_absensi', {});
+    const d = res.data || {};
+    const hint = document.getElementById('csHint');
+    if (hint && (d.tgl_mulai || d.tgl_akhir)) {
+      hint.innerHTML = `Kosongkan tanggal untuk menampilkan absensi <b>${escapeHtml(d.tgl_mulai || '—')}</b> s/d <b>${escapeHtml(d.tgl_akhir || '—')}</b> (pengaturan absensi). Isi rentang jika ingin memfilter.`;
+    }
+  } catch (_) {}
+
+  // Jika siswa login: otomatis tampilkan data sendiri
+  const sess = getSession();
+  if (sess?.role === 'siswa') {
+    const nisn = String(sess.user?.nisn || sess.user?.kode || '').replace(/\D/g, '');
+    if (nisn) {
+      if (q) q.value = nisn;
+      _csSelectedNisn = nisn;
+      await loadCariSiswaDetail(nisn);
+    }
+  }
+}
+
+function csSearchLocal(q) {
+  const qq = String(q || '').toLowerCase().trim();
+  if (qq.length < 2) return [];
+  const dig = qq.replace(/\D/g, '');
+  return (store.siswa || []).filter(s => {
+    const st = String(s.status || 'Aktif').toLowerCase();
+    if (!(st === 'aktif' || st === '' || st === 'null')) return false;
+    const nama = String(s.nama || '').toLowerCase();
+    const nisn = String(s.nisn || '');
+    if (nama.includes(qq)) return true;
+    if (nama.split(/\s+/).some(w => w.startsWith(qq))) return true;
+    if (dig.length >= 2 && nisn.includes(dig)) return true;
+    return false;
+  }).slice(0, 12).map(s => ({
+    label: s.nama,
+    meta: (s.nisn || '') + (s.kelas ? ' · ' + s.kelas : ''),
+    nisn: s.nisn,
+  }));
+}
+
+function showCsSuggest(items) {
+  const box = document.getElementById('csSuggest');
+  if (!box) return;
+  _csSuggestItems = items || [];
+  if (!items.length) { box.classList.remove('open'); box.innerHTML = ''; return; }
+  box.innerHTML = items.map((it, i) =>
+    `<div class="cs-suggest-item" data-idx="${i}" data-nisn="${escapeHtml(it.nisn || '')}">
+      <strong>${escapeHtml(it.label || '')}</strong>
+      <small>${escapeHtml(it.meta || '')}</small>
+    </div>`
+  ).join('');
+  box.classList.add('open');
+  box.querySelectorAll('.cs-suggest-item').forEach(el => {
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const nisn = el.getAttribute('data-nisn') || '';
+      const inp = document.getElementById('csQ');
+      if (inp) inp.value = el.querySelector('strong')?.textContent || nisn;
+      box.classList.remove('open');
+      _csSelectedNisn = nisn;
+      loadCariSiswaDetail(nisn);
+    });
+  });
+}
+
+async function loadCariSiswaDetail(nisn) {
+  const empty = document.getElementById('csEmpty');
+  const result = document.getElementById('csResult');
+  const dari = document.getElementById('csDari')?.value || '';
+  const sampai = document.getElementById('csSampai')?.value || '';
+  if (!nisn) {
+    toast('Pilih / isi NISN siswa', 'err');
+    return;
+  }
+  if (empty) {
+    empty.style.display = '';
+    empty.innerHTML = '<div class="ico">⏳</div><div>Memuat data absensi…</div>';
+  }
+  if (result) result.style.display = 'none';
+  try {
+    const res = await apiCall('cari_data_siswa', {
+      nisn: String(nisn).replace(/\D/g, ''),
+      dari: dari || undefined,
+      sampai: sampai || undefined,
+    });
+    renderCariSiswaResult(res.data || res);
+    if (empty) empty.style.display = 'none';
+    if (result) result.style.display = '';
+  } catch (e) {
+    if (empty) {
+      empty.style.display = '';
+      empty.innerHTML = `<div class="ico">⚠️</div><div>${escapeHtml(errToText(e))}</div>`;
+    }
+    if (result) result.style.display = 'none';
+    toast(errToText(e), 'err');
+  }
+}
+
+function renderCariSiswaResult(data) {
+  const s = data.siswa || {};
+  const sum = data.summary || {};
+  const meta = data.meta || {};
+  const days = data.days || [];
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('csNama', (s.nama || '—').toUpperCase());
+  set('csNisn', s.nisn || '—');
+  set('csKelas', s.kelas || '—');
+
+  const photo = document.getElementById('csPhoto');
+  if (photo) {
+    const initial = (s.nama || 'S').charAt(0).toUpperCase();
+    if (s.foto_url) {
+      photo.innerHTML = `<img src="${escapeHtml(s.foto_url)}" alt="" onerror="this.parentNode.textContent='${initial}'" />`;
+    } else {
+      photo.textContent = initial;
+    }
+  }
+
+  const metaBar = document.getElementById('csMetaBar');
+  if (metaBar) {
+    const range = `${csFmtDateId(meta.dari)} → ${csFmtDateId(meta.sampai)}`;
+    const def = meta.default_range ? ' (default pengaturan absensi)' : '';
+    metaBar.innerHTML = `Rentang: <b>${escapeHtml(range)}</b>${def}` +
+      (meta.jml_hari != null ? ` · ${meta.jml_hari} hari tercatat` : '') +
+      (sum.jml_sesi != null ? ` · ${sum.jml_sesi} sesi` : '');
+  }
+
+  const sumEl = document.getElementById('csSummary');
+  if (sumEl) {
+    const items = [
+      ['c-tw', 'TW', sum.tw || 0],
+      ['c-tl', 'TL', sum.tl || 0],
+      ['c-izin', 'Izin', sum.izin || 0],
+      ['c-sakit', 'Sakit', sum.sakit || 0],
+      ['c-alpa', 'Alpa', sum.alpa || 0],
+      ['c-bolos', 'Bolos', sum.bolos || 0],
+    ];
+    sumEl.innerHTML = items.map(([c, l, n]) =>
+      `<div class="cs-stat ${c}"><div class="n">${n}</div><div class="l">${l}</div></div>`
+    ).join('');
+  }
+
+  const tb = document.getElementById('tbodyCsDays');
+  if (!tb) return;
+  if (!days.length) {
+    tb.innerHTML = '<tr><td colspan="3" style="padding:16px;color:#888;text-align:center">Tidak ada data absensi pada rentang ini.</td></tr>';
+    return;
+  }
+  tb.innerHTML = days.map(d => {
+    const sesi = d.sesi || [];
+    const chips = sesi.length
+      ? sesi.map(x => {
+          const cls = csStatusClass(x.status);
+          const jam = x.jam && x.jam !== '-' ? x.jam : '';
+          return `<div class="cs-sesi-chip ${cls}">
+            <span class="nm">${escapeHtml(x.sesi_nama || 'Sesi')}</span>
+            <span class="st">${escapeHtml(csStatusLabel(x.status))}</span>
+            ${jam ? `<span class="jm">${escapeHtml(jam)}</span>` : ''}
+          </div>`;
+        }).join('')
+      : '<div class="cs-sesi-chip st-empty"><span class="st">—</span></div>';
+    return `<tr>
+      <td class="cs-tgl">${escapeHtml(csFmtDateId(d.tanggal))}</td>
+      <td class="cs-jml">${d.jml_sesi != null ? d.jml_sesi : sesi.length}</td>
+      <td><div class="cs-sesi-stack">${chips}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('csQ')?.addEventListener('input', () => {
+  const v = document.getElementById('csQ')?.value || '';
+  _csSelectedNisn = '';
+  showCsSuggest(csSearchLocal(v));
+});
+document.getElementById('csQ')?.addEventListener('focus', () => {
+  const v = document.getElementById('csQ')?.value || '';
+  if (v.length >= 2) showCsSuggest(csSearchLocal(v));
+});
+document.getElementById('csQ')?.addEventListener('blur', () => {
+  setTimeout(() => {
+    const box = document.getElementById('csSuggest');
+    if (box) box.classList.remove('open');
+  }, 180);
+});
+document.getElementById('csQ')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btnCsCari')?.click();
+  }
+});
+document.getElementById('btnCsCari')?.addEventListener('click', async () => {
+  const q = (document.getElementById('csQ')?.value || '').trim();
+  if (!q) { toast('Isi nama atau NISN', 'err'); return; }
+  let nisn = _csSelectedNisn || q.replace(/\D/g, '');
+  if (nisn.length >= 8) {
+    _csSelectedNisn = nisn;
+    await loadCariSiswaDetail(nisn);
+    return;
+  }
+  // resolve by name
+  const hits = csSearchLocal(q);
+  if (hits.length === 1) {
+    _csSelectedNisn = hits[0].nisn;
+    const inp = document.getElementById('csQ');
+    if (inp) inp.value = hits[0].label || hits[0].nisn;
+    await loadCariSiswaDetail(hits[0].nisn);
+  } else if (hits.length > 1) {
+    showCsSuggest(hits);
+    toast(`Ditemukan ${hits.length} siswa — pilih dari daftar`, 'err');
+  } else {
+    // coba API search
+    try {
+      const res = await apiCall('cari_data_siswa', { q, search_only: true });
+      const list = res.data || [];
+      if (list.length === 1) {
+        _csSelectedNisn = list[0].nisn;
+        await loadCariSiswaDetail(list[0].nisn);
+      } else if (list.length > 1) {
+        showCsSuggest(list.map(s => ({
+          label: s.nama, meta: (s.nisn || '') + (s.kelas ? ' · ' + s.kelas : ''), nisn: s.nisn,
+        })));
+        toast(`Ditemukan ${list.length} siswa — pilih dari daftar`, 'err');
+      } else {
+        toast('Siswa tidak ditemukan', 'err');
+      }
+    } catch (e) {
+      toast(errToText(e), 'err');
+    }
   }
 });
 
