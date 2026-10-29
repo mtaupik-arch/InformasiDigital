@@ -9,6 +9,13 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.5/tinymce.min.js" referrerpolicy="origin"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathlive@0.100.0/mathlive-static.css">
+<script src="https://cdn.jsdelivr.net/npm/mathlive@0.100.0/mathlive.min.js"></script>
+
 <style>
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
   :root {
@@ -821,6 +828,35 @@
 
 
   /* ===== BANK SOAL / RUANG UJIAN ===== */
+
+  /* Rich soal editor */
+  .bs-editor-wrap { border:1px solid #cfd8dc; border-radius:8px; overflow:hidden; background:#fff; }
+  .bs-editor-wrap .tox-tinymce { border:none !important; }
+  .bs-math-overlay {
+    display:none; position:fixed; inset:0; z-index:10050;
+    background:rgba(0,0,0,.45); align-items:center; justify-content:center;
+  }
+  .bs-math-overlay.open { display:flex; }
+  .bs-math-box {
+    background:#fff; border-radius:12px; padding:16px; width:min(640px,94vw);
+    box-shadow:0 12px 40px rgba(0,0,0,.25);
+  }
+  .bs-math-box h4 { margin:0 0 10px; font-size:14px; color:#1565c0; }
+  .bs-math-box math-field {
+    display:block; width:100%; min-height:64px; font-size:20px;
+    border:1px solid #90caf9; border-radius:8px; padding:8px;
+  }
+  .bs-math-actions { display:flex; gap:8px; margin-top:12px; justify-content:flex-end; }
+  .bsi-q img, .bs-soal-item img { max-width:100%; height:auto; border-radius:4px; }
+  .bsi-q table, .bs-soal-item table { border-collapse:collapse; max-width:100%; }
+  .bsi-q table td, .bsi-q table th, .bs-soal-item table td, .bs-soal-item table th {
+    border:1px solid #bbb; padding:4px 8px;
+  }
+  .bs-opsi-row .bs-opsi-editor { flex:1; min-height:36px; }
+  #bsSoalFormBox.open { max-height:none; }
+  #bsSoalFormBox .form-grid { max-width:100%; }
+
+
 
   .bs-soal-panel {
     display:none; margin-top:12px; background:#fff; border:1px solid #e2e8f0;
@@ -3378,7 +3414,10 @@
             </div>
             <div class="form-group"><label>Skor</label><input type="number" id="bsiSkor" min="0" step="0.5" value="1" /></div>
             <div class="form-group full"><label>Pertanyaan</label>
-              <textarea id="bsiPertanyaan" rows="3" style="width:100%;padding:8px;border:1px solid #cfd8dc;border-radius:8px;font-size:13px" placeholder="Teks pertanyaan…"></textarea>
+              <div class="bs-editor-wrap">
+                <textarea id="bsiPertanyaan"></textarea>
+              </div>
+              <p style="font-size:11px;color:#78909c;margin:6px 0 0">Editor kaya: rumus, akar, pangkat, tabel, gambar, video, tautan, subscript/superscript (seperti Word).</p>
             </div>
             <div class="form-group full" id="bsiOpsiWrap">
               <label>Opsi jawaban</label>
@@ -10537,7 +10576,20 @@ document.getElementById('btnVlSkt')?.addEventListener('click', () => {
   <div class="row"><span>Predikat Lulus</span><span>:</span><b>${escapeHtml(String(s.predikat||'').toUpperCase())}</b></div>
   <div class="foot">${escapeHtml(sek.nama||'')}${p.sk_kelulusan ? ' · No SK: '+escapeHtml(p.sk_kelulusan) : ''}${p.tahun_ajaran ? ' · TA '+escapeHtml(p.tahun_ajaran) : ''}</div>
   <script>window.onload=function(){window.print()}<\/script>
-  </body></html>`;
+  
+  <div class="bs-math-overlay" id="bsMathOverlay">
+    <div class="bs-math-box">
+      <h4>∑ Sisipkan Persamaan / Rumus</h4>
+      <p style="font-size:12px;color:#666;margin:0 0 8px">Ketik atau gunakan toolbar: pecahan, akar, pangkat, indeks, simbol…</p>
+      <math-field id="bsMathField" virtual-keyboard-mode="manual">x=\frac{-b\pm\sqrt{b^2-4ac}}{2a}</math-field>
+      <div class="bs-math-actions">
+        <button type="button" class="btn btn-outline btn-sm" id="btnBsMathBatal">Batal</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnBsMathInsert">Sisipkan</button>
+      </div>
+    </div>
+  </div>
+
+</body></html>`;
   const w = window.open('', '_blank');
   if (w) { w.document.write(html); w.document.close(); }
   else toast('Izinkan pop-up untuk membuka SKT', 'err');
@@ -11750,6 +11802,146 @@ const BS_JENIS_SOAL = [
   'Checkbox', 'Menjodohkan', 'Unggah File'
 ];
 
+
+/* ===== Rich Editor Soal (TinyMCE + MathLive + KaTeX) ===== */
+let _bsEditor = null;
+let _bsEditorTarget = 'bsiPertanyaan';
+
+function bsDestroyEditor() {
+  try {
+    if (window.tinymce) {
+      const ed = tinymce.get('bsiPertanyaan');
+      if (ed) ed.remove();
+    }
+  } catch (_) {}
+  _bsEditor = null;
+}
+
+function bsGetPertanyaanHtml() {
+  if (window.tinymce) {
+    const ed = tinymce.get('bsiPertanyaan');
+    if (ed) return ed.getContent() || '';
+  }
+  return document.getElementById('bsiPertanyaan')?.value || '';
+}
+
+function bsSetPertanyaanHtml(html) {
+  const el = document.getElementById('bsiPertanyaan');
+  if (window.tinymce) {
+    const ed = tinymce.get('bsiPertanyaan');
+    if (ed) {
+      ed.setContent(html || '');
+      return;
+    }
+  }
+  if (el) el.value = html || '';
+}
+
+function bsInitEditor(initialHtml) {
+  bsDestroyEditor();
+  const el = document.getElementById('bsiPertanyaan');
+  if (!el || typeof tinymce === 'undefined') {
+    if (el) el.value = initialHtml || '';
+    return Promise.resolve();
+  }
+  return tinymce.init({
+    selector: '#bsiPertanyaan',
+    height: 280,
+    menubar: 'file edit view insert format table tools',
+    plugins: 'lists link image media table code codesample charmap wordcount autoresize searchreplace visualblocks',
+    toolbar: 'undo redo | styles | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright | bullist numlist outdent indent | subscript superscript | link image media table | bsMath charmap | removeformat code',
+    toolbar_mode: 'sliding',
+    branding: false,
+    promotion: false,
+    convert_urls: false,
+    automatic_uploads: false,
+    paste_data_images: true,
+    image_title: true,
+    image_description: false,
+    media_live_embeds: true,
+    table_toolbar: 'tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol',
+    content_style: 'body{font-family:Arial,sans-serif;font-size:14px;line-height:1.5} img{max-width:100%} table{border-collapse:collapse} td,th{border:1px solid #ccc;padding:4px 8px} .bs-math{display:inline-block;vertical-align:middle;padding:0 2px}',
+    setup(editor) {
+      _bsEditor = editor;
+      editor.ui.registry.addButton('bsMath', {
+        text: '∑ Rumus',
+        tooltip: 'Sisipkan persamaan / akar / pangkat',
+        onAction: () => bsOpenMathModal(),
+      });
+      editor.on('init', () => {
+        editor.setContent(initialHtml || '');
+      });
+    },
+    images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
+      try {
+        const blob = blobInfo.blob();
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject('Gagal baca gambar');
+        reader.readAsDataURL(blob);
+      } catch (e) {
+        reject(String(e));
+      }
+    }),
+  });
+}
+
+function bsOpenMathModal() {
+  const ov = document.getElementById('bsMathOverlay');
+  if (ov) ov.classList.add('open');
+  const mf = document.getElementById('bsMathField');
+  if (mf) {
+    try { mf.focus(); } catch (_) {}
+  }
+}
+
+function bsCloseMathModal() {
+  document.getElementById('bsMathOverlay')?.classList.remove('open');
+}
+
+document.getElementById('btnBsMathBatal')?.addEventListener('click', bsCloseMathModal);
+document.getElementById('bsMathOverlay')?.addEventListener('click', (e) => {
+  if (e.target.id === 'bsMathOverlay') bsCloseMathModal();
+});
+document.getElementById('btnBsMathInsert')?.addEventListener('click', () => {
+  const mf = document.getElementById('bsMathField');
+  let latex = '';
+  try { latex = mf?.getValue?.() || mf?.value || ''; } catch (_) { latex = ''; }
+  if (!latex) { toast('Rumus kosong', 'err'); return; }
+  let rendered = '';
+  try {
+    if (typeof katex !== 'undefined') {
+      rendered = katex.renderToString(latex, { throwOnError: false, displayMode: false });
+    }
+  } catch (_) {}
+  const html = rendered
+    ? `<span class="bs-math" data-latex="${escapeHtml(latex)}">${rendered}</span>&nbsp;`
+    : `<span class="bs-math" data-latex="${escapeHtml(latex)}">\\(${escapeHtml(latex)}\\)</span>&nbsp;`;
+  if (window.tinymce) {
+    const ed = tinymce.get('bsiPertanyaan');
+    if (ed) {
+      ed.insertContent(html);
+      ed.focus();
+    }
+  }
+  bsCloseMathModal();
+});
+
+function bsRenderMathIn(el) {
+  if (!el || typeof renderMathInElement !== 'function') return;
+  try {
+    renderMathInElement(el, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true },
+      ],
+      throwOnError: false,
+    });
+  } catch (_) {}
+}
+
+
 function openBankSoalDetail(row) {
   _bsDetailPaket = row;
   const panel = document.getElementById('bsSoalPanel');
@@ -11799,7 +11991,8 @@ function renderBankSoalItems() {
       ? `<div class="bsi-opsi">${opsi.map((o, i) => {
           const lab = typeof o === 'object' ? (o.label || String.fromCharCode(65 + i)) : String.fromCharCode(65 + i);
           const txt = typeof o === 'object' ? (o.text || '') : String(o);
-          return `<div><b>${escapeHtml(lab)}.</b> ${escapeHtml(txt)}</div>`;
+          const txtShow = /<[a-z][\s\S]*>/i.test(txt) ? txt : escapeHtml(txt);
+          return `<div><b>${escapeHtml(lab)}.</b> ${txtShow}</div>`;
         }).join('')}</div>`
       : '';
     return `<div class="bs-soal-item" data-id="${escapeHtml(String(it.id))}">
@@ -11811,14 +12004,24 @@ function renderBankSoalItems() {
         <button type="button" class="btn btn-outline btn-sm" data-bsi-edit="${escapeHtml(String(it.id))}">Edit</button>
         <button type="button" class="btn btn-danger btn-sm" data-bsi-del="${escapeHtml(String(it.id))}">Hapus</button>
       </div>
-      <div class="bsi-q">${escapeHtml(it.pertanyaan || '')}</div>
+      <div class="bsi-q">${it.pertanyaan || ''}</div>
       ${opsiHtml}
       ${it.kunci ? `<div class="bsi-kunci">Kunci: ${escapeHtml(String(it.kunci))}</div>` : ''}
     </div>`;
   }).join('');
+  bsRenderMathIn(list);
+  // re-render katex spans with data-latex
+  list.querySelectorAll('.bs-math[data-latex]').forEach(span => {
+    const latex = span.getAttribute('data-latex') || '';
+    if (!latex || typeof katex === 'undefined') return;
+    try {
+      span.innerHTML = katex.renderToString(latex, { throwOnError: false, displayMode: false });
+    } catch (_) {}
+  });
 }
 
 function closeBsiForm() {
+  bsDestroyEditor();
   const box = document.getElementById('bsSoalFormBox');
   if (box) box.classList.remove('open');
   const hid = document.getElementById('bsiEditId');
@@ -11833,7 +12036,6 @@ function openBsiForm(item) {
   const j0 = item?.jenis_soal || item?.jenis || 'Pilihan Ganda';
   const jSel = document.getElementById('bsiJenis');
   if (jSel) {
-    // pastikan option ada
     const ok = [...jSel.options].some(o => o.value === j0);
     if (!ok && j0) {
       const opt = document.createElement('option');
@@ -11843,7 +12045,6 @@ function openBsiForm(item) {
     jSel.value = j0;
   }
   document.getElementById('bsiSkor').value = item?.skor != null ? item.skor : 1;
-  document.getElementById('bsiPertanyaan').value = item?.pertanyaan || '';
   document.getElementById('bsiKunci').value = item?.kunci || '';
   let opsi = item?.opsi;
   if (typeof opsi === 'string') { try { opsi = JSON.parse(opsi); } catch { opsi = []; } }
@@ -11852,6 +12053,21 @@ function openBsiForm(item) {
   }
   renderBsiOpsiInputs(opsi);
   onBsiJenisChange();
+  const qHtml = item?.pertanyaan || '';
+  // Init TinyMCE setelah panel tampil
+  setTimeout(() => {
+    if (typeof bsInitEditor === 'function') {
+      bsInitEditor(qHtml).then(() => {
+        if (typeof bsSetPertanyaanHtml === 'function') bsSetPertanyaanHtml(qHtml);
+      }).catch(() => {
+        const el = document.getElementById('bsiPertanyaan');
+        if (el) el.value = qHtml;
+      });
+    } else {
+      const el = document.getElementById('bsiPertanyaan');
+      if (el) el.value = qHtml;
+    }
+  }, 50);
   box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -11901,8 +12117,10 @@ document.getElementById('btnBsiAddOpsi')?.addEventListener('click', () => {
 
 document.getElementById('btnBsiSimpan')?.addEventListener('click', async () => {
   if (!_bsDetailPaket?.id) { toast('Paket tidak aktif', 'err'); return; }
-  const pertanyaan = document.getElementById('bsiPertanyaan')?.value?.trim() || '';
-  if (!pertanyaan) { toast('Pertanyaan wajib', 'err'); return; }
+  const pertanyaan = (typeof bsGetPertanyaanHtml === 'function' ? bsGetPertanyaanHtml() : (document.getElementById('bsiPertanyaan')?.value || '')).trim();
+  // strip empty tags
+  const plain = pertanyaan.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+  if (!plain && !/<img|<table|<iframe|<video/i.test(pertanyaan)) { toast('Pertanyaan wajib', 'err'); return; }
   const jenisEl = document.getElementById('bsiJenis');
   // Ambil value & text agar tidak jatuh ke default
   let jenisSoal = (jenisEl?.value || '').trim();
@@ -12045,15 +12263,33 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
     toast('Membaca file…', 'ok');
     let text = '';
     const name = (file.name || '').toLowerCase();
+    let htmlContent = '';
     if (name.endsWith('.docx') || (file.type || '').includes('wordprocessingml')) {
       if (typeof mammoth === 'undefined') throw new Error('Library mammoth belum dimuat (CDN)');
       const buf = await file.arrayBuffer();
-      const res = await mammoth.extractRawText({ arrayBuffer: buf });
-      text = res.value || '';
+      // HTML penuh: gambar → data URL, tabel & format dipertahankan
+      const res = await mammoth.convertToHtml({
+        arrayBuffer: buf,
+        convertImage: mammoth.images.imgElement(function (image) {
+          return image.read('base64').then(function (imageBuffer) {
+            return {
+              src: 'data:' + image.contentType + ';base64,' + imageBuffer,
+            };
+          });
+        }),
+      });
+      htmlContent = res.value || '';
+      // juga text untuk parser struktur NO:/JENIS:
+      const resText = await mammoth.extractRawText({ arrayBuffer: buf });
+      text = resText.value || '';
+    } else if (name.endsWith('.html') || name.endsWith('.htm')) {
+      htmlContent = await file.text();
+      text = htmlContent.replace(/<[^>]+>/g, '\n');
     } else {
       text = await file.text();
+      htmlContent = text;
     }
-    const items = parseBankSoalImportText(text);
+    const items = parseBankSoalImportHtml(htmlContent, text);
     if (!items.length) throw new Error('Tidak ada soal terdeteksi. Pakai format Template.');
     if (!confirm(`Import ${items.length} soal ke paket ini?`)) return;
     const res = await apiCall('import_bank_soal_item', { bank_soal_id: _bsDetailPaket.id, items });
@@ -12104,6 +12340,83 @@ function parseBankSoalImportText(text) {
   }
   return out;
 }
+
+/** Parse impor Word HTML + teks struktur (gambar/tabel/rumus tetap di pertanyaan) */
+function parseBankSoalImportHtml(htmlContent, plainText) {
+  // 1) coba pecah berdasarkan pola teks NO:
+  let items = parseBankSoalImportText(plainText || '');
+  if (items.length && htmlContent) {
+    // coba petakan blok HTML ke tiap item berdasarkan nomor
+    items = items.map((it) => {
+      // jika pertanyaan plain, coba ambil cuplikan HTML lebih kaya
+      const rich = extractRichQuestionHtml(htmlContent, it.nomor, it.pertanyaan);
+      if (rich) it.pertanyaan = rich;
+      return it;
+    });
+    return items;
+  }
+  // 2) fallback: pecah HTML by horizontal rules / headings
+  if (htmlContent) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = htmlContent;
+    // cari pola "NO: n" di text nodes
+    const fullText = tmp.innerText || '';
+    items = parseBankSoalImportText(fullText);
+    if (items.length) {
+      return items.map((it) => {
+        const rich = extractRichQuestionHtml(htmlContent, it.nomor, it.pertanyaan);
+        if (rich) it.pertanyaan = rich;
+        return it;
+      });
+    }
+  }
+  return items;
+}
+
+function extractRichQuestionHtml(html, nomor, plainQ) {
+  if (!html) return plainQ || '';
+  try {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const htmlStr = div.innerHTML;
+    // cari "NO: {nomor}" lalu ambil sampai NO berikutnya atau --- 
+    const re = new RegExp('NO\\s*:\\s*' + String(nomor) + '([\\s\\S]*?)(?=NO\\s*:\\s*\\d+|---|$)', 'i');
+    // search in text positions mapped roughly - use plain split
+    const plain = div.innerText || '';
+    const m = plain.match(re);
+    if (!m) {
+      // fallback: wrap plain with paragraphs
+      if (plainQ && /<img|<table|<span class="bs-math"/i.test(html)) {
+        // return whole html if single question file
+        return html;
+      }
+      return plainQ || '';
+    }
+    // Build HTML: prefer original html segment if contains tags
+    // Extract PERTANYAAN portion as HTML by finding after PERTANYAAN:
+    const block = m[0];
+    const pq = block.split(/PERTANYAAN\s*:/i);
+    let body = pq.length > 1 ? pq.slice(1).join(':') : block;
+    body = body.replace(/\n\s*[A-H]\s*[\.\)]\s*[\s\S]*$/m, '').replace(/\n\s*KUNCI\s*:[\s\S]*$/i, '').trim();
+    // If original HTML has images near this question text, include matching imgs
+    const imgs = [...div.querySelectorAll('img')];
+    let rich = body.split('\n').map(l => l.trim()).filter(Boolean).map(l => `<p>${escapeHtml(l)}</p>`).join('');
+    // attach images whose alt/nearby text relates - simple: all images in doc for single-item, else none
+    if (imgs.length && (plain.match(/NO\s*:/gi) || []).length <= 1) {
+      rich += imgs.map(img => img.outerHTML).join('');
+    }
+    // tables
+    const tables = [...div.querySelectorAll('table')];
+    if (tables.length && (plain.match(/NO\s*:/gi) || []).length <= 1) {
+      rich += tables.map(t => t.outerHTML).join('');
+    }
+    return rich || plainQ || '';
+  } catch (_) {
+    return plainQ || '';
+  }
+}
+
+
 
 function getSelectedRuangIds() {
   return [...document.querySelectorAll('.bs-ru-check:checked')].map(c => c.value);
