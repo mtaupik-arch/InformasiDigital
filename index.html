@@ -3341,13 +3341,14 @@
               <th>Mapel</th>
               <th>Kelas</th>
               <th>Jenis</th>
+              <th style="width:52px;text-align:center">Ke-</th>
               <th style="width:64px;text-align:center">Jml Soal</th>
               <th style="width:72px">Status</th>
               <th class="col-act">Aksi</th>
             </tr>
           </thead>
           <tbody id="tbodyBankSoal">
-            <tr><td colspan="7" class="bs-empty">Memuat…</td></tr>
+            <tr><td colspan="8" class="bs-empty">Memuat…</td></tr>
           </tbody>
         </table>
       </div>
@@ -11400,7 +11401,7 @@ function renderBankSoalTable() {
     meta.textContent = `${rows.length} paket ditampil · ${_bsRows.length} total · ${nA} aktif`;
   }
   if (!rows.length) {
-    if (tb) tb.innerHTML = '<tr><td colspan="7" class="bs-empty">Belum ada paket soal. Klik + Buat Paket Soal.</td></tr>';
+    if (tb) tb.innerHTML = '<tr><td colspan="8" class="bs-empty">Belum ada paket soal. Klik + Buat Paket Soal.</td></tr>';
     return;
   }
   const canEdit = getSession()?.role === 'admin' || getSession()?.role === 'guru';
@@ -11417,6 +11418,7 @@ function renderBankSoalTable() {
         <td style="font-weight:600">${escapeHtml(r.mapel_nama || r.mapel_kode || '—')}</td>
         <td>${escapeHtml(r.kelas_nama || '—')}</td>
         <td>${escapeHtml(r.jenis || '—')}</td>
+        <td style="text-align:center;font-weight:700">${r.penilaian_ke != null ? r.penilaian_ke : 1}</td>
         <td style="text-align:center;font-weight:700">${r.jml_soal != null ? r.jml_soal : 0}</td>
         <td>${bsStatusPill(r.status)}</td>
         <td class="col-act">${acts}</td>
@@ -11535,6 +11537,7 @@ function openBankSoalForm(row) {
   title.textContent = isEdit ? 'Edit Paket Soal' : 'Buat Paket Soal';
   const mapelId = row?.mapel_id || '';
   const kelasId = row?.kelas_id || '';
+  const keVal = row?.penilaian_ke != null ? Number(row.penilaian_ke) : 1;
   body.innerHTML = `
     <div class="form-grid">
       <div class="form-group full">
@@ -11548,6 +11551,10 @@ function openBankSoalForm(row) {
       <div class="form-group">
         <label>Jenis Penilaian *</label>
         <select name="jenis" id="bsFormJenis" required>${bsJenisOptions(row?.jenis || '')}</select>
+      </div>
+      <div class="form-group">
+        <label>Penilaian Ke-</label>
+        <select name="penilaian_ke" id="bsFormKe"></select>
       </div>
       <div class="form-group">
         <label>Jumlah Soal</label>
@@ -11567,14 +11574,69 @@ function openBankSoalForm(row) {
       </div>
       ${isEdit ? `<input type="hidden" name="id" value="${escapeHtml(String(row.id))}" />` : ''}
     </div>
-    <p style="font-size:11px;color:#666;margin-top:8px">Desain dasar: paket soal dulu. Input detail butir soal akan ditambahkan pada tahap berikutnya.</p>`;
+    <p style="font-size:11px;color:#666;margin-top:8px">Penilaian Ke- mengikuti logika Input Nilai (1–30; yang sudah terpakai untuk mapel/kelas/jenis yang sama dinonaktifkan).</p>`;
   document.getElementById('crudModal')?.classList.add('active');
 
   document.getElementById('bsFormMapel')?.addEventListener('change', (ev) => {
     const mid = ev.target.value;
     const ksel = document.getElementById('bsFormKelas');
     if (ksel) ksel.innerHTML = bsKelasOptionsForMapel(mid, '');
+    refreshBsFormKe();
   });
+  document.getElementById('bsFormKelas')?.addEventListener('change', () => refreshBsFormKe());
+  document.getElementById('bsFormJenis')?.addEventListener('change', () => refreshBsFormKe());
+  // isi dropdown ke (async)
+  refreshBsFormKe(keVal);
+}
+
+/** Penilaian Ke- untuk form paket soal — mirror Input Nilai */
+let _bsPaketTerisiKe = [];
+async function refreshBsFormKe(preferKe) {
+  const keSel = document.getElementById('bsFormKe');
+  if (!keSel) return;
+  const mapelId = document.getElementById('bsFormMapel')?.value || '';
+  const kelasId = document.getElementById('bsFormKelas')?.value || '';
+  const jenis = document.getElementById('bsFormJenis')?.value || '';
+  const cur = preferKe != null ? Number(preferKe) : (Number(keSel.value) || 1);
+  const editId = crudState?.entity === 'bank_soal' ? crudState.id : null;
+
+  _bsPaketTerisiKe = [];
+  if (mapelId && jenis) {
+    try {
+      // sama seperti Input Nilai
+      const res = await apiCall('list_penilaian_ke_terisi', {
+        periode_id: typeof periodeAktifId === 'function' ? periodeAktifId() : null,
+        mapel_id: mapelId,
+        kelas_id: kelasId || null,
+        jenis,
+      });
+      _bsPaketTerisiKe = Array.isArray(res.data) ? res.data.map(Number) : [];
+    } catch (_) { _bsPaketTerisiKe = []; }
+    // plus ke yang sudah dipakai paket bank soal lain (mapel+kelas+jenis)
+    try {
+      const used = (_bsRows || []).filter(r =>
+        String(r.mapel_id) === String(mapelId) &&
+        String(r.kelas_id) === String(kelasId) &&
+        String(r.jenis || '').toUpperCase() === String(jenis).toUpperCase() &&
+        (!editId || String(r.id) !== String(editId))
+      ).map(r => Number(r.penilaian_ke) || 1);
+      _bsPaketTerisiKe = [...new Set([..._bsPaketTerisiKe, ...used])];
+    } catch (_) {}
+  }
+
+  let html = '';
+  for (let i = 1; i <= 30; i++) {
+    const used = _bsPaketTerisiKe.includes(i);
+    const disabled = used && i !== cur ? ' disabled' : '';
+    html += `<option value="${i}"${disabled}${i === cur ? ' selected' : ''}>${used && i !== cur ? i + ' (sudah ada)' : i}</option>`;
+  }
+  keSel.innerHTML = html;
+  if (![...keSel.options].some(o => o.value === String(cur) && !o.disabled)) {
+    const next = Array.from({ length: 30 }, (_, i) => i + 1).find(n => !_bsPaketTerisiKe.includes(n)) || 1;
+    keSel.value = String(next);
+  } else {
+    keSel.value = String(cur);
+  }
 }
 
 // Hook save into existing save pipeline via entity bank_soal
@@ -11585,6 +11647,7 @@ async function saveBankSoalHook() {
     return;
   }
   data.jml_soal = Number(data.jml_soal) || 0;
+  data.penilaian_ke = Math.min(30, Math.max(1, Number(data.penilaian_ke || document.getElementById('bsFormKe')?.value) || 1));
   data.status = data.status || 'Draft';
   if (crudState.id) data.id = crudState.id;
   try {
@@ -11696,7 +11759,7 @@ function openBankSoalDetail(row) {
   }
   const title = document.getElementById('bsSoalPanelTitle');
   if (title) {
-    title.textContent = `Soal: ${row.mapel_nama || ''} · ${row.kelas_nama || ''} · ${row.jenis || ''}`;
+    title.textContent = `Soal: ${row.mapel_nama || ''} · ${row.kelas_nama || ''} · ${row.jenis || ''} · Ke-${row.penilaian_ke != null ? row.penilaian_ke : 1}`;
   }
   closeBsiForm();
   loadBankSoalItems(row.id);
@@ -11742,7 +11805,7 @@ function renderBankSoalItems() {
     return `<div class="bs-soal-item" data-id="${escapeHtml(String(it.id))}">
       <div class="bsi-top">
         <span class="bsi-no">No ${escapeHtml(String(it.nomor || ''))}</span>
-        <span class="bsi-jenis">${escapeHtml(it.jenis_soal || '')}</span>
+        <span class="bsi-jenis">${escapeHtml(it.jenis_soal || it.jenis || '')}</span>
         <span style="font-size:11px;color:#666">Skor ${it.skor != null ? it.skor : 1}</span>
         <span style="flex:1"></span>
         <button type="button" class="btn btn-outline btn-sm" data-bsi-edit="${escapeHtml(String(it.id))}">Edit</button>
@@ -11767,7 +11830,18 @@ function openBsiForm(item) {
   if (box) box.classList.add('open');
   document.getElementById('bsiEditId').value = item?.id || '';
   document.getElementById('bsiNomor').value = item?.nomor || ((_bsSoalItems.length || 0) + 1);
-  document.getElementById('bsiJenis').value = item?.jenis_soal || 'Pilihan Ganda';
+  const j0 = item?.jenis_soal || item?.jenis || 'Pilihan Ganda';
+  const jSel = document.getElementById('bsiJenis');
+  if (jSel) {
+    // pastikan option ada
+    const ok = [...jSel.options].some(o => o.value === j0);
+    if (!ok && j0) {
+      const opt = document.createElement('option');
+      opt.value = j0; opt.textContent = j0;
+      jSel.appendChild(opt);
+    }
+    jSel.value = j0;
+  }
   document.getElementById('bsiSkor').value = item?.skor != null ? item.skor : 1;
   document.getElementById('bsiPertanyaan').value = item?.pertanyaan || '';
   document.getElementById('bsiKunci').value = item?.kunci || '';
@@ -11829,19 +11903,35 @@ document.getElementById('btnBsiSimpan')?.addEventListener('click', async () => {
   if (!_bsDetailPaket?.id) { toast('Paket tidak aktif', 'err'); return; }
   const pertanyaan = document.getElementById('bsiPertanyaan')?.value?.trim() || '';
   if (!pertanyaan) { toast('Pertanyaan wajib', 'err'); return; }
+  const jenisEl = document.getElementById('bsiJenis');
+  // Ambil value & text agar tidak jatuh ke default
+  let jenisSoal = (jenisEl?.value || '').trim();
+  if (!jenisSoal && jenisEl?.selectedIndex >= 0) {
+    jenisSoal = (jenisEl.options[jenisEl.selectedIndex]?.text || '').trim();
+  }
+  const allowedJenis = [
+    'Pilihan Ganda', 'Isian Singkat', 'Uraian', 'Benar / Salah',
+    'Checkbox', 'Menjodohkan', 'Unggah File'
+  ];
+  if (!allowedJenis.includes(jenisSoal)) {
+    toast('Jenis soal tidak valid: ' + (jenisSoal || '(kosong)'), 'err');
+    return;
+  }
+  const needOpsi = ['Pilihan Ganda', 'Checkbox', 'Benar / Salah', 'Menjodohkan'].includes(jenisSoal);
+  const opsi = needOpsi ? collectBsiOpsi() : [];
   const payload = {
     id: document.getElementById('bsiEditId')?.value || undefined,
     bank_soal_id: _bsDetailPaket.id,
     nomor: Number(document.getElementById('bsiNomor')?.value) || 1,
-    jenis_soal: document.getElementById('bsiJenis')?.value || 'Pilihan Ganda',
+    jenis_soal: jenisSoal,
     pertanyaan,
-    opsi: collectBsiOpsi(),
+    opsi,
     kunci: document.getElementById('bsiKunci')?.value?.trim() || '',
     skor: Number(document.getElementById('bsiSkor')?.value) || 1,
   };
   try {
-    await apiCall('save_bank_soal_item', { row: payload });
-    toast('Soal tersimpan', 'ok');
+    const res = await apiCall('save_bank_soal_item', { row: payload });
+    toast('Soal tersimpan (' + jenisSoal + ')', 'ok');
     closeBsiForm();
     await loadBankSoalItems(_bsDetailPaket.id);
   } catch (e) {
