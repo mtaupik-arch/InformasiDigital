@@ -8,6 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
   :root {
@@ -820,6 +821,49 @@
 
 
   /* ===== BANK SOAL / RUANG UJIAN ===== */
+
+  .bs-soal-panel {
+    display:none; margin-top:12px; background:#fff; border:1px solid #e2e8f0;
+    border-radius:10px; padding:12px; box-shadow:0 1px 6px rgba(0,0,0,.06);
+  }
+  .bs-soal-panel.open { display:block; }
+  .bs-soal-head {
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #eef2f7;
+  }
+  .bs-soal-head h4 { font-size:13px; color:#1565c0; margin:0; flex:1; min-width:140px; }
+  .bs-soal-item {
+    border:1px solid #e0e6ed; border-radius:8px; padding:10px; margin-bottom:8px; background:#fafbfe;
+  }
+  .bs-soal-item .bsi-top {
+    display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px;
+  }
+  .bs-soal-item .bsi-no {
+    background:#1565c0; color:#fff; font-weight:800; font-size:11px;
+    padding:2px 8px; border-radius:10px;
+  }
+  .bs-soal-item .bsi-jenis {
+    font-size:10px; font-weight:700; color:#5c6bc0; background:#e8eaf6;
+    padding:2px 8px; border-radius:8px;
+  }
+  .bs-soal-item .bsi-q { font-size:12.5px; color:#222; margin:4px 0 6px; white-space:pre-wrap; }
+  .bs-soal-item .bsi-opsi { font-size:11.5px; color:#455a64; padding-left:8px; }
+  .bs-soal-item .bsi-opsi div { margin:2px 0; }
+  .bs-soal-item .bsi-kunci { font-size:11px; color:#2e7d32; font-weight:700; margin-top:4px; }
+  .bs-ru-toolbar {
+    display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;
+  }
+  .bs-ru-toolbar .btn { font-size:11px; padding:6px 10px; }
+  #bsSoalFormBox {
+    display:none; border:1px dashed #90caf9; border-radius:8px;
+    padding:12px; margin-bottom:10px; background:#f5f9ff;
+  }
+  #bsSoalFormBox.open { display:block; }
+  .bs-opsi-row { display:flex; gap:6px; align-items:center; margin-bottom:4px; }
+  .bs-opsi-row input[type="text"] { flex:1; padding:6px 8px; border:1px solid #cfd8dc; border-radius:6px; font-size:12px; }
+  .bs-opsi-row label { font-size:11px; font-weight:700; min-width:18px; }
+
+
   #page-bank-soal .bs-tabs {
     display:flex; gap:0; margin-bottom:12px; border-radius:8px; overflow:hidden;
     border:1px solid #c5cae9;
@@ -3307,6 +3351,53 @@
           </tbody>
         </table>
       </div>
+
+      <div class="bs-soal-panel" id="bsSoalPanel">
+        <div class="bs-soal-head">
+          <h4 id="bsSoalPanelTitle">Soal paket</h4>
+          <button type="button" class="btn btn-success btn-sm" id="btnBsSoalTambah">+ Tambah</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalImport">Import</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalTemplate">Template</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalTutup">Tutup</button>
+        </div>
+        <div class="bs-meta" id="bsSoalMeta">—</div>
+        <div id="bsSoalFormBox">
+          <div class="form-grid">
+            <div class="form-group"><label>Nomor</label><input type="number" id="bsiNomor" min="1" value="1" /></div>
+            <div class="form-group"><label>Jenis Soal</label>
+              <select id="bsiJenis">
+                <option value="Pilihan Ganda">Pilihan Ganda</option>
+                <option value="Isian Singkat">Isian Singkat</option>
+                <option value="Uraian">Uraian</option>
+                <option value="Benar / Salah">Benar / Salah</option>
+                <option value="Checkbox">Checkbox</option>
+                <option value="Menjodohkan">Menjodohkan</option>
+                <option value="Unggah File">Unggah File</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Skor</label><input type="number" id="bsiSkor" min="0" step="0.5" value="1" /></div>
+            <div class="form-group full"><label>Pertanyaan</label>
+              <textarea id="bsiPertanyaan" rows="3" style="width:100%;padding:8px;border:1px solid #cfd8dc;border-radius:8px;font-size:13px" placeholder="Teks pertanyaan…"></textarea>
+            </div>
+            <div class="form-group full" id="bsiOpsiWrap">
+              <label>Opsi jawaban</label>
+              <div id="bsiOpsiList"></div>
+              <button type="button" class="btn btn-outline btn-sm" id="btnBsiAddOpsi" style="margin-top:4px">+ Opsi</button>
+            </div>
+            <div class="form-group"><label>Kunci jawaban</label>
+              <input type="text" id="bsiKunci" placeholder="A / Benar / teks singkat…" />
+            </div>
+            <div class="form-group full" style="display:flex;gap:8px">
+              <button type="button" class="btn btn-primary btn-sm" id="btnBsiSimpan">Simpan Soal</button>
+              <button type="button" class="btn btn-outline btn-sm" id="btnBsiBatal">Batal</button>
+            </div>
+          </div>
+          <input type="hidden" id="bsiEditId" value="" />
+        </div>
+        <div id="bsSoalList"></div>
+        <input type="file" id="bsSoalImportFile" accept=".docx,.doc,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" style="display:none" />
+      </div>
+
     </div>
 
     <!-- Panel Ruang Ujian -->
@@ -3324,11 +3415,20 @@
         </select>
         <button type="button" class="btn btn-outline btn-sm" id="btnBsRuReload">↻</button>
       </div>
+      <div class="bs-ru-toolbar" id="bsRuActions">
+        <button type="button" class="btn btn-outline btn-sm" id="btnRuBukaKembali" title="Buka ulang tanpa hilangkan jawaban">↩ Buka Kembali</button>
+        <button type="button" class="btn btn-success btn-sm" id="btnRuSelesaikan" title="Paksa selesai jika waktu habis tidak terkirim">✓ Selesaikan</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnRuPerpanjang" title="Tambah waktu ujian">⏱ Perpanjang</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btnRuReset" title="Reset lembar ujian ke awal">↺ Reset</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btnRuDetail" title="Detail jawaban & skor isian">📋 Detail</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnRuSinkron" title="Pindahkan skor ke tabel nilai">⟳ Sinkronisasi</button>
+      </div>
       <div class="bs-meta" id="bsRuMeta">Memuat…</div>
       <div class="bs-table-wrap">
         <table class="bs-table">
           <thead>
             <tr>
+              <th style="width:28px"><input type="checkbox" id="bsRuCheckAll" title="Pilih semua" /></th>
               <th class="col-no">No</th>
               <th style="width:96px">NISN</th>
               <th>Nama</th>
@@ -3339,7 +3439,7 @@
             </tr>
           </thead>
           <tbody id="tbodyRuangUjian">
-            <tr><td colspan="7" class="bs-empty">Memuat…</td></tr>
+            <tr><td colspan="8" class="bs-empty">Memuat…</td></tr>
           </tbody>
         </table>
       </div>
@@ -11271,7 +11371,7 @@ async function loadBankSoalAmpu() {
 async function loadBankSoalList() {
   const tb = document.getElementById('tbodyBankSoal');
   const meta = document.getElementById('bsMeta');
-  if (tb) tb.innerHTML = '<tr><td colspan="7" class="bs-empty">Memuat…</td></tr>';
+  if (tb) tb.innerHTML = '<tr><td colspan="8" class="bs-empty">Memuat…</td></tr>';
   try {
     const res = await apiCall('list_bank_soal', {});
     _bsRows = res.data || [];
@@ -11307,11 +11407,10 @@ function renderBankSoalTable() {
   if (tb) {
     tb.innerHTML = rows.map((r, i) => {
       let acts = '';
+      acts += `<button type="button" class="btn btn-primary btn-sm" data-bs-lihat="${escapeHtml(String(r.id))}">Lihat</button> `;
       if (canEdit && r.can_edit !== false) {
         acts += `<button type="button" class="btn btn-outline btn-sm" data-bs-edit="${escapeHtml(String(r.id))}">Edit</button> `;
         acts += `<button type="button" class="btn btn-danger btn-sm" data-bs-del="${escapeHtml(String(r.id))}">Hapus</button>`;
-      } else {
-        acts = '<span style="color:#999;font-size:11px">—</span>';
       }
       return `<tr>
         <td class="col-no">${i + 1}</td>
@@ -11333,8 +11432,15 @@ document.getElementById('bsFilterStatus')?.addEventListener('change', () => rend
 document.getElementById('btnBsTambah')?.addEventListener('click', () => openBankSoalForm(null));
 
 document.getElementById('tbodyBankSoal')?.addEventListener('click', async (e) => {
+  const lihat = e.target.closest('[data-bs-lihat]');
   const ed = e.target.closest('[data-bs-edit]');
   const del = e.target.closest('[data-bs-del]');
+  if (lihat) {
+    const id = lihat.getAttribute('data-bs-lihat');
+    const row = _bsRows.find(r => String(r.id) === id);
+    if (row) openBankSoalDetail(row);
+    return;
+  }
   if (ed) {
     const id = ed.getAttribute('data-bs-edit');
     const row = _bsRows.find(r => String(r.id) === id);
@@ -11516,7 +11622,7 @@ async function saveBankSoalHook() {
 async function loadRuangUjianList() {
   const tb = document.getElementById('tbodyRuangUjian');
   const meta = document.getElementById('bsRuMeta');
-  if (tb) tb.innerHTML = '<tr><td colspan="7" class="bs-empty">Memuat…</td></tr>';
+  if (tb) tb.innerHTML = '<tr><td colspan="8" class="bs-empty">Memuat…</td></tr>';
   try {
     const res = await apiCall('list_ruang_ujian', {});
     _bsRuRows = res.data || [];
@@ -11545,7 +11651,7 @@ function renderRuangUjianTable() {
     meta.textContent = `${rows.length} ditampil · ${_bsRuRows.length} total · ${nM} sedang mengerjakan`;
   }
   if (!rows.length) {
-    if (tb) tb.innerHTML = '<tr><td colspan="7" class="bs-empty">Belum ada siswa di ruang ujian.</td></tr>';
+    if (tb) tb.innerHTML = '<tr><td colspan="8" class="bs-empty">Belum ada siswa di ruang ujian.</td></tr>';
     return;
   }
   if (tb) {
@@ -11553,6 +11659,7 @@ function renderRuangUjianTable() {
       const skor = r.skor != null && r.skor !== '' ? r.skor : '—';
       const waktu = r.sisa_detik != null ? bsFmtWaktu(r.sisa_detik) : (r.waktu_label || '—');
       return `<tr>
+        <td style="text-align:center"><input type="checkbox" class="bs-ru-check" value="${escapeHtml(String(r.id))}" /></td>
         <td class="col-no">${i + 1}</td>
         <td style="font-variant-numeric:tabular-nums">${escapeHtml(r.nisn || '—')}</td>
         <td style="font-weight:600">${escapeHtml(r.nama || '—')}</td>
@@ -11569,6 +11676,430 @@ document.getElementById('btnBsRuReload')?.addEventListener('click', () => loadRu
 document.getElementById('bsRuQ')?.addEventListener('input', () => renderRuangUjianTable());
 document.getElementById('bsRuFilterStatus')?.addEventListener('change', () => renderRuangUjianTable());
 
+
+
+/* ===== Bank Soal: detail item + Ruang Ujian aksi ===== */
+let _bsDetailPaket = null;
+let _bsSoalItems = [];
+
+const BS_JENIS_SOAL = [
+  'Pilihan Ganda', 'Isian Singkat', 'Uraian', 'Benar / Salah',
+  'Checkbox', 'Menjodohkan', 'Unggah File'
+];
+
+function openBankSoalDetail(row) {
+  _bsDetailPaket = row;
+  const panel = document.getElementById('bsSoalPanel');
+  if (panel) {
+    panel.classList.add('open');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  const title = document.getElementById('bsSoalPanelTitle');
+  if (title) {
+    title.textContent = `Soal: ${row.mapel_nama || ''} · ${row.kelas_nama || ''} · ${row.jenis || ''}`;
+  }
+  closeBsiForm();
+  loadBankSoalItems(row.id);
+}
+
+async function loadBankSoalItems(bankId) {
+  const list = document.getElementById('bsSoalList');
+  const meta = document.getElementById('bsSoalMeta');
+  if (list) list.innerHTML = '<div class="bs-empty">Memuat soal…</div>';
+  try {
+    const res = await apiCall('list_bank_soal_item', { bank_soal_id: bankId });
+    _bsSoalItems = res.data || [];
+    renderBankSoalItems();
+    if (meta) meta.textContent = `${_bsSoalItems.length} soal`;
+    const p = _bsRows.find(r => String(r.id) === String(bankId));
+    if (p) p.jml_soal = _bsSoalItems.length;
+    renderBankSoalTable();
+  } catch (e) {
+    if (list) list.innerHTML = `<div class="bs-empty" style="color:#c62828">${escapeHtml(errToText(e))}</div>`;
+    if (meta) meta.textContent = errToText(e);
+  }
+}
+
+function renderBankSoalItems() {
+  const list = document.getElementById('bsSoalList');
+  if (!list) return;
+  if (!_bsSoalItems.length) {
+    list.innerHTML = '<div class="bs-empty">Belum ada soal. Klik + Tambah atau Import / unduh Template.</div>';
+    return;
+  }
+  const sorted = _bsSoalItems.slice().sort((a, b) => (Number(a.nomor) || 0) - (Number(b.nomor) || 0));
+  list.innerHTML = sorted.map(it => {
+    let opsi = it.opsi;
+    if (typeof opsi === 'string') { try { opsi = JSON.parse(opsi); } catch { opsi = []; } }
+    if (!Array.isArray(opsi)) opsi = [];
+    const opsiHtml = opsi.length
+      ? `<div class="bsi-opsi">${opsi.map((o, i) => {
+          const lab = typeof o === 'object' ? (o.label || String.fromCharCode(65 + i)) : String.fromCharCode(65 + i);
+          const txt = typeof o === 'object' ? (o.text || '') : String(o);
+          return `<div><b>${escapeHtml(lab)}.</b> ${escapeHtml(txt)}</div>`;
+        }).join('')}</div>`
+      : '';
+    return `<div class="bs-soal-item" data-id="${escapeHtml(String(it.id))}">
+      <div class="bsi-top">
+        <span class="bsi-no">No ${escapeHtml(String(it.nomor || ''))}</span>
+        <span class="bsi-jenis">${escapeHtml(it.jenis_soal || '')}</span>
+        <span style="font-size:11px;color:#666">Skor ${it.skor != null ? it.skor : 1}</span>
+        <span style="flex:1"></span>
+        <button type="button" class="btn btn-outline btn-sm" data-bsi-edit="${escapeHtml(String(it.id))}">Edit</button>
+        <button type="button" class="btn btn-danger btn-sm" data-bsi-del="${escapeHtml(String(it.id))}">Hapus</button>
+      </div>
+      <div class="bsi-q">${escapeHtml(it.pertanyaan || '')}</div>
+      ${opsiHtml}
+      ${it.kunci ? `<div class="bsi-kunci">Kunci: ${escapeHtml(String(it.kunci))}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function closeBsiForm() {
+  const box = document.getElementById('bsSoalFormBox');
+  if (box) box.classList.remove('open');
+  const hid = document.getElementById('bsiEditId');
+  if (hid) hid.value = '';
+}
+
+function openBsiForm(item) {
+  const box = document.getElementById('bsSoalFormBox');
+  if (box) box.classList.add('open');
+  document.getElementById('bsiEditId').value = item?.id || '';
+  document.getElementById('bsiNomor').value = item?.nomor || ((_bsSoalItems.length || 0) + 1);
+  document.getElementById('bsiJenis').value = item?.jenis_soal || 'Pilihan Ganda';
+  document.getElementById('bsiSkor').value = item?.skor != null ? item.skor : 1;
+  document.getElementById('bsiPertanyaan').value = item?.pertanyaan || '';
+  document.getElementById('bsiKunci').value = item?.kunci || '';
+  let opsi = item?.opsi;
+  if (typeof opsi === 'string') { try { opsi = JSON.parse(opsi); } catch { opsi = []; } }
+  if (!Array.isArray(opsi) || !opsi.length) {
+    opsi = [{ label: 'A', text: '' }, { label: 'B', text: '' }, { label: 'C', text: '' }, { label: 'D', text: '' }];
+  }
+  renderBsiOpsiInputs(opsi);
+  onBsiJenisChange();
+  box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderBsiOpsiInputs(opsi) {
+  const wrap = document.getElementById('bsiOpsiList');
+  if (!wrap) return;
+  wrap.innerHTML = (opsi || []).map((o, i) => {
+    const lab = (typeof o === 'object' ? o.label : null) || String.fromCharCode(65 + i);
+    const txt = typeof o === 'object' ? (o.text || '') : String(o || '');
+    return `<div class="bs-opsi-row">
+      <label>${escapeHtml(lab)}</label>
+      <input type="text" data-opsi-i="${i}" data-opsi-lab="${escapeHtml(lab)}" value="${escapeHtml(txt)}" placeholder="Teks opsi ${escapeHtml(lab)}" />
+    </div>`;
+  }).join('');
+}
+
+function collectBsiOpsi() {
+  return [...document.querySelectorAll('#bsiOpsiList input[data-opsi-i]')].map(inp => ({
+    label: inp.getAttribute('data-opsi-lab') || '',
+    text: inp.value || '',
+  }));
+}
+
+function onBsiJenisChange() {
+  const j = document.getElementById('bsiJenis')?.value || '';
+  const ow = document.getElementById('bsiOpsiWrap');
+  const needOpsi = ['Pilihan Ganda', 'Checkbox', 'Benar / Salah', 'Menjodohkan'].includes(j);
+  if (ow) ow.style.display = needOpsi ? '' : 'none';
+  if (j === 'Benar / Salah') {
+    renderBsiOpsiInputs([{ label: 'A', text: 'Benar' }, { label: 'B', text: 'Salah' }]);
+  }
+}
+
+document.getElementById('btnBsSoalTutup')?.addEventListener('click', () => {
+  document.getElementById('bsSoalPanel')?.classList.remove('open');
+  _bsDetailPaket = null;
+});
+document.getElementById('btnBsSoalTambah')?.addEventListener('click', () => openBsiForm(null));
+document.getElementById('btnBsiBatal')?.addEventListener('click', () => closeBsiForm());
+document.getElementById('bsiJenis')?.addEventListener('change', onBsiJenisChange);
+document.getElementById('btnBsiAddOpsi')?.addEventListener('click', () => {
+  const cur = collectBsiOpsi();
+  const next = String.fromCharCode(65 + cur.length);
+  cur.push({ label: next, text: '' });
+  renderBsiOpsiInputs(cur);
+});
+
+document.getElementById('btnBsiSimpan')?.addEventListener('click', async () => {
+  if (!_bsDetailPaket?.id) { toast('Paket tidak aktif', 'err'); return; }
+  const pertanyaan = document.getElementById('bsiPertanyaan')?.value?.trim() || '';
+  if (!pertanyaan) { toast('Pertanyaan wajib', 'err'); return; }
+  const payload = {
+    id: document.getElementById('bsiEditId')?.value || undefined,
+    bank_soal_id: _bsDetailPaket.id,
+    nomor: Number(document.getElementById('bsiNomor')?.value) || 1,
+    jenis_soal: document.getElementById('bsiJenis')?.value || 'Pilihan Ganda',
+    pertanyaan,
+    opsi: collectBsiOpsi(),
+    kunci: document.getElementById('bsiKunci')?.value?.trim() || '',
+    skor: Number(document.getElementById('bsiSkor')?.value) || 1,
+  };
+  try {
+    await apiCall('save_bank_soal_item', { row: payload });
+    toast('Soal tersimpan', 'ok');
+    closeBsiForm();
+    await loadBankSoalItems(_bsDetailPaket.id);
+  } catch (e) {
+    toast(errToText(e), 'err');
+  }
+});
+
+document.getElementById('bsSoalList')?.addEventListener('click', async (e) => {
+  const ed = e.target.closest('[data-bsi-edit]');
+  const del = e.target.closest('[data-bsi-del]');
+  if (ed) {
+    const id = ed.getAttribute('data-bsi-edit');
+    const it = _bsSoalItems.find(x => String(x.id) === id);
+    if (it) openBsiForm(it);
+    return;
+  }
+  if (del) {
+    const id = del.getAttribute('data-bsi-del');
+    if (!confirm('Hapus soal ini?')) return;
+    try {
+      await apiCall('delete_bank_soal_item', { id });
+      toast('Soal dihapus', 'ok');
+      if (_bsDetailPaket) await loadBankSoalItems(_bsDetailPaket.id);
+    } catch (err) {
+      toast(errToText(err), 'err');
+    }
+  }
+});
+
+document.getElementById('btnBsSoalTemplate')?.addEventListener('click', () => {
+  const htmlDoc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Template Bank Soal</title>
+<style>body{font-family:Arial,sans-serif;font-size:12pt}pre{background:#f5f5f5;padding:8px;white-space:pre-wrap}</style></head><body>
+<h1>TEMPLATE BANK SOAL (Import MS Word)</h1>
+<p>Simpan sebagai .docx lalu Import. Setiap soal dipisah --- atau dimulai dengan NO:</p>
+<pre>NO: 1
+JENIS: Pilihan Ganda
+SKOR: 1
+PERTANYAAN: Ibu kota Indonesia adalah?
+A. Jakarta
+B. Bandung
+C. Surabaya
+D. Medan
+KUNCI: A
+---
+NO: 2
+JENIS: Isian Singkat
+SKOR: 1
+PERTANYAAN: 2 + 2 = …
+KUNCI: 4
+---
+NO: 3
+JENIS: Uraian
+SKOR: 5
+PERTANYAAN: Jelaskan fotosintesis!
+KUNCI:
+---
+NO: 4
+JENIS: Benar / Salah
+SKOR: 1
+PERTANYAAN: Bumi mengelilingi matahari.
+A. Benar
+B. Salah
+KUNCI: A
+---
+NO: 5
+JENIS: Checkbox
+SKOR: 2
+PERTANYAAN: Pilih bilangan genap!
+A. 1
+B. 2
+C. 3
+D. 4
+KUNCI: B,D
+---
+NO: 6
+JENIS: Menjodohkan
+SKOR: 2
+PERTANYAAN: Jodohkan negara dengan ibukota
+A. Indonesia=Jakarta
+B. Malaysia=Kuala Lumpur
+KUNCI: A,B
+---
+NO: 7
+JENIS: Unggah File
+SKOR: 5
+PERTANYAAN: Unggah laporan PDF.
+KUNCI:</pre>
+<p>JENIS: Pilihan Ganda | Isian Singkat | Uraian | Benar / Salah | Checkbox | Menjodohkan | Unggah File</p>
+</body></html>`;
+  const blob = new Blob(['\ufeff', htmlDoc], { type: 'application/msword' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Template_Bank_Soal.doc';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Template diunduh (.doc)', 'ok');
+});
+
+document.getElementById('btnBsSoalImport')?.addEventListener('click', () => {
+  if (!_bsDetailPaket?.id) { toast('Buka paket lewat tombol Lihat dulu', 'err'); return; }
+  document.getElementById('bsSoalImportFile')?.click();
+});
+
+document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file || !_bsDetailPaket?.id) return;
+  try {
+    toast('Membaca file…', 'ok');
+    let text = '';
+    const name = (file.name || '').toLowerCase();
+    if (name.endsWith('.docx') || (file.type || '').includes('wordprocessingml')) {
+      if (typeof mammoth === 'undefined') throw new Error('Library mammoth belum dimuat (CDN)');
+      const buf = await file.arrayBuffer();
+      const res = await mammoth.extractRawText({ arrayBuffer: buf });
+      text = res.value || '';
+    } else {
+      text = await file.text();
+    }
+    const items = parseBankSoalImportText(text);
+    if (!items.length) throw new Error('Tidak ada soal terdeteksi. Pakai format Template.');
+    if (!confirm(`Import ${items.length} soal ke paket ini?`)) return;
+    const res = await apiCall('import_bank_soal_item', { bank_soal_id: _bsDetailPaket.id, items });
+    toast(res.message || 'Impor selesai', 'ok');
+    await loadBankSoalItems(_bsDetailPaket.id);
+  } catch (err) {
+    toast(errToText(err), 'err');
+  }
+});
+
+function parseBankSoalImportText(text) {
+  const raw = String(text || '').replace(/\r/g, '');
+  const chunks = raw.split(/\n\s*---\s*\n/).map(s => s.trim()).filter(Boolean);
+  let blocks = chunks;
+  if (blocks.length <= 1) {
+    blocks = raw.split(/(?=^NO\s*:)/im).map(s => s.trim()).filter(Boolean);
+  }
+  const out = [];
+  for (const block of blocks) {
+    if (!/NO\s*:/i.test(block)) continue;
+    const get = (key) => {
+      const m = block.match(new RegExp('^\\s*' + key + '\\s*:\\s*(.*)$', 'im'));
+      return m ? m[1].trim() : '';
+    };
+    const nomor = Number(get('NO')) || (out.length + 1);
+    let jenis = get('JENIS') || 'Pilihan Ganda';
+    const jl = jenis.toLowerCase();
+    if (jl.includes('pilihan')) jenis = 'Pilihan Ganda';
+    else if (jl.includes('isian')) jenis = 'Isian Singkat';
+    else if (jl.includes('uraian')) jenis = 'Uraian';
+    else if (jl.includes('benar')) jenis = 'Benar / Salah';
+    else if (jl.includes('check')) jenis = 'Checkbox';
+    else if (jl.includes('jodoh')) jenis = 'Menjodohkan';
+    else if (jl.includes('unggah') || jl.includes('upload')) jenis = 'Unggah File';
+    const skor = Number(get('SKOR')) || 1;
+    let pertanyaan = get('PERTANYAAN');
+    if (!pertanyaan) {
+      const m = block.match(/PERTANYAAN\s*:\s*([\s\S]*?)(?=\n\s*[A-H]\s*[\.\)]|\n\s*KUNCI\s*:|$)/i);
+      if (m) pertanyaan = m[1].trim();
+    }
+    const opsi = [];
+    const opsiRe = /^([A-H])\s*[\.\)]\s*(.*)$/gm;
+    let om;
+    while ((om = opsiRe.exec(block))) opsi.push({ label: om[1], text: om[2].trim() });
+    const kunci = get('KUNCI');
+    if (!pertanyaan) continue;
+    out.push({ nomor, jenis_soal: jenis, pertanyaan, opsi, kunci, skor });
+  }
+  return out;
+}
+
+function getSelectedRuangIds() {
+  return [...document.querySelectorAll('.bs-ru-check:checked')].map(c => c.value);
+}
+
+document.getElementById('bsRuCheckAll')?.addEventListener('change', (e) => {
+  document.querySelectorAll('.bs-ru-check').forEach(c => { c.checked = !!e.target.checked; });
+});
+
+async function runRuangAction(action, extra = {}) {
+  const ids = getSelectedRuangIds();
+  if (!ids.length) { toast('Pilih minimal 1 siswa di tabel', 'err'); return; }
+  try {
+    const res = await apiCall('ruang_ujian_aksi', { aksi: action, ids, ...extra });
+    toast(res.message || 'Selesai', 'ok');
+    await loadRuangUjianList();
+    return res;
+  } catch (e) {
+    toast(errToText(e), 'err');
+  }
+}
+
+document.getElementById('btnRuBukaKembali')?.addEventListener('click', () => {
+  if (!confirm('Buka kembali ujian siswa terpilih tanpa menghapus jawaban?')) return;
+  runRuangAction('buka_kembali');
+});
+document.getElementById('btnRuSelesaikan')?.addEventListener('click', () => {
+  if (!confirm('Paksa selesaikan ujian siswa terpilih?')) return;
+  runRuangAction('selesaikan');
+});
+document.getElementById('btnRuPerpanjang')?.addEventListener('click', () => {
+  const m = prompt('Tambah waktu (menit):', '15');
+  if (m == null) return;
+  const menit = Number(m);
+  if (!(menit > 0)) { toast('Menit tidak valid', 'err'); return; }
+  runRuangAction('perpanjang', { menit });
+});
+document.getElementById('btnRuReset')?.addEventListener('click', () => {
+  if (!confirm('Reset lembar ujian siswa terpilih? Jawaban akan dihapus.')) return;
+  runRuangAction('reset');
+});
+document.getElementById('btnRuDetail')?.addEventListener('click', async () => {
+  const ids = getSelectedRuangIds();
+  if (ids.length !== 1) { toast('Pilih tepat 1 siswa untuk Detail', 'err'); return; }
+  try {
+    const res = await apiCall('ruang_ujian_detail', { id: ids[0] });
+    const d = res.data || {};
+    const answers = d.jawaban || [];
+    let body = `<div style="max-height:60vh;overflow:auto;text-align:left;font-size:12px">
+      <b>${escapeHtml(d.nama || '')}</b> · ${escapeHtml(d.nisn || '')} · ${escapeHtml(d.kelas || '')}<br>
+      Status: ${escapeHtml(d.status || '')} · Skor: <b>${d.skor != null ? d.skor : '—'}</b><hr/>`;
+    if (!answers.length) body += '<i>Belum ada jawaban tersimpan.</i>';
+    else {
+      answers.forEach((a, i) => {
+        body += `<div style="margin-bottom:8px;padding:6px;border:1px solid #eee;border-radius:6px">
+          <b>No ${a.nomor || (i + 1)}</b> (${escapeHtml(a.jenis_soal || '')}) skor:
+          <input type="number" step="0.5" min="0" data-jw-id="${escapeHtml(String(a.id || ''))}" value="${a.skor_jawaban != null ? a.skor_jawaban : ''}" style="width:64px" />
+          <div style="margin-top:4px">${escapeHtml(a.pertanyaan || '')}</div>
+          <div style="color:#1565c0">Jawaban: ${escapeHtml(String(a.jawaban || '—'))}</div>
+        </div>`;
+      });
+      body += `<button type="button" class="btn btn-primary btn-sm" id="btnRuSimpanSkorIsian">Simpan skor isian</button>`;
+    }
+    body += '</div>';
+    if (typeof showBigPopup === 'function') {
+      showBigPopup('ok', 'Detail Jawaban', body, 0);
+      setTimeout(() => {
+        document.getElementById('btnRuSimpanSkorIsian')?.addEventListener('click', async () => {
+          const scores = [...document.querySelectorAll('[data-jw-id]')].map(inp => ({
+            id: inp.getAttribute('data-jw-id'),
+            skor: inp.value === '' ? null : Number(inp.value),
+          }));
+          try {
+            await apiCall('ruang_ujian_set_skor', { ruang_id: ids[0], scores });
+            toast('Skor disimpan', 'ok');
+            await loadRuangUjianList();
+          } catch (err) { toast(errToText(err), 'err'); }
+        });
+      }, 250);
+    }
+  } catch (e) { toast(errToText(e), 'err'); }
+});
+document.getElementById('btnRuSinkron')?.addEventListener('click', () => {
+  if (!confirm('Sinkronisasi skor ujian terpilih ke tabel Nilai (nilai fix)?')) return;
+  runRuangAction('sinkronisasi');
+});
 
 /* ===== Init ===== */
 (async function init() {
