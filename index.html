@@ -11895,7 +11895,7 @@ function bsInitEditor(initialHtml) {
     selector: '#bsiPertanyaan',
     height: 280,
     menubar: 'file edit view insert format table tools',
-    plugins: 'lists link image media table code codesample charmap wordcount autoresize searchreplace visualblocks noneditable',
+    plugins: 'lists link image media table code codesample charmap wordcount autoresize searchreplace visualblocks',
     toolbar: 'undo redo | styles | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright | bullist numlist outdent indent | subscript superscript | link image media table | bsMath charmap | removeformat code',
     toolbar_mode: 'sliding',
     branding: false,
@@ -12095,20 +12095,8 @@ document.getElementById('btnBsMathInsert')?.addEventListener('click', () => {
   bsCloseMathModal();
   toast('Rumus disisipkan', 'ok');
 });
-    }
-  } catch (_) {}
-  const html = rendered
-    ? `<span class="bs-math" data-latex="${escapeHtml(latex)}">${rendered}</span>&nbsp;`
-    : `<span class="bs-math" data-latex="${escapeHtml(latex)}">\\(${escapeHtml(latex)}\\)</span>&nbsp;`;
-  if (window.tinymce) {
-    const ed = tinymce.get('bsiPertanyaan');
-    if (ed) {
-      ed.insertContent(html);
-      ed.focus();
-    }
-  }
-  bsCloseMathModal();
-});
+
+
 
 function bsRenderMathIn(el) {
   if (!el || typeof renderMathInElement !== 'function') return;
