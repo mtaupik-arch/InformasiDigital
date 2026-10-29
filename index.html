@@ -818,6 +818,55 @@
 
 
 
+
+  /* ===== BANK SOAL / RUANG UJIAN ===== */
+  #page-bank-soal .bs-tabs {
+    display:flex; gap:0; margin-bottom:12px; border-radius:8px; overflow:hidden;
+    border:1px solid #c5cae9;
+  }
+  #page-bank-soal .bs-tab {
+    flex:1; border:none; background:#e8eaf6; color:#3949ab; font-size:12.5px;
+    font-weight:700; padding:10px 8px; cursor:pointer; transition:.15s;
+  }
+  #page-bank-soal .bs-tab.active { background:#1565c0; color:#fff; }
+  #page-bank-soal .bs-tab:not(.active):hover { background:#c5cae9; }
+  #page-bank-soal .bs-toolbar {
+    display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px;
+  }
+  #page-bank-soal .bs-toolbar .search-box { flex:1; min-width:120px; max-width:220px; }
+  .bs-status {
+    display:inline-block; padding:2px 8px; border-radius:10px;
+    font-size:10px; font-weight:800; letter-spacing:.2px;
+  }
+  .bs-status.draft { background:#eceff1; color:#546e7a; }
+  .bs-status.aktif { background:#e8f5e9; color:#2e7d32; }
+  .bs-status.selesai { background:#e3f2fd; color:#1565c0; }
+  .bs-ru-status {
+    display:inline-block; padding:2px 8px; border-radius:10px;
+    font-size:10px; font-weight:800;
+  }
+  .bs-ru-status.mengerjakan { background:#fff8e1; color:#ef6c00; }
+  .bs-ru-status.selesai { background:#e8f5e9; color:#2e7d32; }
+  .bs-ru-status.timeout { background:#ffebee; color:#c62828; }
+  .bs-meta { font-size:11px; color:#78909c; margin-bottom:8px; }
+  .bs-table-wrap { overflow-x:auto; background:#fff; border-radius:8px; border:1px solid #e2e8f0; }
+  table.bs-table {
+    width:100%; border-collapse:collapse; font-size:11.5px; min-width:640px;
+  }
+  table.bs-table thead th {
+    background:#1565c0; color:#fff; padding:8px 6px; font-size:10.5px;
+    font-weight:600; text-align:left; white-space:nowrap;
+  }
+  table.bs-table tbody td {
+    padding:7px 6px; border-bottom:1px solid #e8edf3; vertical-align:middle;
+  }
+  table.bs-table tbody tr:hover { background:#f7fafd; }
+  table.bs-table .col-no { width:32px; text-align:center; color:#666; }
+  table.bs-table .col-act { white-space:nowrap; width:1%; }
+  .bs-empty {
+    text-align:center; padding:28px 12px; color:#78909c; font-size:13px;
+  }
+
   /* ===== CARI DATA SISWA ===== */
   #page-cari-siswa { max-width: 720px; margin: 0 auto; }
   #page-cari-siswa .page-title { font-size: 15px; margin-bottom: 8px; }
@@ -3212,6 +3261,91 @@
     </div>
   </div>
 
+
+  <!-- ========== PAGE: BANK SOAL ========== -->
+  <div class="page" id="page-bank-soal">
+    <div class="page-title">📚 Bank Soal &amp; Ruang Ujian</div>
+    <div class="bs-tabs" id="bsTabs">
+      <button type="button" class="bs-tab active" data-bs-tab="bank">Bank Soal</button>
+      <button type="button" class="bs-tab" data-bs-tab="ruang">Ruang Ujian</button>
+    </div>
+
+    <!-- Panel Bank Soal -->
+    <div id="bsPanelBank">
+      <p style="font-size:12px;color:#546e7a;margin:0 0 10px;line-height:1.4">
+        Guru hanya dapat membuat / mengedit / menghapus paket soal untuk <b>mapel &amp; kelas yang diampu</b>.
+        Status: <b>Draft</b> (belum dibuka), <b>Aktif</b> (siap/ujian berjalan), <b>Selesai</b>.
+      </p>
+      <div class="bs-toolbar">
+        <input type="search" class="search-box" id="bsQ" placeholder="Cari mapel / kelas / jenis…" />
+        <select id="bsFilterStatus" style="padding:6px 8px;border:1px solid #d0d7e2;border-radius:3px;font-size:11px">
+          <option value="">Semua status</option>
+          <option value="Draft">Draft</option>
+          <option value="Aktif">Aktif</option>
+          <option value="Selesai">Selesai</option>
+        </select>
+        <button type="button" class="btn btn-outline btn-sm" id="btnBsReload">↻</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-primary btn-sm" id="btnBsTambah">+ Buat Paket Soal</button>
+      </div>
+      <div class="bs-meta" id="bsMeta">Memuat…</div>
+      <div class="bs-table-wrap">
+        <table class="bs-table">
+          <thead>
+            <tr>
+              <th class="col-no">No</th>
+              <th>Mapel</th>
+              <th>Kelas</th>
+              <th>Jenis</th>
+              <th style="width:64px;text-align:center">Jml Soal</th>
+              <th style="width:72px">Status</th>
+              <th class="col-act">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyBankSoal">
+            <tr><td colspan="7" class="bs-empty">Memuat…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Panel Ruang Ujian -->
+    <div id="bsPanelRuang" style="display:none">
+      <p style="font-size:12px;color:#546e7a;margin:0 0 10px;line-height:1.4">
+        Daftar siswa yang sedang atau baru saja mengerjakan ujian dari paket soal berstatus <b>Aktif</b>.
+      </p>
+      <div class="bs-toolbar">
+        <input type="search" class="search-box" id="bsRuQ" placeholder="Cari NISN / nama / kelas…" />
+        <select id="bsRuFilterStatus" style="padding:6px 8px;border:1px solid #d0d7e2;border-radius:3px;font-size:11px">
+          <option value="">Semua status</option>
+          <option value="Mengerjakan">Mengerjakan</option>
+          <option value="Selesai">Selesai</option>
+          <option value="Timeout">Timeout</option>
+        </select>
+        <button type="button" class="btn btn-outline btn-sm" id="btnBsRuReload">↻</button>
+      </div>
+      <div class="bs-meta" id="bsRuMeta">Memuat…</div>
+      <div class="bs-table-wrap">
+        <table class="bs-table">
+          <thead>
+            <tr>
+              <th class="col-no">No</th>
+              <th style="width:96px">NISN</th>
+              <th>Nama</th>
+              <th style="width:72px">Kelas</th>
+              <th style="width:88px">Status</th>
+              <th style="width:88px">Sisa Waktu</th>
+              <th style="width:56px;text-align:center">Skor</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyRuangUjian">
+            <tr><td colspan="7" class="bs-empty">Memuat…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-placeholder">
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
@@ -4288,7 +4422,7 @@ let navReady = false;
 let navTrapArmed = false;
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   if (page === 'pengumuman-lulus') target = 'validasi-lulusan';
@@ -4383,6 +4517,7 @@ function navigate(page, opts = {}) {
   if (target === 'jadwal-mapel') runPage(() => initJadwalMapelPage());
   if (target === 'jadwal-mapel-kelas') runPage(() => initJadwalMapelKelasPage());
   if (target === 'cari-siswa') runPage(() => initCariSiswaPage());
+  if (target === 'bank-soal') runPage(() => initBankSoalPage());
   if (target === 'pengumuman-lulus' || target === 'validasi-lulusan') runPage(() => initValidasiLulusanPage());
   if (target !== 'scan-barcode') {
     try { stopQrScanner(); } catch (_) {}
@@ -6611,6 +6746,7 @@ async function saveFormSesiLiburHook() {
 document.getElementById('crudModalSave').onclick = function () {
   if (crudState.entity === 'sesi' || crudState.entity === 'hari_libur') saveFormSesiLiburHook();
   else if (['mapel', 'kelas', 'bobot_nilai'].includes(crudState.entity)) saveMapelKelasHook();
+  else if (crudState.entity === 'bank_soal') { saveBankSoalHook(); return; }
   else saveForm();
 };
 
@@ -11053,6 +11189,385 @@ document.getElementById('btnCsCari')?.addEventListener('click', async () => {
     }
   }
 });
+
+
+
+/* ===== Bank Soal & Ruang Ujian ===== */
+let _bsRows = [];
+let _bsRuRows = [];
+let _bsTab = 'bank';
+let _bsAmpu = []; // [{mapel_id, kelas_id, mapel_nama, kelas_nama, mapel_kode}]
+
+function bsStatusPill(st) {
+  const s = String(st || 'Draft');
+  const cls = s === 'Aktif' ? 'aktif' : (s === 'Selesai' ? 'selesai' : 'draft');
+  return `<span class="bs-status ${cls}">${escapeHtml(s)}</span>`;
+}
+
+function bsRuStatusPill(st) {
+  const s = String(st || 'Mengerjakan');
+  const cls = s === 'Selesai' ? 'selesai' : (s === 'Timeout' ? 'timeout' : 'mengerjakan');
+  return `<span class="bs-ru-status ${cls}">${escapeHtml(s)}</span>`;
+}
+
+function bsFmtWaktu(sec) {
+  if (sec == null || sec === '') return '—';
+  const n = Number(sec);
+  if (isNaN(n)) return String(sec);
+  if (n < 0) return '0:00';
+  const m = Math.floor(n / 60);
+  const s = Math.floor(n % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+async function initBankSoalPage() {
+  const sess = getSession();
+  if (!sess || (sess.role !== 'admin' && sess.role !== 'guru')) {
+    const tb = document.getElementById('tbodyBankSoal');
+    if (tb) tb.innerHTML = '<tr><td colspan="7" class="bs-empty" style="color:#c62828">Login sebagai Admin atau Guru.</td></tr>';
+    const tr = document.getElementById('tbodyRuangUjian');
+    if (tr) tr.innerHTML = '<tr><td colspan="7" class="bs-empty" style="color:#c62828">Login sebagai Admin atau Guru.</td></tr>';
+    return;
+  }
+  switchBsTab(_bsTab || 'bank');
+  await loadBankSoalAmpu();
+  if (_bsTab === 'ruang') await loadRuangUjianList();
+  else await loadBankSoalList();
+}
+
+function switchBsTab(tab) {
+  _bsTab = tab === 'ruang' ? 'ruang' : 'bank';
+  document.querySelectorAll('#bsTabs .bs-tab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-bs-tab') === _bsTab);
+  });
+  const pb = document.getElementById('bsPanelBank');
+  const pr = document.getElementById('bsPanelRuang');
+  if (pb) pb.style.display = _bsTab === 'bank' ? '' : 'none';
+  if (pr) pr.style.display = _bsTab === 'ruang' ? '' : 'none';
+}
+
+document.getElementById('bsTabs')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.bs-tab');
+  if (!btn) return;
+  const tab = btn.getAttribute('data-bs-tab');
+  switchBsTab(tab);
+  if (tab === 'ruang') loadRuangUjianList();
+  else loadBankSoalList();
+});
+
+async function loadBankSoalAmpu() {
+  try {
+    const res = await apiCall('list_bank_soal_meta', {});
+    _bsAmpu = res.ampu || [];
+    if (res.mapel) store.mapel = res.mapel;
+    if (res.kelas) store.kelas = res.kelas;
+    if (res.bobot_nilai) store.bobot_nilai = res.bobot_nilai;
+  } catch (e) {
+    console.warn('list_bank_soal_meta', e);
+    _bsAmpu = [];
+  }
+}
+
+async function loadBankSoalList() {
+  const tb = document.getElementById('tbodyBankSoal');
+  const meta = document.getElementById('bsMeta');
+  if (tb) tb.innerHTML = '<tr><td colspan="7" class="bs-empty">Memuat…</td></tr>';
+  try {
+    const res = await apiCall('list_bank_soal', {});
+    _bsRows = res.data || [];
+    renderBankSoalTable();
+  } catch (e) {
+    if (tb) tb.innerHTML = `<tr><td colspan="7" class="bs-empty" style="color:#c62828">${escapeHtml(errToText(e))}</td></tr>`;
+    if (meta) meta.textContent = errToText(e);
+  }
+}
+
+function renderBankSoalTable() {
+  const tb = document.getElementById('tbodyBankSoal');
+  const meta = document.getElementById('bsMeta');
+  const q = (document.getElementById('bsQ')?.value || '').toLowerCase().trim();
+  const stf = document.getElementById('bsFilterStatus')?.value || '';
+  let rows = _bsRows.slice();
+  if (stf) rows = rows.filter(r => String(r.status || '') === stf);
+  if (q) {
+    rows = rows.filter(r => {
+      const hay = `${r.mapel_nama || ''} ${r.mapel_kode || ''} ${r.kelas_nama || ''} ${r.jenis || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  if (meta) {
+    const nA = _bsRows.filter(r => r.status === 'Aktif').length;
+    meta.textContent = `${rows.length} paket ditampil · ${_bsRows.length} total · ${nA} aktif`;
+  }
+  if (!rows.length) {
+    if (tb) tb.innerHTML = '<tr><td colspan="7" class="bs-empty">Belum ada paket soal. Klik + Buat Paket Soal.</td></tr>';
+    return;
+  }
+  const canEdit = getSession()?.role === 'admin' || getSession()?.role === 'guru';
+  if (tb) {
+    tb.innerHTML = rows.map((r, i) => {
+      let acts = '';
+      if (canEdit && r.can_edit !== false) {
+        acts += `<button type="button" class="btn btn-outline btn-sm" data-bs-edit="${escapeHtml(String(r.id))}">Edit</button> `;
+        acts += `<button type="button" class="btn btn-danger btn-sm" data-bs-del="${escapeHtml(String(r.id))}">Hapus</button>`;
+      } else {
+        acts = '<span style="color:#999;font-size:11px">—</span>';
+      }
+      return `<tr>
+        <td class="col-no">${i + 1}</td>
+        <td style="font-weight:600">${escapeHtml(r.mapel_nama || r.mapel_kode || '—')}</td>
+        <td>${escapeHtml(r.kelas_nama || '—')}</td>
+        <td>${escapeHtml(r.jenis || '—')}</td>
+        <td style="text-align:center;font-weight:700">${r.jml_soal != null ? r.jml_soal : 0}</td>
+        <td>${bsStatusPill(r.status)}</td>
+        <td class="col-act">${acts}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+document.getElementById('btnBsReload')?.addEventListener('click', () => loadBankSoalList());
+document.getElementById('bsQ')?.addEventListener('input', () => renderBankSoalTable());
+document.getElementById('bsFilterStatus')?.addEventListener('change', () => renderBankSoalTable());
+
+document.getElementById('btnBsTambah')?.addEventListener('click', () => openBankSoalForm(null));
+
+document.getElementById('tbodyBankSoal')?.addEventListener('click', async (e) => {
+  const ed = e.target.closest('[data-bs-edit]');
+  const del = e.target.closest('[data-bs-del]');
+  if (ed) {
+    const id = ed.getAttribute('data-bs-edit');
+    const row = _bsRows.find(r => String(r.id) === id);
+    openBankSoalForm(row || { id });
+    return;
+  }
+  if (del) {
+    const id = del.getAttribute('data-bs-del');
+    const row = _bsRows.find(r => String(r.id) === id);
+    if (!confirm(`Hapus paket soal ${row?.mapel_nama || ''} · ${row?.kelas_nama || ''} · ${row?.jenis || ''}?`)) return;
+    try {
+      await apiCall('delete_bank_soal', { id });
+      toast('Paket soal dihapus', 'ok');
+      await loadBankSoalList();
+    } catch (err) {
+      toast(errToText(err), 'err');
+    }
+  }
+});
+
+function bsAmpuOptionsHtml(selectedMapel, selectedKelas) {
+  // unique mapel from ampu
+  const mapelMap = new Map();
+  for (const a of _bsAmpu) {
+    if (!a.mapel_id) continue;
+    if (!mapelMap.has(String(a.mapel_id))) {
+      mapelMap.set(String(a.mapel_id), a.mapel_nama || a.mapel_kode || a.mapel_id);
+    }
+  }
+  // admin: all mapel
+  if (getSession()?.role === 'admin' && !(mapelMap.size)) {
+    (store.mapel || []).filter(m => m.is_active !== false).forEach(m => {
+      mapelMap.set(String(m.id), m.nama || m.kode);
+    });
+  }
+  let opts = '<option value="">- Pilih Mapel -</option>';
+  for (const [id, nama] of [...mapelMap.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'id'))) {
+    opts += `<option value="${escapeHtml(id)}" ${String(selectedMapel) === id ? 'selected' : ''}>${escapeHtml(nama)}</option>`;
+  }
+  return opts;
+}
+
+function bsKelasOptionsForMapel(mapelId, selectedKelas) {
+  let kelasList = [];
+  if (mapelId) {
+    const set = new Map();
+    for (const a of _bsAmpu) {
+      if (String(a.mapel_id) === String(mapelId) && a.kelas_id) {
+        set.set(String(a.kelas_id), a.kelas_nama || a.kelas_id);
+      }
+    }
+    kelasList = [...set.entries()];
+  }
+  if (getSession()?.role === 'admin' && !kelasList.length) {
+    kelasList = (store.kelas || []).filter(k => k.is_active !== false)
+      .map(k => [String(k.id), k.nama]);
+  }
+  let opts = '<option value="">- Pilih Kelas -</option>';
+  kelasList.sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'id'));
+  for (const [id, nama] of kelasList) {
+    opts += `<option value="${escapeHtml(id)}" ${String(selectedKelas) === id ? 'selected' : ''}>${escapeHtml(nama)}</option>`;
+  }
+  return opts;
+}
+
+function bsJenisOptions(selected) {
+  const list = (store.bobot_nilai || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  let opts = '<option value="">- Pilih Jenis -</option>';
+  if (!list.length) {
+    ['NRH', 'PTS', 'PAS', 'Ulangan'].forEach(j => {
+      opts += `<option value="${j}" ${selected === j ? 'selected' : ''}>${j}</option>`;
+    });
+  } else {
+    list.forEach(b => {
+      const j = String(b.jenis || '').toUpperCase();
+      if (!j) return;
+      opts += `<option value="${escapeHtml(j)}" ${String(selected || '').toUpperCase() === j ? 'selected' : ''}>${escapeHtml(j)}${b.semester ? ' (' + escapeHtml(b.semester) + ')' : ''}</option>`;
+    });
+  }
+  return opts;
+}
+
+function openBankSoalForm(row) {
+  const isEdit = !!(row && row.id);
+  crudState = { entity: 'bank_soal', id: isEdit ? row.id : null };
+  const title = document.getElementById('crudModalTitle');
+  const body = document.getElementById('crudModalBody');
+  if (!title || !body) {
+    toast('Modal form tidak tersedia', 'err');
+    return;
+  }
+  title.textContent = isEdit ? 'Edit Paket Soal' : 'Buat Paket Soal';
+  const mapelId = row?.mapel_id || '';
+  const kelasId = row?.kelas_id || '';
+  body.innerHTML = `
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Mapel *</label>
+        <select name="mapel_id" id="bsFormMapel" required>${bsAmpuOptionsHtml(mapelId, kelasId)}</select>
+      </div>
+      <div class="form-group">
+        <label>Kelas *</label>
+        <select name="kelas_id" id="bsFormKelas" required>${bsKelasOptionsForMapel(mapelId, kelasId)}</select>
+      </div>
+      <div class="form-group">
+        <label>Jenis Penilaian *</label>
+        <select name="jenis" id="bsFormJenis" required>${bsJenisOptions(row?.jenis || '')}</select>
+      </div>
+      <div class="form-group">
+        <label>Jumlah Soal</label>
+        <input type="number" name="jml_soal" min="0" max="200" value="${row?.jml_soal != null ? Number(row.jml_soal) : 0}" />
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status">
+          <option value="Draft" ${!row?.status || row.status === 'Draft' ? 'selected' : ''}>Draft</option>
+          <option value="Aktif" ${row?.status === 'Aktif' ? 'selected' : ''}>Aktif</option>
+          <option value="Selesai" ${row?.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Judul / Keterangan (opsional)</label>
+        <input type="text" name="judul" value="${escapeHtml(row?.judul || '')}" placeholder="Mis. Ulangan Harian 1 — Aljabar" />
+      </div>
+      ${isEdit ? `<input type="hidden" name="id" value="${escapeHtml(String(row.id))}" />` : ''}
+    </div>
+    <p style="font-size:11px;color:#666;margin-top:8px">Desain dasar: paket soal dulu. Input detail butir soal akan ditambahkan pada tahap berikutnya.</p>`;
+  document.getElementById('crudModal')?.classList.add('active');
+
+  document.getElementById('bsFormMapel')?.addEventListener('change', (ev) => {
+    const mid = ev.target.value;
+    const ksel = document.getElementById('bsFormKelas');
+    if (ksel) ksel.innerHTML = bsKelasOptionsForMapel(mid, '');
+  });
+}
+
+// Hook save into existing save pipeline via entity bank_soal
+async function saveBankSoalHook() {
+  const data = typeof collectForm === 'function' ? collectForm() : {};
+  if (!data.mapel_id || !data.kelas_id || !data.jenis) {
+    toast('Mapel, Kelas, dan Jenis wajib', 'err');
+    return;
+  }
+  data.jml_soal = Number(data.jml_soal) || 0;
+  data.status = data.status || 'Draft';
+  if (crudState.id) data.id = crudState.id;
+  try {
+    const res = await apiCall('save_bank_soal', { row: data });
+    toast(res.message || 'Tersimpan', 'ok');
+    if (typeof closeForm === 'function') closeForm();
+    await loadBankSoalList();
+  } catch (e) {
+    toast(errToText(e), 'err');
+  }
+}
+
+// Patch global save if possible
+(function patchBsSave() {
+  const prev = window.__bsSavePatched;
+  if (prev) return;
+  window.__bsSavePatched = true;
+  const btn = document.getElementById('btnCrudSave') || document.getElementById('crudSaveBtn');
+  // intercept via mutation of saveForm path — bind on modal save clicks
+  document.getElementById('crudModal')?.addEventListener('click', async (e) => {
+    const t = e.target;
+    if (!t) return;
+    const isSave = t.id === 'crudModalSave' || t.id === 'btnCrudSave' || t.id === 'crudSaveBtn' ||
+      t.classList?.contains('crud-save') ||
+      (t.closest && (t.closest('#crudModalSave') || t.closest('#btnCrudSave')));
+    if (isSave && crudState?.entity === 'bank_soal') {
+      e.preventDefault();
+      e.stopPropagation();
+      await saveBankSoalHook();
+    }
+  }, true);
+})();
+
+/* Ruang Ujian */
+async function loadRuangUjianList() {
+  const tb = document.getElementById('tbodyRuangUjian');
+  const meta = document.getElementById('bsRuMeta');
+  if (tb) tb.innerHTML = '<tr><td colspan="7" class="bs-empty">Memuat…</td></tr>';
+  try {
+    const res = await apiCall('list_ruang_ujian', {});
+    _bsRuRows = res.data || [];
+    renderRuangUjianTable();
+  } catch (e) {
+    if (tb) tb.innerHTML = `<tr><td colspan="7" class="bs-empty" style="color:#c62828">${escapeHtml(errToText(e))}</td></tr>`;
+    if (meta) meta.textContent = errToText(e);
+  }
+}
+
+function renderRuangUjianTable() {
+  const tb = document.getElementById('tbodyRuangUjian');
+  const meta = document.getElementById('bsRuMeta');
+  const q = (document.getElementById('bsRuQ')?.value || '').toLowerCase().trim();
+  const stf = document.getElementById('bsRuFilterStatus')?.value || '';
+  let rows = _bsRuRows.slice();
+  if (stf) rows = rows.filter(r => String(r.status || '') === stf);
+  if (q) {
+    rows = rows.filter(r => {
+      const hay = `${r.nisn || ''} ${r.nama || ''} ${r.kelas || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  if (meta) {
+    const nM = _bsRuRows.filter(r => r.status === 'Mengerjakan').length;
+    meta.textContent = `${rows.length} ditampil · ${_bsRuRows.length} total · ${nM} sedang mengerjakan`;
+  }
+  if (!rows.length) {
+    if (tb) tb.innerHTML = '<tr><td colspan="7" class="bs-empty">Belum ada siswa di ruang ujian.</td></tr>';
+    return;
+  }
+  if (tb) {
+    tb.innerHTML = rows.map((r, i) => {
+      const skor = r.skor != null && r.skor !== '' ? r.skor : '—';
+      const waktu = r.sisa_detik != null ? bsFmtWaktu(r.sisa_detik) : (r.waktu_label || '—');
+      return `<tr>
+        <td class="col-no">${i + 1}</td>
+        <td style="font-variant-numeric:tabular-nums">${escapeHtml(r.nisn || '—')}</td>
+        <td style="font-weight:600">${escapeHtml(r.nama || '—')}</td>
+        <td>${escapeHtml(r.kelas || '—')}</td>
+        <td>${bsRuStatusPill(r.status)}</td>
+        <td style="font-variant-numeric:tabular-nums;font-weight:600">${escapeHtml(String(waktu))}</td>
+        <td style="text-align:center;font-weight:800">${escapeHtml(String(skor))}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+document.getElementById('btnBsRuReload')?.addEventListener('click', () => loadRuangUjianList());
+document.getElementById('bsRuQ')?.addEventListener('input', () => renderRuangUjianTable());
+document.getElementById('bsRuFilterStatus')?.addEventListener('change', () => renderRuangUjianTable());
 
 
 /* ===== Init ===== */
