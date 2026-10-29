@@ -12461,8 +12461,14 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
       htmlContent = text;
     }
     const items = parseBankSoalImportHtml(htmlContent, text);
-    if (!items.length) throw new Error('Tidak ada soal terdeteksi. Pakai format Template.');
-    if (!confirm(`Import ${items.length} soal ke paket ini?`)) return;
+    if (!items.length) throw new Error('Tidak ada soal terdeteksi. Gunakan format Template (NO: / JENIS: / PERTANYAAN: / A. / KUNCI:) atau nomor 1. 2. 3.');
+    const nImg = items.reduce((a, it) => a + (String(it.pertanyaan||'').match(/<img/gi) || []).length, 0);
+    const nTbl = items.reduce((a, it) => a + (String(it.pertanyaan||'').match(/<table/gi) || []).length, 0);
+    const msg = `Import ${items.length} soal` +
+      (nImg ? `, ${nImg} gambar` : '') +
+      (nTbl ? `, ${nTbl} tabel` : '') +
+      ' ke paket ini?';
+    if (!confirm(msg)) return;
     const res = await apiCall('import_bank_soal_item', { bank_soal_id: _bsDetailPaket.id, items });
     toast(res.message || 'Impor selesai', 'ok');
     await loadBankSoalItems(_bsDetailPaket.id);
@@ -12471,122 +12477,295 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
   }
 });
 
+
 function parseBankSoalImportText(text) {
-  const raw = String(text || '').replace(/\r/g, '');
-  const chunks = raw.split(/\n\s*---\s*\n/).map(s => s.trim()).filter(Boolean);
-  let blocks = chunks;
+  const raw = String(text || '').replace(/\r/g, '\n');
+  // pecah blok soal: --- atau baris NO: atau nomor soal "1." di awal baris
+  let blocks = raw.split(/\n\s*---+\s*\n/).map(s => s.trim()).filter(Boolean);
   if (blocks.length <= 1) {
-    blocks = raw.split(/(?=^NO\s*:)/im).map(s => s.trim()).filter(Boolean);
+    const byNo = raw.split(/(?=^\s*NO\s*[:=]\s*\d+)/im).map(s => s.trim()).filter(Boolean);
+    if (byNo.length > 1) blocks = byNo;
+  }
+  if (blocks.length <= 1) {
+    // fallback: 1. 2. 3. di awal baris
+    const byNum = raw.split(/(?=^\s*\d{1,3}[\.\)\-]\s+)/m).map(s => s.trim()).filter(Boolean);
+    if (byNum.length > 1) blocks = byNum;
   }
   const out = [];
   for (const block of blocks) {
-    if (!/NO\s*:/i.test(block)) continue;
-    const get = (key) => {
-      const m = block.match(new RegExp('^\\s*' + key + '\\s*:\\s*(.*)$', 'im'));
-      return m ? m[1].trim() : '';
-    };
-    const nomor = Number(get('NO')) || (out.length + 1);
-    let jenis = get('JENIS') || 'Pilihan Ganda';
-    const jl = jenis.toLowerCase();
-    if (jl.includes('pilihan')) jenis = 'Pilihan Ganda';
-    else if (jl.includes('isian')) jenis = 'Isian Singkat';
-    else if (jl.includes('uraian')) jenis = 'Uraian';
-    else if (jl.includes('benar')) jenis = 'Benar / Salah';
-    else if (jl.includes('check')) jenis = 'Checkbox';
-    else if (jl.includes('jodoh')) jenis = 'Menjodohkan';
-    else if (jl.includes('unggah') || jl.includes('upload')) jenis = 'Unggah File';
-    const skor = Number(get('SKOR')) || 1;
-    let pertanyaan = get('PERTANYAAN');
-    if (!pertanyaan) {
-      const m = block.match(/PERTANYAAN\s*:\s*([\s\S]*?)(?=\n\s*[A-H]\s*[\.\)]|\n\s*KUNCI\s*:|$)/i);
-      if (m) pertanyaan = m[1].trim();
-    }
-    const opsi = [];
-    const opsiRe = /^([A-H])\s*[\.\)]\s*(.*)$/gm;
-    let om;
-    while ((om = opsiRe.exec(block))) opsi.push({ label: om[1], text: om[2].trim() });
-    const kunci = get('KUNCI');
-    if (!pertanyaan) continue;
-    out.push({ nomor, jenis_soal: jenis, pertanyaan, opsi, kunci, skor });
+    const item = parseOneSoalBlock(block, out.length + 1);
+    if (item && item.pertanyaan) out.push(item);
   }
   return out;
 }
 
-/** Parse impor Word HTML + teks struktur (gambar/tabel/rumus tetap di pertanyaan) */
-function parseBankSoalImportHtml(htmlContent, plainText) {
-  // 1) coba pecah berdasarkan pola teks NO:
-  let items = parseBankSoalImportText(plainText || '');
-  if (items.length && htmlContent) {
-    // coba petakan blok HTML ke tiap item berdasarkan nomor
-    items = items.map((it) => {
-      // jika pertanyaan plain, coba ambil cuplikan HTML lebih kaya
-      const rich = extractRichQuestionHtml(htmlContent, it.nomor, it.pertanyaan);
-      if (rich) it.pertanyaan = rich;
-      return it;
-    });
-    return items;
+function normalizeJenisSoal(jenis) {
+  const jl = String(jenis || '').toLowerCase();
+  if (jl.includes('pilihan') || jl.includes('ganda') || jl === 'pg' || jl === 'mc') return 'Pilihan Ganda';
+  if (jl.includes('isian')) return 'Isian Singkat';
+  if (jl.includes('uraian') || jl.includes('esai') || jl.includes('essay')) return 'Uraian';
+  if (jl.includes('benar') || jl.includes('salah') || jl.includes('true')) return 'Benar / Salah';
+  if (jl.includes('check')) return 'Checkbox';
+  if (jl.includes('jodoh') || jl.includes('match')) return 'Menjodohkan';
+  if (jl.includes('unggah') || jl.includes('upload') || jl.includes('file')) return 'Unggah File';
+  return jenis ? String(jenis).trim() : 'Pilihan Ganda';
+}
+
+/** Parse satu blok teks soal → {nomor, jenis_soal, pertanyaan, opsi, kunci, skor} */
+function parseOneSoalBlock(block, defaultNo) {
+  let b = String(block || '').trim();
+  if (!b) return null;
+
+  const getLine = (key) => {
+    const m = b.match(new RegExp('^\\s*' + key + '\\s*[:=]\\s*(.*)$', 'im'));
+    return m ? m[1].trim() : '';
+  };
+
+  let nomor = Number(getLine('NO')) || Number(getLine('Nomor')) || 0;
+  if (!nomor) {
+    const m = b.match(/^\s*(\d{1,3})[\.\)\-]/);
+    if (m) nomor = Number(m[1]);
   }
-  // 2) fallback: pecah HTML by horizontal rules / headings
-  if (htmlContent) {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = htmlContent;
-    // cari pola "NO: n" di text nodes
-    const fullText = tmp.innerText || '';
-    items = parseBankSoalImportText(fullText);
-    if (items.length) {
-      return items.map((it) => {
-        const rich = extractRichQuestionHtml(htmlContent, it.nomor, it.pertanyaan);
-        if (rich) it.pertanyaan = rich;
-        return it;
+  if (!nomor) nomor = defaultNo;
+
+  let jenis = getLine('JENIS') || getLine('Tipe') || getLine('Type');
+  jenis = normalizeJenisSoal(jenis || 'Pilihan Ganda');
+  const skor = Number(getLine('SKOR') || getLine('Bobot')) || 1;
+  let kunci = getLine('KUNCI') || getLine('Jawaban') || getLine('Answer') || '';
+
+  // Ambil opsi A–H (baris sendiri: "A." "A)" "A :" )
+  const opsi = [];
+  const opsiLineRe = /^[ \t]*([A-H])[ \t]*[\.\)\:\-]\s+(.*)$/gm;
+  let om;
+  const opsiSpans = [];
+  while ((om = opsiLineRe.exec(b))) {
+    opsi.push({ label: om[1].toUpperCase(), text: om[2].trim() });
+    opsiSpans.push({ start: om.index, end: om.index + om[0].length, label: om[1] });
+  }
+
+  // Jika opsi tidak ketemu baris per baris, coba pola inline "A. ... B. ... C. ..."
+  if (!opsi.length) {
+    const inline = b.match(/([A-H])[\.\)]\s*([^A-H\n]*?)(?=(?:[A-H][\.\)])|KUNCI\s*[:=]|$)/gi);
+    if (inline && inline.length >= 2) {
+      inline.forEach(seg => {
+        const mm = seg.match(/^([A-H])[\.\)]\s*(.*)$/i);
+        if (mm) opsi.push({ label: mm[1].toUpperCase(), text: mm[2].trim() });
       });
     }
   }
-  return items;
-}
 
-function extractRichQuestionHtml(html, nomor, plainQ) {
-  if (!html) return plainQ || '';
-  try {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const htmlStr = div.innerHTML;
-    // cari "NO: {nomor}" lalu ambil sampai NO berikutnya atau --- 
-    const re = new RegExp('NO\\s*:\\s*' + String(nomor) + '([\\s\\S]*?)(?=NO\\s*:\\s*\\d+|---|$)', 'i');
-    // search in text positions mapped roughly - use plain split
-    const plain = div.innerText || '';
-    const m = plain.match(re);
-    if (!m) {
-      // fallback: wrap plain with paragraphs
-      if (plainQ && /<img|<table|<span class="bs-math"/i.test(html)) {
-        // return whole html if single question file
-        return html;
-      }
-      return plainQ || '';
-    }
-    // Build HTML: prefer original html segment if contains tags
-    // Extract PERTANYAAN portion as HTML by finding after PERTANYAAN:
-    const block = m[0];
-    const pq = block.split(/PERTANYAAN\s*:/i);
-    let body = pq.length > 1 ? pq.slice(1).join(':') : block;
-    body = body.replace(/\n\s*[A-H]\s*[\.\)]\s*[\s\S]*$/m, '').replace(/\n\s*KUNCI\s*:[\s\S]*$/i, '').trim();
-    // If original HTML has images near this question text, include matching imgs
-    const imgs = [...div.querySelectorAll('img')];
-    let rich = body.split('\n').map(l => l.trim()).filter(Boolean).map(l => `<p>${escapeHtml(l)}</p>`).join('');
-    // attach images whose alt/nearby text relates - simple: all images in doc for single-item, else none
-    if (imgs.length && (plain.match(/NO\s*:/gi) || []).length <= 1) {
-      rich += imgs.map(img => img.outerHTML).join('');
-    }
-    // tables
-    const tables = [...div.querySelectorAll('table')];
-    if (tables.length && (plain.match(/NO\s*:/gi) || []).length <= 1) {
-      rich += tables.map(t => t.outerHTML).join('');
-    }
-    return rich || plainQ || '';
-  } catch (_) {
-    return plainQ || '';
+  // Kunci di akhir teks jika belum
+  if (!kunci) {
+    const km = b.match(/KUNCI\s*[:=]\s*([A-H0-9,\s\/\-]+)/i);
+    if (km) kunci = km[1].trim();
   }
+
+  // Pertanyaan: dari PERTANYAAN: atau setelah meta, sampai opsi pertama / KUNCI
+  let pertanyaan = '';
+  const pq = b.match(/PERTANYAAN\s*[:=]\s*([\s\S]*?)$/i);
+  if (pq) {
+    pertanyaan = pq[1];
+  } else {
+    // buang baris meta di awal
+    pertanyaan = b
+      .replace(/^\s*NO\s*[:=]\s*\d+\s*/im, '')
+      .replace(/^\s*JENIS\s*[:=]\s*.*$/im, '')
+      .replace(/^\s*SKOR\s*[:=]\s*.*$/im, '')
+      .replace(/^\s*\d{1,3}[\.\)\-]\s*/, '');
+  }
+
+  // potong opsi & kunci dari pertanyaan
+  pertanyaan = pertanyaan
+    .replace(/\n?\s*KUNCI\s*[:=][\s\S]*$/i, '')
+    .replace(/\n?\s*JAWABAN\s*[:=][\s\S]*$/i, '');
+
+  if (opsiSpans.length) {
+    // potong dari opsi pertama (posisi di string asli block) — aman di plain text
+    const firstOpt = b.search(/^[ \t]*[A-H][ \t]*[\.\)\:\-]\s+/m);
+    if (firstOpt >= 0) {
+      // hitung relative di pertanyaan susah; pakai regex pada pertanyaan
+      pertanyaan = pertanyaan.replace(/\n?[ \t]*[A-H][ \t]*[\.\)\:\-]\s+[\s\S]*$/m, '');
+    }
+  } else if (opsi.length) {
+    // inline opsi: potong mulai A.
+    pertanyaan = pertanyaan.replace(/\s*[A-H][\.\)]\s+[\s\S]*$/i, '');
+  }
+
+  // bersihkan sisa "A. B. C. D." yang nempel tanpa baris baru
+  pertanyaan = pertanyaan
+    .replace(/\s*[A-H][\.\)]\s*[^A-H]{0,80}(?=[A-H][\.\)]|KUNCI|$)/gi, '')
+    .replace(/\s*KUNCI\s*[:=].*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // opsi text juga bersihkan jika mengandung KUNCI
+  opsi.forEach(o => {
+    o.text = String(o.text || '').replace(/\s*KUNCI\s*[:=].*$/i, '').trim();
+  });
+
+  if (!pertanyaan && opsi.length) {
+    // minimal ada opsi — pertanyaan kosong tidak berguna
+    return null;
+  }
+  if (!pertanyaan) return null;
+
+  // default jenis Pilihan Ganda jika ada opsi
+  if (opsi.length >= 2 && jenis === 'Pilihan Ganda') { /* ok */ }
+  else if (opsi.length >= 2) jenis = jenis || 'Pilihan Ganda';
+
+  return {
+    nomor,
+    jenis_soal: jenis,
+    pertanyaan,
+    opsi,
+    kunci: kunci.replace(/\s+/g, ''),
+    skor,
+  };
 }
 
+/**
+ * Import dari HTML Word (mammoth): pertahankan gambar & tabel per blok soal.
+ */
+function parseBankSoalImportHtml(htmlContent, plainText) {
+  const plainItems = parseBankSoalImportText(plainText || stripHtmlToText(htmlContent || ''));
+  if (!htmlContent) return plainItems;
+
+  // Bangun blok HTML dipisah marker NO: / --- / <hr>
+  const wrapped = '<div id="bsImpRoot">' + htmlContent + '</div>';
+  const doc = document.createElement('div');
+  doc.innerHTML = wrapped;
+  const root = doc.querySelector('#bsImpRoot') || doc;
+
+  // Normalisasi: ganti hr jadi separator
+  root.querySelectorAll('hr').forEach(hr => {
+    const mark = document.createElement('p');
+    mark.textContent = '---';
+    hr.replaceWith(mark);
+  });
+
+  const fullHtml = root.innerHTML;
+  // Split HTML string by NO: n or ---
+  const parts = splitHtmlBySoalMarkers(fullHtml);
+  if (parts.length <= 1 && plainItems.length) {
+    // satu dokumen = satu/banyak soal dari plain; coba pasangkan media
+    return plainItems.map((it, idx) => {
+      const rich = buildRichPertanyaan(it.pertanyaan, parts[0] || fullHtml, plainItems.length === 1);
+      return { ...it, pertanyaan: rich };
+    });
+  }
+
+  const out = [];
+  for (let i = 0; i < Math.max(parts.length, plainItems.length); i++) {
+    const plain = plainItems[i] || null;
+    const htmlPart = parts[i] || '';
+    const parsedFromHtml = parseOneSoalBlock(stripHtmlToText(htmlPart), i + 1);
+    const base = plain || parsedFromHtml;
+    if (!base || !base.pertanyaan) continue;
+    // opsi: utamakan plain (lebih akurat baris)
+    const opsi = (plain && plain.opsi && plain.opsi.length) ? plain.opsi
+      : (parsedFromHtml && parsedFromHtml.opsi) || [];
+    const kunci = (plain && plain.kunci) || (parsedFromHtml && parsedFromHtml.kunci) || '';
+    const pertanyaan = buildRichPertanyaan(
+      base.pertanyaan,
+      htmlPart || fullHtml,
+      parts.length <= 1
+    );
+    out.push({
+      nomor: base.nomor || (i + 1),
+      jenis_soal: base.jenis_soal || 'Pilihan Ganda',
+      pertanyaan,
+      opsi,
+      kunci,
+      skor: base.skor || 1,
+    });
+  }
+  return out.length ? out : plainItems;
+}
+
+function stripHtmlToText(html) {
+  const d = document.createElement('div');
+  d.innerHTML = String(html || '');
+  // baris baru untuk block elements
+  d.querySelectorAll('p,div,br,tr,li,h1,h2,h3,h4').forEach(el => {
+    if (el.tagName === 'BR') el.replaceWith('\n');
+    else el.insertAdjacentText('afterend', '\n');
+  });
+  return (d.textContent || '').replace(/\u00a0/g, ' ');
+}
+
+function splitHtmlBySoalMarkers(html) {
+  const s = String(html || '');
+  // split before paragraph/text containing NO: n or ---
+  const re = /(?=<p[^>]*>\s*(?:NO\s*[:=]\s*\d+|---+)\s*<\/p>)|(?=>\s*NO\s*[:=]\s*\d+)/gi;
+  // simpler split on text markers in HTML
+  const chunks = s.split(/(?=<p[^>]*>\s*NO\s*[:=]\s*\d+)/i);
+  if (chunks.length > 1) return chunks.map(c => c.trim()).filter(Boolean);
+  const byHr = s.split(/<p[^>]*>\s*---+\s*<\/p>/i);
+  if (byHr.length > 1) return byHr.map(c => c.trim()).filter(Boolean);
+  // split by "NO: n" plain in html
+  const byNo = s.split(/(?=NO\s*[:=]\s*\d+)/i);
+  if (byNo.length > 1) return byNo.map(c => c.trim()).filter(c => c && /NO\s*[:=]\s*\d+/i.test(c) || c.length > 20);
+  return [s];
+}
+
+/**
+ * Susun HTML pertanyaan: teks bersih + gambar + tabel dari blok HTML.
+ * Opsi & kunci dihapus dari HTML.
+ */
+function buildRichPertanyaan(plainQ, htmlPart, attachAllMedia) {
+  const div = document.createElement('div');
+  div.innerHTML = String(htmlPart || '');
+
+  // hapus elemen yang hanya berisi meta/opsi/kunci
+  div.querySelectorAll('p,div,span,li').forEach(el => {
+    const t = (el.textContent || '').trim();
+    if (/^(NO|JENIS|SKOR|KUNCI|JAWABAN)\s*[:=]/i.test(t)) {
+      el.remove();
+      return;
+    }
+    if (/^[A-H][\.\)\:\-]\s+/.test(t) && t.length < 200) {
+      el.remove();
+      return;
+    }
+  });
+
+  // kumpulkan media
+  const imgs = [...div.querySelectorAll('img')].map(img => {
+    const src = img.getAttribute('src') || '';
+    if (!src) return '';
+    const alt = escapeHtml(img.getAttribute('alt') || '');
+    return `<p style="margin:8px 0"><img src="${src}" alt="${alt}" style="max-width:100%;height:auto" /></p>`;
+  }).filter(Boolean);
+
+  const tables = [...div.querySelectorAll('table')].map(tb => {
+    // pastikan border terlihat
+    tb.setAttribute('border', '1');
+    tb.style.borderCollapse = 'collapse';
+    tb.querySelectorAll('td,th').forEach(c => {
+      if (!c.getAttribute('style')) c.setAttribute('style', 'border:1px solid #999;padding:4px 8px');
+    });
+    return `<div style="margin:8px 0;overflow:auto">${tb.outerHTML}</div>`;
+  });
+
+  // teks pertanyaan dari plain (sudah bersih)
+  let body = '';
+  if (plainQ) {
+    // jika plain sudah mengandung tag html, pakai langsung
+    if (/<[a-z][\s\S]*>/i.test(plainQ)) {
+      body = plainQ;
+    } else {
+      body = `<p>${escapeHtml(plainQ)}</p>`;
+    }
+  }
+
+  // media: semua di blok ini, atau jika 1 soal seluruh dokumen
+  const mediaHtml = imgs.join('') + tables.join('');
+  if (mediaHtml) {
+    body += mediaHtml;
+  }
+
+  return body || plainQ || '';
+}
 
 
 function getSelectedRuangIds() {
