@@ -9,6 +9,7 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.5/tinymce.min.js" referrerpolicy="origin"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
@@ -907,16 +908,6 @@
   .bs-soal-item .bsi-q { font-size:12.5px; color:#222; margin:4px 0 6px; white-space:pre-wrap; }
   .bs-soal-item .bsi-opsi { font-size:11.5px; color:#455a64; padding-left:8px; }
   .bs-soal-item .bsi-opsi div { margin:2px 0; }
-  .bs-soal-item .bs-opsi-line {
-    display: flex; align-items: flex-start; gap: 6px;
-    margin: 4px 0; padding: 4px 0;
-  }
-  .bs-soal-item .bs-opsi-letter { font-weight: 700; flex-shrink: 0; min-width: 1.2em; }
-  .bs-soal-item .bs-opsi-content { flex: 1; min-width: 0; }
-  .bs-soal-item .bs-opsi-content p { display: inline; margin: 0; }
-  .bs-soal-item .bsi-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .bs-soal-item .bsi-check { margin-right: 4px; }
-
   .bs-soal-item .bsi-kunci { font-size:11px; color:#2e7d32; font-weight:700; margin-top:4px; }
   .bs-ru-toolbar {
     display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;
@@ -3427,7 +3418,6 @@
           <button type="button" class="btn btn-success btn-sm" id="btnBsSoalTambah">+ Tambah</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalImport">Import</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalTemplate">Template</button>
-          <button type="button" class="btn btn-danger btn-sm" id="btnBsSoalHapusTerpilih" title="Hapus soal yang dicentang">🗑 Hapus Terpilih</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalTutup">Tutup</button>
         </div>
         <div class="bs-meta" id="bsSoalMeta">—</div>
@@ -12157,29 +12147,6 @@ async function loadBankSoalItems(bankId) {
   }
 }
 
-
-/** Rapikan HTML opsi Word → teks 1 baris jika tidak ada media */
-function flattenOpsiHtml(htmlStr) {
-  let s = String(htmlStr || '');
-  if (!s) return '';
-  if (/<img|<table|<svg|<!--TABLE_/i.test(s)) {
-    // biarkan HTML media, tapi gabungkan <p> beruntun
-    s = s.replace(/<\/p>\s*<p[^>]*>/gi, ' ').replace(/<p[^>]*>/gi, '').replace(/<\/p>/gi, '').trim();
-    return s;
-  }
-  const d = document.createElement('div');
-  d.innerHTML = s;
-  let t = (d.textContent || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
-  // buang sisa label A. di depan
-  t = t.replace(/^[A-E][\.\)\:]\s*/i, '').trim();
-  return t;
-}
-
-function flattenPertanyaanHtml(htmlStr) {
-  // jangan hancurkan media; hanya rapikan spasi ganda di teks
-  return String(htmlStr || '');
-}
-
 function renderBankSoalItems() {
   const list = document.getElementById('bsSoalList');
   if (!list) return;
@@ -12188,14 +12155,7 @@ function renderBankSoalItems() {
     return;
   }
   const sorted = _bsSoalItems.slice().sort((a, b) => (Number(a.nomor) || 0) - (Number(b.nomor) || 0));
-  list.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px;color:#546e7a">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-        <input type="checkbox" id="bsiCheckAll" /> Pilih semua
-      </label>
-      <span id="bsiSelectedInfo"></span>
-    </div>
-  ` + sorted.map(it => {
+  list.innerHTML = sorted.map(it => {
     let opsi = it.opsi;
     if (typeof opsi === 'string') { try { opsi = JSON.parse(opsi); } catch { opsi = []; } }
     if (!Array.isArray(opsi)) opsi = [];
@@ -12203,15 +12163,13 @@ function renderBankSoalItems() {
       ? `<div class="bsi-opsi">${opsi.map((o, i) => {
           const lab = typeof o === 'object' ? (o.label || String.fromCharCode(65 + i)) : String.fromCharCode(65 + i);
           let txt = typeof o === 'object' ? (o.text || '') : String(o);
-          // tampilkan 1 baris: flatten HTML opsi sederhana
-          const flat = flattenOpsiHtml(txt);
-          const txtShow = /<img|<table|<svg/i.test(flat) ? flat : escapeHtml(flat);
+          // opsi bisa HTML dari Word
+          const txtShow = /<[a-z][\s\S]*>/i.test(txt) ? txt : escapeHtml(txt);
           return `<div class="bs-opsi-line"><span class="bs-opsi-letter">${escapeHtml(lab)}.</span><span class="bs-opsi-content">${txtShow}</span></div>`;
         }).join('')}</div>`
       : '';
     return `<div class="bs-soal-item" data-id="${escapeHtml(String(it.id))}">
       <div class="bsi-top">
-        <input type="checkbox" class="bsi-check" data-bsi-id="${escapeHtml(String(it.id))}" />
         <span class="bsi-no">No ${escapeHtml(String(it.nomor || ''))}</span>
         <span class="bsi-jenis">${escapeHtml(it.jenis_soal || it.jenis || '')}</span>
         <span style="font-size:11px;color:#666">Skor ${it.skor != null ? it.skor : 1}</span>
@@ -12373,16 +12331,6 @@ document.getElementById('btnBsiSimpan')?.addEventListener('click', async () => {
 });
 
 document.getElementById('bsSoalList')?.addEventListener('click', async (e) => {
-  if (e.target.id === 'bsiCheckAll') {
-    const on = !!e.target.checked;
-    document.querySelectorAll('.bsi-check').forEach(c => { c.checked = on; });
-    updateBsiSelectedInfo();
-    return;
-  }
-  if (e.target.classList.contains('bsi-check')) {
-    updateBsiSelectedInfo();
-    return;
-  }
   const ed = e.target.closest('[data-bsi-edit]');
   const del = e.target.closest('[data-bsi-del]');
   if (ed) {
@@ -12402,27 +12350,6 @@ document.getElementById('bsSoalList')?.addEventListener('click', async (e) => {
       toast(errToText(err), 'err');
     }
   }
-});
-
-function updateBsiSelectedInfo() {
-  const n = document.querySelectorAll('.bsi-check:checked').length;
-  const el = document.getElementById('bsiSelectedInfo');
-  if (el) el.textContent = n ? n + ' terpilih' : '';
-}
-
-document.getElementById('btnBsSoalHapusTerpilih')?.addEventListener('click', async () => {
-  const ids = [...document.querySelectorAll('.bsi-check:checked')].map(c => c.getAttribute('data-bsi-id')).filter(Boolean);
-  if (!ids.length) { toast('Centang soal yang ingin dihapus', 'err'); return; }
-  if (!confirm('Hapus ' + ids.length + ' soal terpilih?\nPaket bank soal tidak dihapus.')) return;
-  let ok = 0, fail = 0;
-  for (const id of ids) {
-    try {
-      await apiCall('delete_bank_soal_item', { id });
-      ok++;
-    } catch (_) { fail++; }
-  }
-  toast('Terhapus: ' + ok + (fail ? ', gagal: ' + fail : ''), ok ? 'ok' : 'err');
-  if (_bsDetailPaket) await loadBankSoalItems(_bsDetailPaket.id);
 });
 
 document.getElementById('btnBsSoalTemplate')?.addEventListener('click', () => {
@@ -12519,21 +12446,31 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
   const file = e.target.files && e.target.files[0];
   e.target.value = '';
   if (!file || !_bsDetailPaket?.id) return;
+  let stage = 'mulai';
   try {
-    toast('Membaca file…', 'ok');
+    toast('📂 Membaca file…', 'ok');
     let text = '';
     const name = (file.name || '').toLowerCase();
     let htmlContent = '';
+    let eqCount = 0;
     if (name.endsWith('.docx') || (file.type || '').includes('wordprocessingml')) {
       if (typeof mammoth === 'undefined') throw new Error('Library mammoth belum dimuat (CDN)');
+      stage = 'membaca_docx';
       let buf = await file.arrayBuffer();
-      // Konversi Equation Word (OMML) → teks agar tidak hilang saat mammoth
+      // Konversi persamaan Word (OMML) → LaTeX agar tidak hilang saat import
+      stage = 'konversi_persamaan';
+      toast('∑ Mengonversi persamaan matematika…', 'ok');
       try {
-        buf = await docxReplaceOmmlWithText(buf);
-        toast('Equation Word dikonversi ke teks…', 'ok');
-      } catch (omErr) {
-        console.warn('OMML convert skip', omErr);
+        const pre = await preprocessDocxMathToLatex(buf);
+        buf = pre.buffer;
+        eqCount = pre.eqCount || 0;
+        if (eqCount) toast(`∑ ${eqCount} persamaan dikonversi ke LaTeX`, 'ok');
+      } catch (preErr) {
+        console.warn('preprocessDocxMathToLatex', preErr);
+        // lanjut tanpa konversi — masih bisa import teks biasa
       }
+      stage = 'mammoth';
+      toast('📄 Mengurai dokumen Word…', 'ok');
       const res = await mammoth.convertToHtml({
         arrayBuffer: buf,
         convertImage: mammoth.images.imgElement(function (image) {
@@ -12545,34 +12482,199 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
         }),
       });
       htmlContent = res.value || '';
-      // juga text untuk parser struktur NO:/JENIS:
       const resText = await mammoth.extractRawText({ arrayBuffer: buf });
       text = resText.value || '';
     } else if (name.endsWith('.html') || name.endsWith('.htm')) {
+      stage = 'html';
       htmlContent = await file.text();
       text = htmlContent.replace(/<[^>]+>/g, '\n');
     } else {
+      stage = 'text';
       text = await file.text();
       htmlContent = text;
     }
+    stage = 'parse';
+    toast('🔍 Mendeteksi soal…', 'ok');
     const items = parseBankSoalImportHtml(htmlContent, text);
-    if (!items.length) throw new Error('Tidak ada soal terdeteksi. Gunakan format Template (NO: / JENIS: / PERTANYAAN: / A. / KUNCI:) atau nomor 1. 2. 3.');
-    const nImg = items.reduce((a, it) => a + (String(it.pertanyaan||'').match(/<img /gi) || []).length, 0);
-    const nTbl = items.reduce((a, it) => a + (String(it.pertanyaan||'').match(/<table/gi) || []).length, 0);
+    if (!items.length) {
+      throw new Error('Tidak ada soal terdeteksi. Gunakan format Template (NO: / JENIS: / PERTANYAAN: / A. / KUNCI:) atau nomor 1. 2. 3. Pastikan persamaan disimpan sebagai Equation di Word (bukan gambar saja).');
+    }
+    // Bungkus \(...\) menjadi span.bs-math agar KaTeX render stabil
+    items.forEach(it => {
+      it.pertanyaan = wrapLatexDelimsToMathSpan(it.pertanyaan);
+      if (Array.isArray(it.opsi)) {
+        it.opsi = it.opsi.map(o => {
+          if (o && typeof o === 'object') return { ...o, text: wrapLatexDelimsToMathSpan(o.text) };
+          return o;
+        });
+      }
+    });
+    const nImg = items.reduce((a, it) => a + (String(it.pertanyaan || '').match(/<img /gi) || []).length, 0);
+    const nTbl = items.reduce((a, it) => a + (String(it.pertanyaan || '').match(/<table/gi) || []).length, 0);
+    const nMath = items.reduce((a, it) => {
+      const q = String(it.pertanyaan || '') + JSON.stringify(it.opsi || []);
+      return a + (q.match(/data-latex=|\\\(|\\\[|\$\$/g) || []).length;
+    }, 0);
     const withMedia = items.filter(it => /<img |<table/i.test(it.pertanyaan || '')).length;
-    const msg = `Import ${items.length} soal` +
-      (withMedia ? ` (${withMedia} soal punya media)` : '') +
-      (nImg ? `, ${nImg} gambar` : '') +
-      (nTbl ? `, ${nTbl} tabel` : '') +
-      '.\n\nSetiap tabel/gambar hanya masuk ke satu soal (tidak digandakan). Lanjutkan?';
-    if (!confirm(msg)) return;
+    const msg = `Siap import ${items.length} soal` +
+      (eqCount ? ` · ${eqCount} persamaan dari Word` : '') +
+      (nMath ? ` · ${nMath} rumus LaTeX` : '') +
+      (withMedia ? ` · ${withMedia} soal punya media` : '') +
+      (nImg ? ` · ${nImg} gambar` : '') +
+      (nTbl ? ` · ${nTbl} tabel` : '') +
+      '.\n\nSetiap tabel/gambar/persamaan hanya masuk ke satu soal. Lanjutkan?';
+    if (!confirm(msg)) {
+      toast('Impor dibatalkan', 'err');
+      return;
+    }
+    stage = 'upload';
+    toast('⬆️ Mengunggah soal ke server…', 'ok');
     const res = await apiCall('import_bank_soal_item', { bank_soal_id: _bsDetailPaket.id, items });
-    toast(res.message || 'Impor selesai', 'ok');
+    const saved = res.saved != null ? res.saved : (res.count != null ? res.count : items.length);
+    const failN = res.failed != null ? res.failed : 0;
+    if (failN > 0) {
+      toast(`⚠️ Sebagian berhasil: ${saved} tersimpan, ${failN} gagal. ${res.message || ''}`, 'err');
+    } else {
+      toast(`✅ Impor berhasil: ${saved} soal tersimpan` + (eqCount ? ` (${eqCount} persamaan)` : ''), 'ok');
+    }
     await loadBankSoalItems(_bsDetailPaket.id);
   } catch (err) {
-    toast(errToText(err), 'err');
+    console.error('import bank soal', stage, err);
+    toast(`❌ Impor gagal (${stage}): ${errToText(err)}`, 'err');
   }
 });
+
+/**
+ * Konversi OMML (persamaan native Word) di document.xml → teks LaTeX \(...\)
+ * agar mammoth tidak menghapus persamaan.
+ */
+async function preprocessDocxMathToLatex(arrayBuffer) {
+  if (typeof JSZip === 'undefined') {
+    return { buffer: arrayBuffer, eqCount: 0 };
+  }
+  const zip = await JSZip.loadAsync(arrayBuffer);
+  const path = 'word/document.xml';
+  const f = zip.file(path);
+  if (!f) return { buffer: arrayBuffer, eqCount: 0 };
+  let xml = await f.async('string');
+  let eqCount = 0;
+  xml = xml.replace(/<m:oMath(\s[^>]*)?>[\s\S]*?<\/m:oMath>/g, (m) => {
+    eqCount++;
+    let latex = ommlToLatex(m);
+    latex = String(latex || '').trim();
+    if (!latex) latex = '?';
+    // Hindari karakter XML ilegal di dalam w:t
+    const safe = latex
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    // Delimiter \( \) dikenali KaTeX auto-render
+    return `<w:r><w:t xml:space="preserve">\\(${safe}\\)</w:t></w:r>`;
+  });
+  // Bersihkan sisa oMathPara kosong / pembungkus
+  xml = xml.replace(/<m:oMathPara(\s[^>]*)?>[\s\S]*?<\/m:oMathPara>/g, (m) => {
+    // Jika masih ada oMath (seharusnya sudah diganti), ekstrak teks
+    if (/<m:oMath/.test(m)) return m;
+    const texts = [...m.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)].map(x => x[1]).join('');
+    if (!texts.trim()) return '';
+    return `<w:r><w:t xml:space="preserve">${texts}</w:t></w:r>`;
+  });
+  zip.file(path, xml);
+  const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+  return { buffer, eqCount };
+}
+
+function ommlStripPr(s) {
+  let out = String(s || '');
+  for (let i = 0; i < 40; i++) {
+    const n = out
+      .replace(/<(m:\w+Pr|w:rPr)(\s[^>]*)?>((?:(?!<\/\1>).)*)<\/\1>/g, '')
+      .replace(/<(m:\w+Pr|w:rPr)(\s[^>]*)?\/>/g, '');
+    if (n === out) break;
+    out = n;
+  }
+  return out.replace(/<\/m:\w+Pr>/g, '');
+}
+
+function ommlPlain(fragment) {
+  if (!fragment) return '';
+  const f = String(fragment);
+  if (f.indexOf('<') < 0) return f.replace(/[\n\r]+/g, '').trim();
+  let out = '';
+  let pos = 0;
+  const re = /<m:t(?:\s[^>]*)?>([^<]*)<\/m:t>|<[^>]+>/g;
+  let m;
+  while ((m = re.exec(f))) {
+    if (m.index > pos) out += f.slice(pos, m.index);
+    if (m[0].startsWith('<m:t')) out += (m[1] || '');
+    pos = m.index + m[0].length;
+  }
+  out += f.slice(pos);
+  return out.replace(/[\n\r]+/g, '').trim();
+}
+
+/** OMML XML → LaTeX (pecahan, akar, pangkat, subscript) */
+function ommlToLatex(ommlXml) {
+  let s = ommlStripPr(ommlXml);
+  for (let i = 0; i < 50; i++) {
+    const prev = s;
+    s = s.replace(
+      /<m:rad>\s*(?:<m:deg>([\s\S]*?)<\/m:deg>)?\s*<m:e>([\s\S]*?)<\/m:e>\s*<\/m:rad>/g,
+      (_, deg, e) => {
+        const d = ommlPlain(deg || '');
+        const base = ommlPlain(e);
+        return d ? `\\sqrt[${d}]{${base}}` : `\\sqrt{${base}}`;
+      }
+    );
+    s = s.replace(
+      /<m:f>\s*<m:num>([\s\S]*?)<\/m:num>\s*<m:den>([\s\S]*?)<\/m:den>\s*<\/m:f>/g,
+      (_, num, den) => `\\frac{${ommlPlain(num)}}{${ommlPlain(den)}}`
+    );
+    s = s.replace(
+      /<m:sSup>\s*<m:e>([\s\S]*?)<\/m:e>\s*<m:sup>([\s\S]*?)<\/m:sup>\s*<\/m:sSup>/g,
+      (_, e, sup) => {
+        const base = ommlPlain(e);
+        const sp = ommlPlain(sup);
+        return base.length === 1 ? `${base}^{${sp}}` : `{${base}}^{${sp}}`;
+      }
+    );
+    s = s.replace(
+      /<m:sSub>\s*<m:e>([\s\S]*?)<\/m:e>\s*<m:sub>([\s\S]*?)<\/m:sub>\s*<\/m:sSub>/g,
+      (_, e, sub) => {
+        const base = ommlPlain(e);
+        const sb = ommlPlain(sub);
+        return base.length === 1 ? `${base}_{${sb}}` : `{${base}}_{${sb}}`;
+      }
+    );
+    s = s.replace(
+      /<m:sSubSup>\s*<m:e>([\s\S]*?)<\/m:e>\s*<m:sub>([\s\S]*?)<\/m:sub>\s*<m:sup>([\s\S]*?)<\/m:sup>\s*<\/m:sSubSup>/g,
+      (_, e, sub, sup) => {
+        const base = ommlPlain(e);
+        return `{${base}}_{${ommlPlain(sub)}}^{${ommlPlain(sup)}}`;
+      }
+    );
+    if (s === prev) break;
+  }
+  return ommlPlain(s);
+}
+
+/** Ubah \( latex \) / \[ latex \] di HTML/teks menjadi <span class="bs-math" data-latex="..."> */
+function wrapLatexDelimsToMathSpan(html) {
+  let s = String(html || '');
+  if (!s) return s;
+  const toSpan = (latex) => {
+    const esc = String(latex || '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return `<span class="bs-math" data-latex="${esc}"></span>`;
+  };
+  s = s.replace(/\$\$([\s\S]+?)\$\$/g, (_, L) => toSpan(L.trim()));
+  s = s.replace(/\\\[([\s\S]+?)\\\]/g, (_, L) => toSpan(L.trim()));
+  s = s.replace(/\\\(([\s\S]+?)\\\)/g, (_, L) => toSpan(L.trim()));
+  return s;
+}
 
 
 function parseBankSoalImportText(text) {
@@ -12930,114 +13032,6 @@ function parseBankSoalImportHtml(htmlContent, plainText) {
  * Placeholder tabel: <!--TABLE_n--> agar tidak bocor ke semua soal.
  */
 
-
-/**
- * Ganti m:oMath di document.xml dengan teks biasa, lalu re-zip docx.
- * Agar mammoth tidak menghapus rumus Word.
- */
-async function docxReplaceOmmlWithText(arrayBuffer) {
-  if (typeof JSZip === 'undefined') throw new Error('JSZip belum dimuat');
-  const zip = await JSZip.loadAsync(arrayBuffer);
-  const docFile = zip.file('word/document.xml');
-  if (!docFile) return arrayBuffer;
-  let xml = await docFile.async('string');
-  if (!/m:oMath/i.test(xml)) return arrayBuffer;
-
-  // oMathPara dulu (blok), lalu oMath inline
-  xml = xml.replace(/<m:oMathPara\b[\s\S]*?<\/m:oMathPara>/gi, (m) => {
-    const plain = ommlXmlToPlain(m);
-    return plain ? wrapWordTextRun(plain) : '';
-  });
-  xml = xml.replace(/<m:oMath\b[\s\S]*?<\/m:oMath>/gi, (m) => {
-    const plain = ommlXmlToPlain(m);
-    return plain ? wrapWordTextRun(plain) : '';
-  });
-
-  zip.file('word/document.xml', xml);
-  const out = await zip.generateAsync({ type: 'arraybuffer' });
-  return out;
-}
-
-function wrapWordTextRun(text) {
-  // escape XML
-  const t = String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  return '<w:r><w:t xml:space="preserve">' + t + '</w:t></w:r>';
-}
-
-/** OMML fragment → plain / mirip LaTeX sederhana */
-function ommlXmlToPlain(omml) {
-  let s = String(omml || '');
-
-  // pecahan m:f
-  s = s.replace(/<m:f\b[\s\S]*?<\/m:f>/gi, (f) => {
-    const num = ommlInnerText(f.match(/<m:num\b[\s\S]*?<\/m:num>/i)?.[0] || '');
-    const den = ommlInnerText(f.match(/<m:den\b[\s\S]*?<\/m:den>/i)?.[0] || '');
-    if (num && den) return '(' + num + '/' + den + ')';
-    return ommlInnerText(f);
-  });
-
-  // akar m:rad
-  s = s.replace(/<m:rad\b[\s\S]*?<\/m:rad>/gi, (r) => {
-    const deg = ommlInnerText(r.match(/<m:deg\b[\s\S]*?<\/m:deg>/i)?.[0] || '');
-    const e = ommlInnerText(r.match(/<m:e\b[\s\S]*?<\/m:e>/i)?.[0] || '') || ommlInnerText(r);
-    if (deg && deg !== '2') return '∛'.includes('') && deg === '3' ? ('∛(' + e + ')') : ('root(' + deg + ')(' + e + ')');
-    return '√(' + e + ')';
-  });
-
-  // superscript m:sSup
-  s = s.replace(/<m:sSup\b[\s\S]*?<\/m:sSup>/gi, (x) => {
-    const base = ommlInnerText(x.match(/<m:e\b[\s\S]*?<\/m:e>/i)?.[0] || '');
-    const sup = ommlInnerText(x.match(/<m:sup\b[\s\S]*?<\/m:sup>/i)?.[0] || '');
-    return (base || '') + (sup ? ('^' + sup) : '');
-  });
-
-  // subscript
-  s = s.replace(/<m:sSub\b[\s\S]*?<\/m:sSub>/gi, (x) => {
-    const base = ommlInnerText(x.match(/<m:e\b[\s\S]*?<\/m:e>/i)?.[0] || '');
-    const sub = ommlInnerText(x.match(/<m:sub\b[\s\S]*?<\/m:sub>/i)?.[0] || '');
-    return (base || '') + (sub ? ('_' + sub) : '');
-  });
-
-  // sSubSup
-  s = s.replace(/<m:sSubSup\b[\s\S]*?<\/m:sSubSup>/gi, (x) => {
-    const base = ommlInnerText(x.match(/<m:e\b[\s\S]*?<\/m:e>/i)?.[0] || '');
-    const sub = ommlInnerText(x.match(/<m:sub\b[\s\S]*?<\/m:sub>/i)?.[0] || '');
-    const sup = ommlInnerText(x.match(/<m:sup\b[\s\S]*?<\/m:sup>/i)?.[0] || '');
-    return (base || '') + (sub ? ('_' + sub) : '') + (sup ? ('^' + sup) : '');
-  });
-
-  // delimiter m:d
-  s = s.replace(/<m:d\b[\s\S]*?<\/m:d>/gi, (d) => {
-    const inner = ommlInnerText(d);
-    return '(' + inner + ')';
-  });
-
-  // n-ary, etc — fallback text
-  return ommlInnerText(s).replace(/\s+/g, ' ').trim();
-}
-
-function ommlInnerText(fragment) {
-  if (!fragment) return '';
-  let s = String(fragment);
-  // m:t text nodes
-  const parts = [];
-  const re = /<m:t(?:\s[^>]*)?>([\s\S]*?)<\/m:t>/gi;
-  let m;
-  while ((m = re.exec(s))) {
-    parts.push(m[1]
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"'));
-  }
-  if (parts.length) return parts.join('');
-  // fallback: strip all tags
-  return s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
-}
-
 function parseSoalFromWordHtml(html) {
   let h = String(html || '');
   const tables = [];
@@ -13138,14 +13132,13 @@ function parseSoalFromWordHtml(html) {
       ['a', 'b', 'c', 'd', 'e'].forEach(L => {
         let htmlOpt = cur['opsi_' + L];
         if (!htmlOpt) return;
+        // rapikan sisa <p></p> dari label opsi kosong
         htmlOpt = String(htmlOpt)
           .replace(/<p>\s*<\/p>/gi, '')
           .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')
           .trim();
         htmlOpt = stripOpsiLetterPrefix(htmlOpt, L);
-        // simpan sebagai teks 1 baris jika tidak ada media (hindari A.\n2)
-        const flat = flattenOpsiHtml(htmlOpt);
-        opsi.push({ label: L.toUpperCase(), text: flat || '' });
+        opsi.push({ label: L.toUpperCase(), text: htmlOpt || '' });
       });
 
       soals.push({
