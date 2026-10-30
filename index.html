@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
+<meta name="sis-fix" content="sqrt-ujian-2026-10-31">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -30,6 +31,35 @@
     --topbar-h:60px; --footer-h:40px; --sidebar-w:270px;
   }
   body { background:#f0f2f5; color:#333; padding-top:var(--topbar-h); padding-bottom:var(--footer-h); }
+
+  /* ===== FIX AKAR KATEX DI UJIAN SISWA (jangan sentuh SVG radical) ===== */
+  .katex svg {
+    display: inline !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    vertical-align: middle !important;
+  }
+  .uj-soal-card .katex svg,
+  #ujSoalList .katex svg {
+    display: inline !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+  .katex .hide-tail {
+    overflow: hidden !important; /* wajib untuk glyph radical KaTeX */
+  }
+  .uj-soal-card .us-q,
+  .uj-soal-card .us-opsi {
+    font-family: inherit;
+  }
+  .uj-soal-card .katex {
+    font-family: KaTeX_Main, 'Times New Roman', Times, serif !important;
+  }
+
 
   /* ===== TOPBAR FIXED ===== */
   .topbar {
@@ -742,14 +772,14 @@
   .uj-soal-card .katex svg {
     display: inline !important;
     max-width: none !important;
-    height: auto !important;
+    max-height: none !important;
     margin: 0 !important;
     vertical-align: middle;
   }
   .uj-soal-card .us-opsi .katex svg {
     display: inline !important;
     max-width: none !important;
-    height: auto !important;
+    max-height: none !important;
     margin: 0 !important;
   }
   .uj-soal-card .us-q table {
@@ -816,13 +846,13 @@
   .uj-soal-card .katex,
   .uj-soal-card .katex-html,
   .uj-soal-card .katex .sqrt,
-  .uj-soal-card .katex .hide-tail,
   .uj-soal-card .katex .base,
   .uj-soal-card .katex .vlist,
   .uj-soal-card .katex .vlist-t,
   .uj-soal-card .katex .vlist-r {
     overflow: visible !important;
   }
+  /* biarkan .hide-tail sesuai katex.min.css (overflow:hidden) */
   .uj-soal-card .us-q .bs-math,
   .uj-soal-card .us-opsi .bs-math {
     display: inline-block !important;
@@ -830,7 +860,7 @@
     max-width: 100%;
   }
 
-  .uj-soal-card .katex .hide-tail { overflow:visible !important; }
+  /* .uj-soal-card .katex .hide-tail — JANGAN override overflow */
   .uj-soal-card .us-q {
     overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch;
     scrollbar-width: none; /* Firefox — hilangkan garis abu scrollbar */
@@ -859,7 +889,8 @@
   .uj-fb-sqrt { font-family: 'Times New Roman', Times, serif; font-size:1.15em; white-space:nowrap; }
   /* Global KaTeX: cegah clipping radical di WebKit/HP */
   .katex-html, .katex .base, .katex .vlist-t, .katex .vlist-r, .katex .vlist,
-  .katex .sqrt, .katex .hide-tail { overflow: visible !important; }
+  .katex .sqrt { overflow: visible !important; }
+  /* .hide-tail HARUS overflow:hidden (bawaan KaTeX) — jangan di-override */
   .katex .sqrt > .vlist-t { margin-right: 0.12em; }
   .bs-math { overflow: visible !important; }
   /* Pastikan fallback √ selalu tebal dan terbaca di HP */
@@ -1190,9 +1221,7 @@
   .bs-soal-item .katex .vlist-r,
   .bs-soal-item .katex .vlist,
   .bs-soal-item .katex .sqrt,
-  .bs-soal-item .katex .hide-tail {
-    overflow: visible !important;
-  }
+  /* .bs-soal-item .katex .hide-tail — biarkan default KaTeX */
   .bs-soal-item .katex .sqrt > .vlist-t { margin-right: 0.12em; }
   .bs-soal-item .bsi-check-wrap {
     display: inline-flex; align-items: center; justify-content: center;
@@ -10415,11 +10444,16 @@ function renderUjSoalList(soal, readonly) {
   });
   // Render ulang semua rumus (akar, pecahan, pangkat) agar tidak jadi garis di HP
   ujRenderAllMath(box);
+  try { ujFixKatexSqrtDom(box); } catch (_) {}
   // Re-render math setelah font KaTeX siap (penting di HP siswa)
   try {
-    const rerun = () => { try { ujRenderAllMath(box); } catch (_) {} };
+    const rerun = () => {
+      try { ujRenderAllMath(box); } catch (_) {}
+      try { ujFixKatexSqrtDom(box); } catch (_) {}
+    };
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(rerun).catch(() => {});
     setTimeout(rerun, 300);
+    setTimeout(rerun, 1000);
   } catch (_) {}
 
   // Preview isian yang sudah ada isinya
@@ -10601,8 +10635,8 @@ function ujRenderAllMath(root) {
       renderMathInElement(root, {
         delimiters: [
           { left: '$$', right: '$$', display: true },
-          { left: '\(', right: '\)', display: false },
-          { left: '\[', right: '\]', display: true },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '\\[', right: '\\]', display: true },
         ],
         throwOnError: false,
         strict: false,
@@ -10611,13 +10645,57 @@ function ujRenderAllMath(root) {
   } else if (typeof bsRenderMathIn === 'function') {
     bsRenderMathIn(root);
   }
-  // Pastikan overflow radical tidak terpotong di kartu soal siswa
-  try {
-    root.querySelectorAll('.katex, .katex-html, .katex .sqrt, .katex .base, .bs-math').forEach((n) => {
-      n.style.overflow = 'visible';
-    });
-  } catch (_) {}
+  try { ujFixKatexSqrtDom(root); } catch (_) {}
 }
+
+/** Paksa SVG & struktur radical KaTeX terlihat di lembar ujian */
+function ujFixKatexSqrtDom(root) {
+  if (!root) return;
+  // 1) Jangan paksa width/height auto pada SVG (bisa kolaps). Hanya longgarkan max-*.
+  root.querySelectorAll('.katex svg').forEach((svg) => {
+    svg.style.setProperty('display', 'inline', 'important');
+    svg.style.setProperty('max-width', 'none', 'important');
+    svg.style.setProperty('max-height', 'none', 'important');
+    svg.style.setProperty('margin', '0', 'important');
+    svg.style.setProperty('visibility', 'visible', 'important');
+    svg.style.setProperty('opacity', '1', 'important');
+    svg.style.removeProperty('width');
+    svg.style.removeProperty('height');
+  });
+  // 2) hide-tail wajib hidden (glyph radical KaTeX)
+  root.querySelectorAll('.katex .hide-tail').forEach((el) => {
+    el.style.setProperty('overflow', 'hidden', 'important');
+  });
+  // 3) Jika setelah layout radical praktis tidak terlihat → sisipkan √ + garis
+  const fixOne = () => {
+    root.querySelectorAll('.katex .sqrt').forEach((sq) => {
+      if (sq.querySelector('.uj-rad-mark')) return;
+      let broken = false;
+      const svg = sq.querySelector('svg');
+      if (svg) {
+        const r = svg.getBoundingClientRect();
+        if (r.width < 1.5 || r.height < 1.5) broken = true;
+      } else {
+        // font-based radical: cek apakah area sqrt sangat sempit
+        const r = sq.getBoundingClientRect();
+        if (r.width < 4) broken = true;
+      }
+      if (!broken) return;
+      const mark = document.createElement('span');
+      mark.className = 'uj-rad-mark';
+      mark.textContent = '\u221A';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.style.cssText = "font-family:'Times New Roman',Times,serif;font-weight:700;font-size:1.3em;line-height:1;margin-right:2px;display:inline-block;vertical-align:middle;color:inherit;";
+      sq.insertBefore(mark, sq.firstChild);
+    });
+  };
+  fixOne();
+  requestAnimationFrame(fixOne);
+  setTimeout(fixOne, 200);
+}
+
+
+
 
 function ujUpdateIsianPreview(ta) {
   if (!ta) return;
