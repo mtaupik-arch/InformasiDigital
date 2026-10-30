@@ -12526,8 +12526,14 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
     let htmlContent = '';
     if (name.endsWith('.docx') || (file.type || '').includes('wordprocessingml')) {
       if (typeof mammoth === 'undefined') throw new Error('Library mammoth belum dimuat (CDN)');
-      const buf = await file.arrayBuffer();
-      // HTML penuh: gambar → data URL, tabel & format dipertahankan
+      let buf = await file.arrayBuffer();
+      // Konversi Equation Word (OMML) → teks agar tidak hilang saat mammoth
+      try {
+        buf = await docxReplaceOmmlWithText(buf);
+        toast('Equation Word dikonversi ke teks…', 'ok');
+      } catch (omErr) {
+        console.warn('OMML convert skip', omErr);
+      }
       const res = await mammoth.convertToHtml({
         arrayBuffer: buf,
         convertImage: mammoth.images.imgElement(function (image) {
@@ -12923,6 +12929,114 @@ function parseBankSoalImportHtml(htmlContent, plainText) {
  * Port dari index_ok.html — parse HTML Word hasil mammoth menjadi soal + opsi A–D utuh.
  * Placeholder tabel: <!--TABLE_n--> agar tidak bocor ke semua soal.
  */
+
+
+/**
+ * Ganti m:oMath di document.xml dengan teks biasa, lalu re-zip docx.
+ * Agar mammoth tidak menghapus rumus Word.
+ */
+async function docxReplaceOmmlWithText(arrayBuffer) {
+  if (typeof JSZip === 'undefined') throw new Error('JSZip belum dimuat');
+  const zip = await JSZip.loadAsync(arrayBuffer);
+  const docFile = zip.file('word/document.xml');
+  if (!docFile) return arrayBuffer;
+  let xml = await docFile.async('string');
+  if (!/m:oMath/i.test(xml)) return arrayBuffer;
+
+  // oMathPara dulu (blok), lalu oMath inline
+  xml = xml.replace(/<m:oMathPara\b[\s\S]*?<\/m:oMathPara>/gi, (m) => {
+    const plain = ommlXmlToPlain(m);
+    return plain ? wrapWordTextRun(plain) : '';
+  });
+  xml = xml.replace(/<m:oMath\b[\s\S]*?<\/m:oMath>/gi, (m) => {
+    const plain = ommlXmlToPlain(m);
+    return plain ? wrapWordTextRun(plain) : '';
+  });
+
+  zip.file('word/document.xml', xml);
+  const out = await zip.generateAsync({ type: 'arraybuffer' });
+  return out;
+}
+
+function wrapWordTextRun(text) {
+  // escape XML
+  const t = String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return '<w:r><w:t xml:space="preserve">' + t + '</w:t></w:r>';
+}
+
+/** OMML fragment → plain / mirip LaTeX sederhana */
+function ommlXmlToPlain(omml) {
+  let s = String(omml || '');
+
+  // pecahan m:f
+  s = s.replace(/<m:f\b[\s\S]*?<\/m:f>/gi, (f) => {
+    const num = ommlInnerText(f.match(/<m:num\b[\s\S]*?<\/m:num>/i)?.[0] || '');
+    const den = ommlInnerText(f.match(/<m:den\b[\s\S]*?<\/m:den>/i)?.[0] || '');
+    if (num && den) return '(' + num + '/' + den + ')';
+    return ommlInnerText(f);
+  });
+
+  // akar m:rad
+  s = s.replace(/<m:rad\b[\s\S]*?<\/m:rad>/gi, (r) => {
+    const deg = ommlInnerText(r.match(/<m:deg\b[\s\S]*?<\/m:deg>/i)?.[0] || '');
+    const e = ommlInnerText(r.match(/<m:e\b[\s\S]*?<\/m:e>/i)?.[0] || '') || ommlInnerText(r);
+    if (deg && deg !== '2') return '∛'.includes('') && deg === '3' ? ('∛(' + e + ')') : ('root(' + deg + ')(' + e + ')');
+    return '√(' + e + ')';
+  });
+
+  // superscript m:sSup
+  s = s.replace(/<m:sSup\b[\s\S]*?<\/m:sSup>/gi, (x) => {
+    const base = ommlInnerText(x.match(/<m:e\b[\s\S]*?<\/m:e>/i)?.[0] || '');
+    const sup = ommlInnerText(x.match(/<m:sup\b[\s\S]*?<\/m:sup>/i)?.[0] || '');
+    return (base || '') + (sup ? ('^' + sup) : '');
+  });
+
+  // subscript
+  s = s.replace(/<m:sSub\b[\s\S]*?<\/m:sSub>/gi, (x) => {
+    const base = ommlInnerText(x.match(/<m:e\b[\s\S]*?<\/m:e>/i)?.[0] || '');
+    const sub = ommlInnerText(x.match(/<m:sub\b[\s\S]*?<\/m:sub>/i)?.[0] || '');
+    return (base || '') + (sub ? ('_' + sub) : '');
+  });
+
+  // sSubSup
+  s = s.replace(/<m:sSubSup\b[\s\S]*?<\/m:sSubSup>/gi, (x) => {
+    const base = ommlInnerText(x.match(/<m:e\b[\s\S]*?<\/m:e>/i)?.[0] || '');
+    const sub = ommlInnerText(x.match(/<m:sub\b[\s\S]*?<\/m:sub>/i)?.[0] || '');
+    const sup = ommlInnerText(x.match(/<m:sup\b[\s\S]*?<\/m:sup>/i)?.[0] || '');
+    return (base || '') + (sub ? ('_' + sub) : '') + (sup ? ('^' + sup) : '');
+  });
+
+  // delimiter m:d
+  s = s.replace(/<m:d\b[\s\S]*?<\/m:d>/gi, (d) => {
+    const inner = ommlInnerText(d);
+    return '(' + inner + ')';
+  });
+
+  // n-ary, etc — fallback text
+  return ommlInnerText(s).replace(/\s+/g, ' ').trim();
+}
+
+function ommlInnerText(fragment) {
+  if (!fragment) return '';
+  let s = String(fragment);
+  // m:t text nodes
+  const parts = [];
+  const re = /<m:t(?:\s[^>]*)?>([\s\S]*?)<\/m:t>/gi;
+  let m;
+  while ((m = re.exec(s))) {
+    parts.push(m[1]
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"'));
+  }
+  if (parts.length) return parts.join('');
+  // fallback: strip all tags
+  return s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+}
 
 function parseSoalFromWordHtml(html) {
   let h = String(html || '');
