@@ -3436,6 +3436,7 @@
           <button type="button" class="btn btn-success btn-sm" id="btnBsSoalTambah">+ Tambah</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalImport">Import</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalTemplate">Template</button>
+          <button type="button" class="btn btn-danger btn-sm" id="btnBsSoalHapusTerpilih" title="Hapus soal yang dicentang">Hapus terpilih</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalTutup">Tutup</button>
         </div>
         <div class="bs-meta" id="bsSoalMeta">—</div>
@@ -3610,6 +3611,44 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Modal sisipkan rumus (harus di DOM utama, bukan di template print) -->
+<div class="bs-math-overlay" id="bsMathOverlay">
+  <div class="bs-math-box">
+    <h4>∑ Sisipkan Persamaan / Rumus</h4>
+    <p style="font-size:12px;color:#666;margin:0 0 8px">Pilih tombol cepat atau ketik LaTeX. Keyboard virtual MathLive juga tersedia.</p>
+    <div class="bs-math-quick" id="bsMathQuick">
+      <button type="button" data-latex="\frac{a}{b}" title="Pecahan">𝑎/𝑏</button>
+      <button type="button" data-latex="\sqrt{x}" title="Akar">√𝑥</button>
+      <button type="button" data-latex="\sqrt[n]{x}" title="Akar n">ⁿ√𝑥</button>
+      <button type="button" data-latex="x^{n}" title="Pangkat">𝑥ⁿ</button>
+      <button type="button" data-latex="x_{n}" title="Subscript">𝑥ₙ</button>
+      <button type="button" data-latex="\pm" title="Plus-minus">±</button>
+      <button type="button" data-latex="\times" title="Kali">×</button>
+      <button type="button" data-latex="\div" title="Bagi">÷</button>
+      <button type="button" data-latex="\leq" title="≤">≤</button>
+      <button type="button" data-latex="\geq" title="≥">≥</button>
+      <button type="button" data-latex="\neq" title="≠">≠</button>
+      <button type="button" data-latex="\infty" title="Infinity">∞</button>
+      <button type="button" data-latex="\pi" title="Pi">π</button>
+      <button type="button" data-latex="\alpha" title="Alpha">α</button>
+      <button type="button" data-latex="\beta" title="Beta">β</button>
+      <button type="button" data-latex="\theta" title="Theta">θ</button>
+      <button type="button" data-latex="\sum_{i=1}^{n}" title="Sigma">Σ</button>
+      <button type="button" data-latex="\int_{a}^{b}" title="Integral">∫</button>
+      <button type="button" data-latex="\overline{AB}" title="Garis">AB̅</button>
+      <button type="button" data-latex="\vec{v}" title="Vektor">v⃗</button>
+    </div>
+    <math-field id="bsMathField" style="width:100%;min-height:72px;font-size:22px;">x=\frac{-b\pm\sqrt{b^{2}-4ac}}{2a}</math-field>
+    <label style="display:block;font-size:11px;color:#666;margin-top:8px">LaTeX (bisa diketik manual)</label>
+    <input type="text" id="bsMathLatex" style="width:100%;padding:8px;border:1px solid #cfd8dc;border-radius:8px;font-family:monospace;font-size:13px" placeholder="\frac{a}{b}  \sqrt{x}  x^{2}" />
+    <div class="bs-math-preview" id="bsMathPreview">—</div>
+    <div class="bs-math-actions">
+      <button type="button" class="btn btn-outline btn-sm" id="btnBsMathBatal">Batal</button>
+      <button type="button" class="btn btn-primary btn-sm" id="btnBsMathInsert">Sisipkan ke soal</button>
+    </div>
+  </div>
+</div>
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
@@ -11903,11 +11942,68 @@ function bsSetPertanyaanHtml(html) {
   if (el) el.value = html || '';
 }
 
+/** Siapkan HTML soal: render KaTeX ke dalam .bs-math agar tidak hilang di TinyMCE */
+function bsPrepareHtmlForEditor(html) {
+  let s = String(html || '');
+  if (!s) return '';
+  // pastikan delimiter \( \) jadi span
+  if (typeof wrapLatexDelimsToMathSpan === 'function') s = wrapLatexDelimsToMathSpan(s);
+  const div = document.createElement('div');
+  div.innerHTML = s;
+  div.querySelectorAll('.bs-math[data-latex]').forEach(span => {
+    const latex = span.getAttribute('data-latex') || '';
+    span.setAttribute('contenteditable', 'false');
+    span.classList.add('bs-math');
+    if (!latex) return;
+    if (typeof katex !== 'undefined') {
+      try {
+        span.innerHTML = katex.renderToString(latex, { throwOnError: false, displayMode: false });
+        return;
+      } catch (_) {}
+    }
+    span.textContent = latex;
+  });
+  return div.innerHTML;
+}
+
+/** Teks opsi untuk input edit: ambil LaTeX dari span, bukan HTML mentah */
+function opsiHtmlToEditableText(txt) {
+  const raw = String(txt || '');
+  if (!raw) return '';
+  if (!/<[a-z]/i.test(raw)) return raw;
+  const div = document.createElement('div');
+  div.innerHTML = raw;
+  const spans = [...div.querySelectorAll('.bs-math[data-latex]')];
+  if (spans.length) {
+    return spans.map(s => s.getAttribute('data-latex') || '').filter(Boolean).join(' ');
+  }
+  return (div.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+/** Simpan opsi: jika teks berisi perintah LaTeX, bungkus span.bs-math */
+function opsiEditableTextToHtml(txt) {
+  const t = String(txt || '').trim();
+  if (!t) return '';
+  if (/class\s*=\s*["']bs-math/i.test(t) || /data-latex\s*=/i.test(t)) return t;
+  if (/\\frac|\\sqrt|\\sum|\\int|\\pi|\\times|\\div|\^{|_[{\\]/.test(t)) {
+    const esc = t.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    let rendered = '';
+    try {
+      if (typeof katex !== 'undefined') {
+        rendered = katex.renderToString(t, { throwOnError: false, displayMode: false });
+      }
+    } catch (_) {}
+    return `<span class="bs-math" data-latex="${esc}" contenteditable="false">${rendered || esc}</span>`;
+  }
+  return t;
+}
+
 function bsInitEditor(initialHtml) {
   bsDestroyEditor();
   const el = document.getElementById('bsiPertanyaan');
+  const prepared = bsPrepareHtmlForEditor(initialHtml || '');
   if (!el || typeof tinymce === 'undefined') {
-    if (el) el.value = initialHtml || '';
+    if (el) el.value = prepared;
     return Promise.resolve();
   }
   return tinymce.init({
@@ -11926,9 +12022,11 @@ function bsInitEditor(initialHtml) {
     image_description: false,
     media_live_embeds: true,
     verify_html: false,
-    extended_valid_elements: 'span[*],div[*],math[*],semantics[*],annotation[*],mrow[*],mi[*],mo[*],mn[*],msup[*],msub[*],msubsup[*],mfrac[*],msqrt[*],mroot[*],mtable[*],mtr[*],mtd[*],img[*]',
+    valid_elements: '*[*]',
+    extended_valid_elements: 'span[*],div[*],p[*],math[*],semantics[*],annotation[*],mrow[*],mi[*],mo[*],mn[*],msup[*],msub[*],msubsup[*],mfrac[*],msqrt[*],mroot[*],mtable[*],mtr[*],mtd[*],img[*]',
     custom_elements: '~span',
     noneditable_class: 'bs-math',
+    noneditable_noneditable_class: 'bs-math',
     table_toolbar: 'tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol',
     content_style: 'body{font-family:Arial,sans-serif;font-size:14px;line-height:1.5} img{max-width:100%} table{border-collapse:collapse} td,th{border:1px solid #ccc;padding:4px 8px} .bs-math{display:inline-block;vertical-align:middle;padding:0 3px;background:#f5f9ff;border-radius:3px;cursor:default} .katex{font-size:1.1em}',
     setup(editor) {
@@ -11936,18 +12034,21 @@ function bsInitEditor(initialHtml) {
       editor.ui.registry.addButton('bsMath', {
         text: '∑ Rumus',
         tooltip: 'Pecahan, akar, pangkat, simbol',
-        onAction: () => bsOpenMathModal(),
+        onAction: () => {
+          try { bsOpenMathModal(); } catch (e) { console.error(e); toast('Gagal buka editor rumus', 'err'); }
+        },
       });
       editor.on('init', () => {
-        editor.setContent(initialHtml || '');
-        // re-render math if only data-latex left
+        editor.setContent(prepared || '');
         try {
           const body = editor.getBody();
           body.querySelectorAll('.bs-math[data-latex]').forEach(span => {
             const latex = span.getAttribute('data-latex') || '';
             if (!latex || typeof katex === 'undefined') return;
+            if (span.querySelector('.katex')) return;
             try {
               span.innerHTML = katex.renderToString(latex, { throwOnError: false, displayMode: false });
+              span.setAttribute('contenteditable', 'false');
             } catch (_) {}
           });
         } catch (_) {}
@@ -12035,11 +12136,14 @@ function bsMathInsertLatex(piece) {
 
 function bsOpenMathModal() {
   const ov = document.getElementById('bsMathOverlay');
-  if (ov) ov.classList.add('open');
+  if (!ov) {
+    toast('Panel rumus tidak ditemukan di halaman. Muat ulang (hard refresh).', 'err');
+    return;
+  }
+  ov.classList.add('open');
   const mf = document.getElementById('bsMathField');
   try {
     if (mf) {
-      // MathLive options — keyboard selalu siap
       if (typeof mf.setOptions === 'function') {
         mf.setOptions({
           virtualKeyboardMode: 'onfocus',
@@ -12197,6 +12301,9 @@ function renderBankSoalItems() {
       : '';
     return `<div class="bs-soal-item" data-id="${escapeHtml(String(it.id))}">
       <div class="bsi-top">
+        <label style="display:inline-flex;align-items:center;margin:0;cursor:pointer" title="Pilih untuk hapus massal">
+          <input type="checkbox" class="bsi-check" value="${escapeHtml(String(it.id))}" style="width:16px;height:16px;margin-right:6px" />
+        </label>
         <span class="bsi-no">No ${escapeHtml(String(it.nomor || ''))}</span>
         <span class="bsi-jenis">${escapeHtml(it.jenis_soal || it.jenis || '')}</span>
         <span style="font-size:11px;color:#666">Skor ${it.skor != null ? it.skor : 1}</span>
@@ -12254,18 +12361,18 @@ function openBsiForm(item) {
   renderBsiOpsiInputs(opsi);
   onBsiJenisChange();
   const qHtml = item?.pertanyaan || '';
-  // Init TinyMCE setelah panel tampil
+  // Init TinyMCE setelah panel tampil — prepare HTML agar rumus tampil
   setTimeout(() => {
     if (typeof bsInitEditor === 'function') {
       bsInitEditor(qHtml).then(() => {
-        if (typeof bsSetPertanyaanHtml === 'function') bsSetPertanyaanHtml(qHtml);
+        // jangan setContent ulang dengan HTML mentah (menghapus KaTeX yang sudah di-render)
       }).catch(() => {
         const el = document.getElementById('bsiPertanyaan');
-        if (el) el.value = qHtml;
+        if (el) el.value = bsPrepareHtmlForEditor(qHtml);
       });
     } else {
       const el = document.getElementById('bsiPertanyaan');
-      if (el) el.value = qHtml;
+      if (el) el.value = bsPrepareHtmlForEditor(qHtml);
     }
   }, 50);
   box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -12276,10 +12383,12 @@ function renderBsiOpsiInputs(opsi) {
   if (!wrap) return;
   wrap.innerHTML = (opsi || []).map((o, i) => {
     const lab = (typeof o === 'object' ? o.label : null) || String.fromCharCode(65 + i);
-    const txt = typeof o === 'object' ? (o.text || '') : String(o || '');
+    const raw = typeof o === 'object' ? (o.text || '') : String(o || '');
+    // Tampilkan LaTeX/teks biasa, bukan tag HTML mentah
+    const txt = opsiHtmlToEditableText(raw);
     return `<div class="bs-opsi-row">
       <label>${escapeHtml(lab)}</label>
-      <input type="text" data-opsi-i="${i}" data-opsi-lab="${escapeHtml(lab)}" value="${escapeHtml(txt)}" placeholder="Teks opsi ${escapeHtml(lab)}" />
+      <input type="text" data-opsi-i="${i}" data-opsi-lab="${escapeHtml(lab)}" value="${escapeHtml(txt)}" placeholder="Teks atau LaTeX opsi ${escapeHtml(lab)}  mis. \\frac{1}{2}" />
     </div>`;
   }).join('');
 }
@@ -12287,7 +12396,7 @@ function renderBsiOpsiInputs(opsi) {
 function collectBsiOpsi() {
   return [...document.querySelectorAll('#bsiOpsiList input[data-opsi-i]')].map(inp => ({
     label: inp.getAttribute('data-opsi-lab') || '',
-    text: inp.value || '',
+    text: opsiEditableTextToHtml(inp.value || ''),
   }));
 }
 
@@ -12306,6 +12415,26 @@ document.getElementById('btnBsSoalTutup')?.addEventListener('click', () => {
   _bsDetailPaket = null;
 });
 document.getElementById('btnBsSoalTambah')?.addEventListener('click', () => openBsiForm(null));
+document.getElementById('btnBsSoalHapusTerpilih')?.addEventListener('click', async () => {
+  if (!_bsDetailPaket?.id) { toast('Buka paket dulu', 'err'); return; }
+  const ids = [...document.querySelectorAll('#bsSoalList .bsi-check:checked')].map(c => c.value).filter(Boolean);
+  if (!ids.length) { toast('Centang minimal 1 soal yang akan dihapus', 'err'); return; }
+  if (!confirm(`Hapus ${ids.length} soal terpilih? Tindakan ini tidak dapat dibatalkan.`)) return;
+  let ok = 0, fail = 0;
+  toast(`Menghapus ${ids.length} soal…`, 'ok');
+  for (const id of ids) {
+    try {
+      await apiCall('delete_bank_soal_item', { id });
+      ok++;
+    } catch (e) {
+      fail++;
+      console.warn('hapus soal', id, e);
+    }
+  }
+  if (fail) toast(`Hapus selesai: ${ok} berhasil, ${fail} gagal`, 'err');
+  else toast(`✅ ${ok} soal terhapus`, 'ok');
+  await loadBankSoalItems(_bsDetailPaket.id);
+});
 document.getElementById('btnBsiBatal')?.addEventListener('click', () => closeBsiForm());
 document.getElementById('bsiJenis')?.addEventListener('change', onBsiJenisChange);
 document.getElementById('btnBsiAddOpsi')?.addEventListener('click', () => {
