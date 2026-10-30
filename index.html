@@ -7994,6 +7994,8 @@ function fillNilaiFilters() {
   }
   fillNilaiKeOptions();
 }
+/** detail sumber Ke-: { "1": ["nilai"], "2": ["bank_soal"] } */
+let nilaiTerisiKeDetail = {};
 function fillNilaiKeOptions() {
   const keSel = document.getElementById('nilaiFilterKe');
   if (!keSel) return;
@@ -8001,12 +8003,27 @@ function fillNilaiKeOptions() {
   let html = '';
   for (let i = 1; i <= 30; i++) {
     const used = nilaiTerisiKe.includes(i);
-    const disabled = used && i !== cur ? ' disabled' : '';
-    html += `<option value="${i}"${disabled}${i === cur ? ' selected' : ''}>${used ? i + ' (sudah ada)' : i}</option>`;
+    const srcs = nilaiTerisiKeDetail[String(i)] || [];
+    let label = String(i);
+    if (used) {
+      const onlyBank = srcs.includes('bank_soal') && !srcs.includes('nilai');
+      const onlyNilai = srcs.includes('nilai') && !srcs.includes('bank_soal');
+      if (onlyBank) label = i + ' (Bank Soal)';
+      else if (onlyNilai) label = i + ' (sudah ada)';
+      else label = i + ' (sudah ada)';
+    }
+    // Ke- yang hanya di Bank Soal dikunci penuh (tidak bisa input nilai)
+    // Ke- yang sudah ada nilai tetap bisa dibuka untuk edit (cur)
+    const lockBank = srcs.includes('bank_soal') && !srcs.includes('nilai');
+    const disabled = (lockBank || (used && i !== cur)) ? ' disabled' : '';
+    html += `<option value="${i}"${disabled}${i === cur && !lockBank ? ' selected' : ''}>${label}</option>`;
   }
   keSel.innerHTML = html;
   if (![...keSel.options].some(o => o.value === String(cur) && !o.disabled)) {
-    const next = Array.from({ length: 30 }, (_, i) => i + 1).find(n => !nilaiTerisiKe.includes(n)) || 1;
+    const next = Array.from({ length: 30 }, (_, i) => i + 1).find(n => {
+      const s = nilaiTerisiKeDetail[String(n)] || [];
+      return !nilaiTerisiKe.includes(n) || (s.includes('nilai') && !s.includes('bank_soal'));
+    }) || 1;
     keSel.value = String(next);
   } else keSel.value = String(cur);
 }
@@ -8014,13 +8031,14 @@ async function refreshNilaiTerisiKe() {
   const mapelId = document.getElementById('nilaiFilterMapel')?.value;
   const kelasId = document.getElementById('nilaiFilterKelas')?.value || null;
   const jenis = document.getElementById('nilaiFilterJenis')?.value || '';
-  if (!mapelId || !jenis) { nilaiTerisiKe = []; fillNilaiKeOptions(); return; }
+  if (!mapelId || !jenis) { nilaiTerisiKe = []; nilaiTerisiKeDetail = {}; fillNilaiKeOptions(); return; }
   try {
     const res = await apiCall('list_penilaian_ke_terisi', {
       periode_id: periodeAktifId(), mapel_id: mapelId, kelas_id: kelasId || null, jenis,
     });
     nilaiTerisiKe = res.data || [];
-  } catch (_) { nilaiTerisiKe = []; }
+    nilaiTerisiKeDetail = res.detail || {};
+  } catch (_) { nilaiTerisiKe = []; nilaiTerisiKeDetail = {}; }
   fillNilaiKeOptions();
 }
 function lpLabel(jk) {
@@ -11786,8 +11804,9 @@ function openBankSoalForm(row) {
   refreshBsFormKe(keVal);
 }
 
-/** Penilaian Ke- untuk form paket soal — mirror Input Nilai */
+/** Penilaian Ke- untuk form paket soal — sinkron Input Nilai + Bank Soal */
 let _bsPaketTerisiKe = [];
+let _bsPaketTerisiDetail = {};
 async function refreshBsFormKe(preferKe) {
   const keSel = document.getElementById('bsFormKe');
   if (!keSel) return;
@@ -11798,9 +11817,9 @@ async function refreshBsFormKe(preferKe) {
   const editId = crudState?.entity === 'bank_soal' ? crudState.id : null;
 
   _bsPaketTerisiKe = [];
+  _bsPaketTerisiDetail = {};
   if (mapelId && jenis) {
     try {
-      // sama seperti Input Nilai
       const res = await apiCall('list_penilaian_ke_terisi', {
         periode_id: typeof periodeAktifId === 'function' ? periodeAktifId() : null,
         mapel_id: mapelId,
@@ -11808,8 +11827,9 @@ async function refreshBsFormKe(preferKe) {
         jenis,
       });
       _bsPaketTerisiKe = Array.isArray(res.data) ? res.data.map(Number) : [];
-    } catch (_) { _bsPaketTerisiKe = []; }
-    // plus ke yang sudah dipakai paket bank soal lain (mapel+kelas+jenis)
+      _bsPaketTerisiDetail = res.detail || {};
+    } catch (_) { _bsPaketTerisiKe = []; _bsPaketTerisiDetail = {}; }
+    // pastikan paket bank lain (cache lokal) ikut terkunci
     try {
       const used = (_bsRows || []).filter(r =>
         String(r.mapel_id) === String(mapelId) &&
@@ -11817,15 +11837,39 @@ async function refreshBsFormKe(preferKe) {
         String(r.jenis || '').toUpperCase() === String(jenis).toUpperCase() &&
         (!editId || String(r.id) !== String(editId))
       ).map(r => Number(r.penilaian_ke) || 1);
-      _bsPaketTerisiKe = [...new Set([..._bsPaketTerisiKe, ...used])];
+      for (const u of used) {
+        if (!_bsPaketTerisiKe.includes(u)) _bsPaketTerisiKe.push(u);
+        const k = String(u);
+        if (!_bsPaketTerisiDetail[k]) _bsPaketTerisiDetail[k] = [];
+        if (!_bsPaketTerisiDetail[k].includes('bank_soal')) _bsPaketTerisiDetail[k].push('bank_soal');
+      }
+      _bsPaketTerisiKe.sort((a, b) => a - b);
     } catch (_) {}
+  }
+
+  // Saat edit paket ini, Ke- miliknya sendiri tidak dikunci
+  if (editId && cur) {
+    const k = String(cur);
+    const srcs = _bsPaketTerisiDetail[k] || [];
+    // hanya bank_soal tanpa nilai → izinkan (paket sendiri)
+    if (srcs.includes('bank_soal') && !srcs.includes('nilai')) {
+      // tetap tampil sebagai opsi aktif
+    }
   }
 
   let html = '';
   for (let i = 1; i <= 30; i++) {
     const used = _bsPaketTerisiKe.includes(i);
-    const disabled = used && i !== cur ? ' disabled' : '';
-    html += `<option value="${i}"${disabled}${i === cur ? ' selected' : ''}>${used && i !== cur ? i + ' (sudah ada)' : i}</option>`;
+    const srcs = _bsPaketTerisiDetail[String(i)] || [];
+    const isOwn = editId && i === cur;
+    let label = String(i);
+    if (used && !isOwn) {
+      if (srcs.includes('nilai') && !srcs.includes('bank_soal')) label = i + ' (Input Nilai)';
+      else if (srcs.includes('bank_soal') && !srcs.includes('nilai')) label = i + ' (Bank Soal)';
+      else label = i + ' (sudah ada)';
+    }
+    const disabled = used && !isOwn ? ' disabled' : '';
+    html += `<option value="${i}"${disabled}${i === cur ? ' selected' : ''}>${label}</option>`;
   }
   keSel.innerHTML = html;
   if (![...keSel.options].some(o => o.value === String(cur) && !o.disabled)) {
