@@ -12361,15 +12361,26 @@ function bsJenisOptions(selected) {
   return opts;
 }
 
-/** Format nilai DB → datetime-local (YYYY-MM-DDTHH:mm) */
+/** Format nilai DB (ISO/UTC) → datetime-local di zona waktu browser (WIB dll) */
 function bsToDatetimeLocal(v) {
   if (!v) return '';
-  const s = String(v).trim();
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0, 16);
-  const d = new Date(s);
+  const d = new Date(v);
   if (isNaN(d.getTime())) return '';
+  // SELALU pakai komponen lokal — jangan slice string ISO (itu UTC, jam bergeser)
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** datetime-local (jam dinding lokal) → ISO UTC untuk disimpan */
+function bsDatetimeLocalToIso(s) {
+  const m = String(s || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return null;
+  const d = new Date(
+    Number(m[1]), Number(m[2]) - 1, Number(m[3]),
+    Number(m[4]), Number(m[5]), 0, 0,
+  );
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
 function openBankSoalForm(row) {
@@ -12531,11 +12542,11 @@ async function saveBankSoalHook() {
   data.penilaian_ke = Math.min(30, Math.max(1, Number(data.penilaian_ke || document.getElementById('bsFormKe')?.value) || 1));
   data.status = data.status || 'Draft';
   data.attempt = Math.min(99, Math.max(1, Number(data.attempt) || 1));
-  // datetime-local → ISO (kosong = null)
+  // datetime-local (jam lokal user) → ISO UTC, tanpa geser ganda
   const wm = (data.waktu_mulai || document.getElementById('bsFormMulai')?.value || '').trim();
   const ws = (data.waktu_selesai || document.getElementById('bsFormSelesai')?.value || '').trim();
-  data.waktu_mulai = wm ? new Date(wm).toISOString() : null;
-  data.waktu_selesai = ws ? new Date(ws).toISOString() : null;
+  data.waktu_mulai = wm ? bsDatetimeLocalToIso(wm) : null;
+  data.waktu_selesai = ws ? bsDatetimeLocalToIso(ws) : null;
   delete data.judul;
   if (crudState.id) data.id = crudState.id;
   try {
