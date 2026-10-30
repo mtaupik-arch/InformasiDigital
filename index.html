@@ -10175,7 +10175,15 @@ function collectUjAnswers() {
 async function ujOpenLembar(bankId) {
   try {
     toast('Menyiapkan lembar ujian…', 'ok');
-    const start = await apiCall('mulai_ujian', { bank_soal_id: bankId });
+    const sess = getSession();
+    const nisn = String(
+      _ujState.siswa?.nisn || sess?.user?.nisn || sess?.user?.kode || sess?.user?.identifier || ''
+    ).replace(/\D/g, '');
+    const start = await apiCall('mulai_ujian', {
+      bank_soal_id: bankId,
+      nisn: nisn || undefined,
+      siswa_id: sess?.user?.id || undefined,
+    });
     const ruang = start.data;
     if (!ruang?.id) throw new Error('Gagal membuat sesi ujian');
     const lembar = await apiCall('get_lembar_ujian', { bank_soal_id: bankId, ruang_id: ruang.id });
@@ -10218,7 +10226,7 @@ async function initTugasUjianPage() {
   if (sess?.role === 'admin' || sess?.role === 'guru') {
     allowed = true;
   } else if (sess?.role === 'siswa') {
-    const nisn = String(sess.user?.nisn || sess.user?.kode || '').replace(/\D/g, '');
+    const nisn = String(sess.user?.nisn || sess.user?.kode || sess.user?.identifier || '').replace(/\D/g, '');
     try {
       const res = await apiCall('check_izin', { jenis: 'ujian', owner_key: nisn });
       allowed = !!res.allowed;
@@ -10237,32 +10245,51 @@ async function initTugasUjianPage() {
   document.getElementById('ujLembarWrap').style.display = 'none';
   _ujState = { ruangId: null, bankId: null, soal: [], siswa: null, readonly: false };
 
+  // Identitas dari session dulu (sebelum API) — cegah tampil "-"
+  const sessNisn = String(
+    sess?.user?.nisn || sess?.user?.kode || sess?.user?.identifier || sess?.user?.username || ''
+  ).replace(/\D/g, '');
+  const sessSiswa = {
+    nama: sess?.user?.nama || '',
+    nisn: sessNisn || String(sess?.user?.nisn || sess?.user?.kode || ''),
+    kelas: sess?.user?.kelas || '',
+    foto_url: null,
+  };
+  if (sessSiswa.nisn) {
+    const fotoRec = (store.user_foto || []).find(
+      (f) => f.role === 'siswa' && String(f.ref_key) === String(sessSiswa.nisn),
+    );
+    if (fotoRec?.foto_url) sessSiswa.foto_url = fotoRec.foto_url;
+  }
+  ujSetSiswaHeader(sessSiswa);
+  _ujState.siswa = sessSiswa;
+
   try {
-    const res = await apiCall('list_ujian_tersedia', {});
+    const res = await apiCall('list_ujian_tersedia', {
+      nisn: sessNisn || undefined,
+      identifier: sessNisn || sess?.user?.identifier || undefined,
+      siswa_id: sess?.user?.id || sess?.user?.siswa_id || undefined,
+    });
     const siswa = res.siswa || null;
-    _ujState.siswa = siswa;
-    // fallback identitas dari session
-    if (!siswa?.nama && sess?.role === 'siswa') {
-      ujSetSiswaHeader({
-        nama: sess.user?.nama || '',
-        nisn: sess.user?.nisn || sess.user?.kode || '',
-        kelas: sess.user?.kelas || '',
-        foto_url: null,
-      });
-    } else {
-      ujSetSiswaHeader(siswa);
-    }
-    // lengkapi foto dari store lokal bila perlu
-    if (siswa?.nisn && !siswa.foto_url) {
-      const fotoRec = (store.user_foto || []).find(f => f.role === 'siswa' && String(f.ref_key) === String(siswa.nisn));
-      if (fotoRec?.foto_url) {
-        siswa.foto_url = fotoRec.foto_url;
-        ujSetSiswaHeader(siswa);
+    if (siswa && (siswa.nama || siswa.nisn)) {
+      if (!siswa.foto_url && siswa.nisn) {
+        const fotoRec = (store.user_foto || []).find(
+          (f) => f.role === 'siswa' && String(f.ref_key) === String(siswa.nisn),
+        );
+        if (fotoRec?.foto_url) siswa.foto_url = fotoRec.foto_url;
       }
+      _ujState.siswa = {
+        nama: siswa.nama || sessSiswa.nama,
+        nisn: siswa.nisn || sessSiswa.nisn,
+        kelas: siswa.kelas || sessSiswa.kelas,
+        foto_url: siswa.foto_url || sessSiswa.foto_url,
+      };
+      ujSetSiswaHeader(_ujState.siswa);
     }
     renderUjPaketList(res.data || []);
   } catch (e) {
     console.warn(e);
+    // tetap tampilkan header session meski API gagal
     const box = document.getElementById('ujPaketList');
     if (box) box.innerHTML = `<div class="bs-empty" style="color:#c62828">${escapeHtml(errToText(e))}</div>`;
   }
