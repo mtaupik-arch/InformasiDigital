@@ -713,7 +713,8 @@
   .uj-soal-list { display:flex; flex-direction:column; gap:14px; }
   .uj-soal-card {
     background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px;
-    overflow:hidden; max-width:100%;
+    /* Jangan overflow:hidden — memotong tanda akar KaTeX (hanya tersisa garis) */
+    overflow:visible; max-width:100%;
   }
   .uj-soal-card .us-no {
     display:inline-block; background:#1565c0; color:#fff; font-size:11px; font-weight:800;
@@ -762,7 +763,25 @@
   }
   .uj-soal-card .us-opsi .bs-math,
   .uj-soal-card .us-q .bs-math {
-    display:inline-block; max-width:100%; overflow-x:auto; vertical-align:middle;
+    display:inline-block; max-width:100%; vertical-align:middle;
+    overflow:visible; padding:2px 1px;
+  }
+  /* Perbaikan render akar/pecahan KaTeX di HP */
+  .uj-soal-card .katex { font-size:1.12em; line-height:1.35; }
+  .uj-soal-card .katex-html { overflow:visible !important; }
+  .uj-soal-card .katex .base { overflow:visible !important; }
+  .uj-soal-card .katex .vlist-t,
+  .uj-soal-card .katex .vlist-r,
+  .uj-soal-card .katex .vlist { overflow:visible !important; }
+  .uj-soal-card .katex .sqrt > .vlist-t { margin-right:0.1em; }
+  .uj-soal-card .katex .hide-tail { overflow:visible !important; }
+  .uj-soal-card .katex-display {
+    display:block; overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch;
+    padding:4px 0; margin:4px 0;
+  }
+  .uj-soal-card .us-q,
+  .uj-soal-card .us-opsi label > span {
+    overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch;
   }
   .uj-soal-card textarea.us-isian {
     width:100%; min-height:72px; padding:8px 10px; border:1px solid #cfd8dc; border-radius:8px;
@@ -4988,6 +5007,32 @@ document.querySelectorAll('.submenu a[data-page]').forEach(a => {
 });
 
 /* ----- Render tables ----- */
+/** Urutkan kelas alami: 7A, 7B, 8A … IX A, lalu nama */
+function sortSiswaByKelasNama(a, b) {
+  const ka = String(a.kelas || '').trim();
+  const kb = String(b.kelas || '').trim();
+  const na = naturalKelasKey(ka);
+  const nb = naturalKelasKey(kb);
+  if (na !== nb) return na < nb ? -1 : 1;
+  return String(a.nama || '').localeCompare(String(b.nama || ''), 'id', { sensitivity: 'base' });
+}
+function naturalKelasKey(k) {
+  const s = String(k || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  // 7A, 9B, 12 IPA 1, IX A, VIII-2
+  const m = s.match(/^(X{0,3}|IX|IV|V?I{0,3}|[0-9]{1,2})\s*[- ]?\s*([A-Z0-9]*)/);
+  let grade = 99;
+  if (m) {
+    const g = m[1];
+    if (/^\d+$/.test(g)) grade = parseInt(g, 10);
+    else {
+      const roman = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12 };
+      grade = roman[g] != null ? roman[g] : 99;
+    }
+  }
+  const rest = s.replace(/^(X{0,3}|IX|IV|V?I{0,3}|[0-9]{1,2})\s*[- ]?\s*/i, '');
+  return String(grade).padStart(2, '0') + '|' + rest + '|' + s;
+}
+
 function renderSiswa(filter) {
   updatePeriodeBadges();
   const q = (filter || document.getElementById('searchSiswa')?.value || '').toLowerCase();
@@ -5000,6 +5045,7 @@ function renderSiswa(filter) {
       (s.kelas||'').toLowerCase().includes(q)
     );
   }
+  rows = rows.slice().sort(sortSiswaByKelasNama);
   const tb = document.getElementById('tbodySiswa');
   if (!rows.length) {
     tb.innerHTML = '<tr class="empty-row"><td colspan="13">Belum ada data siswa</td></tr>';
@@ -10189,12 +10235,49 @@ function renderUjSoalList(soal, readonly) {
       img.style.height = 'auto';
     });
   });
-  if (typeof bsRenderMathIn === 'function') bsRenderMathIn(box);
-  box.querySelectorAll('.bs-math[data-latex]').forEach(span => {
-    const latex = span.getAttribute('data-latex') || '';
-    if (!latex || typeof katex === 'undefined') return;
-    try { span.innerHTML = katex.renderToString(latex, { throwOnError: false, displayMode: false }); } catch (_) {}
-  });
+  // Render ulang semua rumus (akar, pecahan, pangkat) agar tidak jadi garis di HP
+  ujRenderAllMath(box);
+}
+
+/** Render KaTeX di elemen lembar ujian (bs-math + delimiter) */
+function ujRenderAllMath(root) {
+  if (!root) return;
+  if (typeof katex !== 'undefined') {
+    root.querySelectorAll('.bs-math[data-latex]').forEach((span) => {
+      const latex = (span.getAttribute('data-latex') || '').trim();
+      if (!latex) return;
+      // skip jika sudah berisi .katex yang valid (punya sqrt/frac utuh)
+      if (span.querySelector('.katex .sqrt, .katex .mfrac, .katex .mord')) {
+        // tetap re-render agar CSS baru berlaku
+      }
+      try {
+        span.innerHTML = katex.renderToString(latex, {
+          throwOnError: false,
+          displayMode: false,
+          strict: false,
+          trust: true,
+          output: 'html',
+        });
+        span.classList.add('bs-math');
+      } catch (_) {}
+    });
+  }
+  if (typeof renderMathInElement === 'function') {
+    try {
+      renderMathInElement(root, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '\\[', right: '\\]', display: true },
+          { left: '$', right: '$', display: false },
+        ],
+        throwOnError: false,
+        strict: false,
+      });
+    } catch (_) {}
+  } else if (typeof bsRenderMathIn === 'function') {
+    bsRenderMathIn(root);
+  }
 }
 
 function collectUjAnswers() {
