@@ -10420,7 +10420,9 @@ function renderUjSoalList(soal, readonly) {
         return `<label><input type="radio" name="uj_${s.id}" value="${escapeHtml(lab)}" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${chk} ${readonly ? 'disabled' : ''}/><span><b>${escapeHtml(lab)}.</b> ${show}</span></label>`;
       }).join('')}</div>`;
     }
-    const qHtml = (typeof ujPrepareSoalHtml === 'function' ? ujPrepareSoalHtml(s.pertanyaan || '') : ujRepairMathInHtml(s.pertanyaan || ''));
+    let qHtml = (typeof ujPrepareSoalHtml === 'function' ? ujPrepareSoalHtml(s.pertanyaan || '') : ujRepairMathInHtml(s.pertanyaan || ''));
+    // Hapus nomor di awal teks soal (sudah ada badge No X) agar tidak dobel
+    qHtml = ujStripLeadingSoalNumber(qHtml, no);
     return `<div class="uj-soal-card" data-item-id="${escapeHtml(String(s.id))}">
       <span class="us-no">No ${escapeHtml(String(no))}</span>
       <span class="us-jenis">${escapeHtml(jenis)}</span>
@@ -10489,6 +10491,65 @@ function ujFixLatex(s) {
   t = t.replace(/(^|[^\\])left\b/g, '$1\\left');
   t = t.replace(/(^|[^\\])right\b/g, '$1\\right');
   return t.trim();
+}
+
+/** Hapus nomor soal di awal HTML (1. / 1) / No. 1) supaya tidak dobel dengan badge No X */
+function ujStripLeadingSoalNumber(html, nomor) {
+  let h = String(html || '');
+  if (!h) return h;
+  const n = nomor != null ? String(nomor).trim() : '';
+  try {
+    const div = document.createElement('div');
+    div.innerHTML = h;
+    // Cari node teks pertama yang berisi nomor
+    const walk = (node) => {
+      if (!node) return false;
+      if (node.nodeType === 3) { // text
+        let t = node.textContent || '';
+        const before = t;
+        // pola: "1." "1)" "1 -" "No. 1" "No 1" di awal
+        t = t.replace(/^\s*(?:No\.?\s*)?\d{1,3}\s*[\.\)\-:\u2013\u2014]\s+/i, '');
+        if (n) {
+          const reN = new RegExp('^\\s*(?:No\\.?\\s*)?' + n.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') + '\\s*[\\.\\)\\-:\\u2013\\u2014]?\\s+', 'i');
+          t = t.replace(reN, '');
+        }
+        if (t !== before) {
+          node.textContent = t;
+          return true;
+        }
+        // jika hanya spasi/nomor tanpa teks lanjut di node ini, hapus
+        if (/^\s*(?:No\.?\s*)?\d{1,3}\s*[\.\)\-:\u2013\u2014]?\s*$/i.test(before)) {
+          node.textContent = '';
+          return true;
+        }
+        return /^\s*$/.test(before) ? false : false;
+      }
+      if (node.nodeType === 1) {
+        // lewati math/katex/img
+        if (node.classList && (node.classList.contains('katex') || node.classList.contains('bs-math'))) return false;
+        if (node.tagName === 'IMG' || node.tagName === 'TABLE') return false;
+        for (let i = 0; i < node.childNodes.length; i++) {
+          if (walk(node.childNodes[i])) return true;
+        }
+      }
+      return false;
+    };
+    walk(div);
+    // Bersihkan <p></p> / <p><br></p> kosong di awal
+    while (div.firstChild && div.firstChild.nodeType === 1) {
+      const el = div.firstChild;
+      const t = (el.textContent || '').replace(/\u00a0/g, ' ').trim();
+      if (!t && !el.querySelector('img,table,.katex,.bs-math,svg')) {
+        div.removeChild(el);
+        continue;
+      }
+      break;
+    }
+    return div.innerHTML;
+  } catch (_) {
+    // fallback teks polos
+    return h.replace(/^\s*(?:No\.?\s*)?\d{1,3}\s*[\.\)\-:\u2013\u2014]\s+/i, '');
+  }
 }
 
 /** Siapkan HTML soal siswa: pastikan math ter-render KaTeX (bukan rusak CSS/SVG) */
