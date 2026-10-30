@@ -936,9 +936,19 @@
     padding:12px; margin-bottom:10px; background:#f5f9ff;
   }
   #bsSoalFormBox.open { display:block; }
-  .bs-opsi-row { display:flex; gap:6px; align-items:center; margin-bottom:4px; }
-  .bs-opsi-row input[type="text"] { flex:1; padding:6px 8px; border:1px solid #cfd8dc; border-radius:6px; font-size:12px; }
-  .bs-opsi-row label { font-size:11px; font-weight:700; min-width:18px; }
+  .bs-opsi-row { display:flex; gap:6px; align-items:flex-start; margin-bottom:8px; }
+  .bs-opsi-row input[type="text"],
+  .bs-opsi-row textarea {
+    flex:1; padding:6px 8px; border:1px solid #cfd8dc; border-radius:6px; font-size:12px;
+    font-family:inherit; resize:vertical; min-height:42px; line-height:1.4;
+  }
+  .bs-opsi-row label { font-size:11px; font-weight:700; min-width:18px; padding-top:10px; }
+  .bs-opsi-row .btn-opsi-math {
+    flex-shrink:0; margin-top:4px; padding:6px 10px; font-size:12px; font-weight:700;
+    border:1px solid #90caf9; background:#e3f2fd; color:#1565c0; border-radius:6px; cursor:pointer;
+  }
+  .bs-opsi-row .btn-opsi-math:hover { background:#bbdefb; }
+  .bs-opsi-hint { font-size:10.5px; color:#78909c; margin:0 0 6px; }
 
 
   #page-bank-soal .bs-tabs {
@@ -11911,6 +11921,8 @@ const BS_JENIS_SOAL = [
 /* ===== Rich Editor Soal (TinyMCE + MathLive + KaTeX) ===== */
 let _bsEditor = null;
 let _bsEditorTarget = 'bsiPertanyaan';
+/** Target sisip rumus: 'pertanyaan' | HTMLElement (textarea/input opsi) */
+let _bsMathInsertTarget = 'pertanyaan';
 
 function bsDestroyEditor() {
   try {
@@ -12148,7 +12160,13 @@ function bsMathInsertLatex(piece, mode) {
   bsSyncMathPreview();
 }
 
-function bsOpenMathModal() {
+function bsOpenMathModal(target) {
+  // target: 'pertanyaan' (default) atau elemen textarea/input opsi
+  if (target && target !== 'pertanyaan' && target.nodeType === 1) {
+    _bsMathInsertTarget = target;
+  } else {
+    _bsMathInsertTarget = 'pertanyaan';
+  }
   const ov = document.getElementById('bsMathOverlay');
   if (!ov) {
     toast('Panel rumus tidak ditemukan di halaman. Muat ulang (hard refresh).', 'err');
@@ -12169,7 +12187,6 @@ function bsOpenMathModal() {
       setTimeout(() => { try { mf.focus(); } catch (_) {} }, 80);
     }
   } catch (e) { console.warn('mathfield', e); }
-  // sinkronkan preview dari input jika sudah ada isi
   bsSyncMathPreview();
 }
 
@@ -12232,6 +12249,20 @@ document.getElementById('btnBsMathInsert')?.addEventListener('click', () => {
   let latex = (inp && inp.value ? inp.value : '') || bsGetMathLatex();
   latex = String(latex || '').trim();
   if (!latex) { toast('Rumus kosong — klik tombol cepat atau ketik LaTeX', 'err'); return; }
+
+  // Target = textarea opsi → sisip LaTeX ke opsi (bukan TinyMCE)
+  const tgt = _bsMathInsertTarget;
+  if (tgt && tgt !== 'pertanyaan' && tgt.nodeType === 1 && (tgt.tagName === 'TEXTAREA' || tgt.tagName === 'INPUT')) {
+    const cur = String(tgt.value || '');
+    const sep = cur && !/\s$/.test(cur) ? ' ' : '';
+    tgt.value = cur + sep + latex;
+    try { tgt.focus(); } catch (_) {}
+    _bsMathInsertTarget = 'pertanyaan';
+    bsCloseMathModal();
+    toast('Rumus disisipkan ke opsi', 'ok');
+    return;
+  }
+
   let rendered = '';
   try {
     if (typeof katex !== 'undefined') {
@@ -12242,7 +12273,7 @@ document.getElementById('btnBsMathInsert')?.addEventListener('click', () => {
   const safeLatex = escapeHtml(latex).replace(/"/g, '&quot;');
   const chunk = rendered
     ? `<span class="bs-math" data-latex="${safeLatex}" contenteditable="false">${rendered}</span>&nbsp;`
-    : `<span class="bs-math" data-latex="${safeLatex}" contenteditable="false">\(${safeLatex}\)</span>&nbsp;`;
+    : `<span class="bs-math" data-latex="${safeLatex}" contenteditable="false">\\(${safeLatex}\\)</span>&nbsp;`;
   if (window.tinymce) {
     const ed = tinymce.get('bsiPertanyaan');
     if (ed) {
@@ -12250,8 +12281,20 @@ document.getElementById('btnBsMathInsert')?.addEventListener('click', () => {
       ed.insertContent(chunk);
     }
   }
+  _bsMathInsertTarget = 'pertanyaan';
   bsCloseMathModal();
   toast('Rumus disisipkan', 'ok');
+});
+
+// Tombol ∑ di samping setiap opsi
+document.getElementById('bsiOpsiList')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-opsi-math]');
+  if (!btn) return;
+  e.preventDefault();
+  const row = btn.closest('.bs-opsi-row');
+  const ta = row && row.querySelector('textarea[data-opsi-i], input[data-opsi-i]');
+  if (!ta) { toast('Kolom opsi tidak ditemukan', 'err'); return; }
+  bsOpenMathModal(ta);
 });
 
 
@@ -12416,20 +12459,22 @@ function openBsiForm(item) {
 function renderBsiOpsiInputs(opsi) {
   const wrap = document.getElementById('bsiOpsiList');
   if (!wrap) return;
-  wrap.innerHTML = (opsi || []).map((o, i) => {
+  const hint = `<p class="bs-opsi-hint">Ketik teks biasa atau LaTeX (mis. <code>\\sqrt{2}</code>, <code>x^{2}</code>). Tombol <b>∑</b> membuka editor rumus untuk opsi ini.</p>`;
+  wrap.innerHTML = hint + (opsi || []).map((o, i) => {
     const lab = (typeof o === 'object' ? o.label : null) || String.fromCharCode(65 + i);
     const raw = typeof o === 'object' ? (o.text || '') : String(o || '');
     // Tampilkan LaTeX/teks biasa, bukan tag HTML mentah
     const txt = opsiHtmlToEditableText(raw);
     return `<div class="bs-opsi-row">
       <label>${escapeHtml(lab)}</label>
-      <input type="text" data-opsi-i="${i}" data-opsi-lab="${escapeHtml(lab)}" value="${escapeHtml(txt)}" placeholder="Teks atau LaTeX opsi ${escapeHtml(lab)}  mis. \\frac{1}{2}" />
+      <textarea data-opsi-i="${i}" data-opsi-lab="${escapeHtml(lab)}" rows="2" placeholder="Teks / LaTeX opsi ${escapeHtml(lab)} — contoh: \\frac{1}{8}+\\frac{4}{5}">${escapeHtml(txt)}</textarea>
+      <button type="button" class="btn-opsi-math" data-opsi-math="${i}" title="Sisipkan rumus ke opsi ${escapeHtml(lab)}">∑</button>
     </div>`;
   }).join('');
 }
 
 function collectBsiOpsi() {
-  return [...document.querySelectorAll('#bsiOpsiList input[data-opsi-i]')].map(inp => ({
+  return [...document.querySelectorAll('#bsiOpsiList textarea[data-opsi-i], #bsiOpsiList input[data-opsi-i]')].map(inp => ({
     label: inp.getAttribute('data-opsi-lab') || '',
     text: opsiEditableTextToHtml(inp.value || ''),
   }));
