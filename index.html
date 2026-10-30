@@ -12767,6 +12767,248 @@ const BS_JENIS_SOAL = [
 ];
 
 
+
+/* ===== Upload media soal → Storage (GDrive jika aktif, else Supabase Storage) ===== */
+async function apiCallTimeout(action, payload = {}, timeoutMs = 60000) {
+  const session = getSession();
+  const body = { action, ...payload, token: session?.token || null };
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+  try {
+    const res = await fetch(API_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(body),
+      signal: ctrl ? ctrl.signal : undefined,
+    });
+    let data;
+    try { data = await res.json(); } catch {
+      throw new Error('Function api merespons non-JSON (HTTP ' + res.status + ')');
+    }
+    if (!res.ok || data.status === 'error') {
+      throw new Error(formatApiErrMsg(data, res.status));
+    }
+    return data;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function bsDataUrlToBlob(dataUrl) {
+  const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/);
+  if (!m) return null;
+  const mime = m[1] || 'image/png';
+  const bin = atob(m[2]);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+/** Kompres gambar (dataURL) agar upload lebih cepat — max sisi 1280px, JPEG/WebP quality */
+function bsCompressDataUrl(dataUrl, maxSide = 1280, quality = 0.82) {
+  return new Promise((resolve) => {
+    try {
+      if (!dataUrl || !String(dataUrl).startsWith('data:image')) {
+        resolve(dataUrl);
+        return;
+      }
+      // jangan kompres SVG / GIF animasi sederhana
+      if (/^data:image\/(svg|gif)/i.test(dataUrl)) {
+        resolve(dataUrl);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        try {
+          let w = img.naturalWidth || img.width || 1;
+          let h = img.naturalHeight || img.height || 1;
+          const scale = Math.min(1, maxSide / Math.max(w, h));
+          w = Math.max(1, Math.round(w * scale));
+          h = Math.max(1, Math.round(h * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          let out = '';
+          try {
+            out = canvas.toDataURL('image/jpeg', quality);
+          } catch (_) {
+            out = dataUrl;
+          }
+          // pakai hasil lebih kecil
+          if (out && out.length < dataUrl.length) resolve(out);
+          else resolve(dataUrl);
+        } catch (_) {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    } catch (_) {
+      resolve(dataUrl);
+    }
+  });
+}
+
+/**
+ * Upload dataURL/blob gambar soal ke storage lewat Edge Function.
+ * Backend: action upload_media (folder bank_soal) — GDrive jika aktif, else Supabase Storage.
+ * Mengembalikan URL publik.
+ */
+async function bsUploadMediaToStorage(dataUrlOrBlob, fileName) {
+  let dataUrl = '';
+  let name = fileName || ('soal_' + Date.now() + '.jpg');
+  if (typeof dataUrlOrBlob === 'string') {
+    dataUrl = dataUrlOrBlob;
+  } else if (dataUrlOrBlob && typeof Blob !== 'undefined' && dataUrlOrBlob instanceof Blob) {
+    dataUrl = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result || ''));
+      fr.onerror = () => reject(new Error('Gagal baca blob'));
+      fr.readAsDataURL(dataUrlOrBlob);
+    });
+    if (dataUrlOrBlob.type && /png/i.test(dataUrlOrBlob.type) && !/\.png$/i.test(name)) {
+      name = name.replace(/\.\w+$/, '') + '.png';
+    }
+  } else {
+    throw new Error('Data gambar tidak valid');
+  }
+  if (!dataUrl || !dataUrl.startsWith('data:')) {
+    throw new Error('Data gambar kosong');
+  }
+  // kompres
+  dataUrl = await bsCompressDataUrl(dataUrl);
+  if (/\.png$/i.test(name) && /^data:image\/jpeg/i.test(dataUrl)) {
+    name = name.replace(/\.png$/i, '.jpg');
+  }
+  const sizeBytes = Math.round((dataUrl.length * 3) / 4);
+
+  const tryActions = ['upload_media', 'upload_file', 'upload_soal_image'];
+  let lastErr = null;
+  for (const action of tryActions) {
+    try {
+      const res = await apiCallTimeout(action, {
+        data_url: dataUrl,
+        file_name: name,
+        folder: 'bank_soal',
+        purpose: 'bank_soal',
+        size_bytes: sizeBytes,
+      }, 90000);
+      const url = res.url
+        || res.public_url
+        || res.data?.url
+        || res.data?.public_url
+        || res.data?.foto_url
+        || res.data?.file_url
+        || (res.data && typeof res.data === 'string' ? res.data : null);
+      if (url && /^https?:\/\//i.test(String(url))) {
+        return String(url);
+      }
+      if (url && String(url).startsWith('//')) {
+        return 'https:' + url;
+      }
+      lastErr = new Error(action + ' tidak mengembalikan URL publik');
+    } catch (e) {
+      lastErr = e;
+      const msg = errToText(e).toLowerCase();
+      // action belum ada → coba berikutnya
+      if (/unknown action|tidak dikenal|not found|invalid action|no handler|aksi tidak/i.test(msg)) {
+        continue;
+      }
+      // error lain (auth, storage) — hentikan
+      throw e;
+    }
+  }
+  // Cadangan: unggah langsung ke Supabase Storage (bucket publik umum)
+  try {
+    if (typeof supabaseClient !== 'undefined' && supabaseClient?.storage) {
+      const blob = bsDataUrlToBlob(dataUrl);
+      if (!blob) throw new Error('Blob kosong');
+      const safeName = String(name || 'soal.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const pathName = 'bank_soal/' + Date.now() + '_' + safeName;
+      const buckets = ['media', 'uploads', 'public', 'files', 'images', 'soal'];
+      let upErr = null;
+      for (const bucket of buckets) {
+        try {
+          const { error } = await supabaseClient.storage.from(bucket).upload(pathName, blob, {
+            upsert: true,
+            contentType: blob.type || 'image/jpeg',
+            cacheControl: '3600',
+          });
+          if (error) { upErr = error; continue; }
+          const { data: pub } = supabaseClient.storage.from(bucket).getPublicUrl(pathName);
+          if (pub?.publicUrl) return pub.publicUrl;
+        } catch (be) {
+          upErr = be;
+        }
+      }
+      if (upErr) console.warn('supabase storage', upErr);
+    }
+  } catch (se) {
+    console.warn('fallback storage', se);
+  }
+  throw lastErr || new Error(
+    'Upload media gagal. Aktifkan Integrasi GDrive ATAU buat action Edge Function api "upload_media", ' +
+    'ATAU buat bucket Storage publik (media/uploads/public) dengan policy upload.'
+  );
+}
+
+/**
+ * Ganti semua src="data:image/..." di HTML menjadi URL storage.
+ * Dipakai saat simpan soal & import Word.
+ */
+async function bsReplaceDataImagesWithStorage(html, onProgress) {
+  let s = String(html || '');
+  if (!/data:image\//i.test(s)) return s;
+  const re = /(<img\b[^>]*?\bsrc\s*=\s*)(["'])(data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=\s]+)\2/gi;
+  const matches = [];
+  let m;
+  const copy = s;
+  while ((m = re.exec(copy))) {
+    matches.push({ full: m[0], prefix: m[1], quote: m[2], dataUrl: m[3].replace(/\s+/g, '') });
+  }
+  if (!matches.length) return s;
+  let done = 0;
+  for (const item of matches) {
+    done++;
+    if (typeof onProgress === 'function') {
+      try { onProgress(done, matches.length); } catch (_) {}
+    }
+    // lewati jika sangat kecil (ikon 1x1)
+    if (item.dataUrl.length < 200) continue;
+    try {
+      const ext = /data:image\/png/i.test(item.dataUrl) ? 'png'
+        : /data:image\/webp/i.test(item.dataUrl) ? 'webp'
+        : /data:image\/gif/i.test(item.dataUrl) ? 'gif'
+        : 'jpg';
+      const url = await bsUploadMediaToStorage(item.dataUrl, 'soal_' + Date.now() + '_' + done + '.' + ext);
+      // replace first occurrence of this exact data url in src
+      const needle = item.prefix + item.quote + item.dataUrl + item.quote;
+      // dataUrl di HTML mungkin punya whitespace — cari lebih longgar
+      const reOne = new RegExp(
+        item.prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+        '["\']' +
+        item.dataUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').substring(0, 80) +
+        '[A-Za-z0-9+/=\\s]*' +
+        '["\']'
+      );
+      // safer: split by unique dataUrl string
+      if (s.indexOf(item.dataUrl) >= 0) {
+        s = s.replace(item.dataUrl, url);
+      }
+    } catch (e) {
+      console.warn('upload gambar soal gagal', e);
+      // biarkan base64 jika gagal — jangan gagalkan seluruh simpan
+    }
+  }
+  return s;
+}
+
 /* ===== Rich Editor Soal (TinyMCE + MathLive + KaTeX) ===== */
 let _bsEditor = null;
 let _bsEditorTarget = 'bsiPertanyaan';
@@ -12879,7 +13121,7 @@ function bsInitEditor(initialHtml) {
     branding: false,
     promotion: false,
     convert_urls: false,
-    automatic_uploads: false,
+    automatic_uploads: true,
     paste_data_images: true,
     image_title: true,
     image_description: false,
@@ -12917,15 +13159,24 @@ function bsInitEditor(initialHtml) {
         } catch (_) {}
       });
     },
-    images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
+    images_upload_handler: (blobInfo) => new Promise(async (resolve, reject) => {
       try {
         const blob = blobInfo.blob();
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject('Gagal baca gambar');
-        reader.readAsDataURL(blob);
+        const fname = (blobInfo.filename && String(blobInfo.filename)) || ('soal_' + Date.now() + '.jpg');
+        // Upload ke Storage (GDrive / Supabase) — bukan base64 di DB
+        const url = await bsUploadMediaToStorage(blob, fname);
+        resolve(url);
       } catch (e) {
-        reject(String(e));
+        console.warn('upload storage gagal, fallback dataURL', e);
+        // fallback terakhir: base64 agar editor tidak error total
+        try {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(errToText(e));
+          reader.readAsDataURL(blobInfo.blob());
+        } catch (e2) {
+          reject(errToText(e));
+        }
       }
     }),
   });
@@ -13164,34 +13415,36 @@ function bsRenderMathIn(el) {
       });
     }
   } catch (_) {}
-  // Render .bs-math[data-latex] + fallback akar (penting di HP bila font KaTeX radical gagal)
-  if (typeof katex !== 'undefined') {
-    el.querySelectorAll('.bs-math[data-latex]').forEach((span) => {
-      let latex = span.getAttribute('data-latex') || '';
-      if (typeof ujFixLatex === 'function') latex = ujFixLatex(latex);
-      if (!latex) return;
-      span.setAttribute('data-latex', latex);
-      let html = '';
+  const mobileFast = (typeof ujNeedSqrtFallback === 'function') ? ujNeedSqrtFallback() : false;
+  // Render .bs-math[data-latex] — di HP pakai fallback ringan (tanpa KaTeX penuh) agar cepat
+  el.querySelectorAll('.bs-math[data-latex]').forEach((span) => {
+    let latex = span.getAttribute('data-latex') || '';
+    if (typeof ujFixLatex === 'function') latex = ujFixLatex(latex);
+    if (!latex) return;
+    span.setAttribute('data-latex', latex);
+    let html = '';
+    // HP + ada akar → langsung fallback unicode (jauh lebih cepat dari KaTeX)
+    if (mobileFast && /\\sqrt|\\frac/.test(latex) && typeof ujLatexFallbackHtml === 'function') {
+      html = ujLatexFallbackHtml(latex) || '';
+    }
+    if (!html && typeof katex !== 'undefined') {
       try {
         html = katex.renderToString(latex, {
           throwOnError: false, displayMode: false, strict: false, trust: true, output: 'html',
         });
       } catch (_) { html = ''; }
-      if (/\\sqrt/.test(latex)) {
-        const hasSqrt = html && (/class="sqrt"|class='sqrt'|\bsqrt\b/.test(html));
-        if (!hasSqrt) {
-          html = (typeof ujLatexFallbackHtml === 'function' ? ujLatexFallbackHtml(latex) : '') || html;
-        }
-      }
-      if (!html) {
-        html = (typeof ujLatexFallbackHtml === 'function' ? ujLatexFallbackHtml(latex) : '') || latex;
-      }
-      span.innerHTML = html;
-      span.classList.add('bs-math');
-      span.setAttribute('contenteditable', 'false');
-    });
-  }
-  if (typeof renderMathInElement === 'function') {
+    }
+    if (!html && typeof ujLatexFallbackHtml === 'function') {
+      html = ujLatexFallbackHtml(latex) || latex;
+    }
+    if (!html) html = latex;
+    span.innerHTML = html;
+    span.classList.add('bs-math');
+    span.setAttribute('contenteditable', 'false');
+  });
+  // renderMathInElement hanya jika ada delimiter klasik (hindari scan berat)
+  const raw = el.innerHTML || '';
+  if (!mobileFast && typeof renderMathInElement === 'function' && (/\$\$|\\\(|\\\[/.test(raw))) {
     try {
       renderMathInElement(el, {
         delimiters: [
@@ -13205,6 +13458,7 @@ function bsRenderMathIn(el) {
     } catch (_) {}
   }
   try { ujForceSqrtVisible(el); } catch (_) {}
+}
 }
 
 
@@ -13249,7 +13503,10 @@ function renderBankSoalItems() {
     return;
   }
   const sorted = _bsSoalItems.slice().sort((a, b) => (Number(a.nomor) || 0) - (Number(b.nomor) || 0));
-  list.innerHTML = sorted.map(it => {
+  const chkAll = document.getElementById('bsSoalCheckAll');
+  if (chkAll) chkAll.checked = false;
+
+  function itemHtml(it) {
     let opsi = it.opsi;
     if (typeof opsi === 'string') { try { opsi = JSON.parse(opsi); } catch { opsi = []; } }
     if (!Array.isArray(opsi)) opsi = [];
@@ -13257,7 +13514,6 @@ function renderBankSoalItems() {
       ? `<div class="bsi-opsi">${opsi.map((o, i) => {
           const lab = typeof o === 'object' ? (o.label || String.fromCharCode(65 + i)) : String.fromCharCode(65 + i);
           let txt = typeof o === 'object' ? (o.text || '') : String(o);
-          // opsi dari Word sering dibungkus <p> → buat inline agar sejajar huruf A. B. C.
           if (/<[a-z][\s\S]*>/i.test(txt)) {
             txt = String(txt)
               .replace(/<\/?p(?:\s[^>]*)?>/gi, ' ')
@@ -13287,19 +13543,36 @@ function renderBankSoalItems() {
       ${opsiHtml}
       ${it.kunci ? `<div class="bsi-kunci">Kunci: ${escapeHtml(String(it.kunci))}</div>` : ''}
     </div>`;
-  }).join('');
-  // Reset pilih semua
-  const chkAll = document.getElementById('bsSoalCheckAll');
-  if (chkAll) chkAll.checked = false;
-  bsRenderMathIn(list);
-  try { ujForceSqrtVisible(list); } catch (_) {}
-  // Setelah font KaTeX (gagal/berhasil) selesai, paksa lagi di HP
-  try {
-    const rerun = () => { try { ujForceSqrtVisible(list); } catch (_) {} };
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(rerun).catch(() => {});
-    setTimeout(rerun, 400);
-    setTimeout(rerun, 1200);
-  } catch (_) {}
+  }
+
+  // Render bertahap: batch kecil dulu agar HP tidak freeze
+  const BATCH = 8;
+  let offset = 0;
+  list.innerHTML = '';
+  const renderChunk = () => {
+    const slice = sorted.slice(offset, offset + BATCH);
+    if (!slice.length) {
+      try { bsRenderMathIn(list); } catch (_) {}
+      try { ujForceSqrtVisible(list); } catch (_) {}
+      return;
+    }
+    const html = slice.map(itemHtml).join('');
+    list.insertAdjacentHTML('beforeend', html);
+    // Math hanya pada chunk baru (lebih cepat)
+    const items = list.querySelectorAll('.bs-soal-item');
+    const startIdx = offset;
+    for (let i = startIdx; i < items.length; i++) {
+      try { bsRenderMathIn(items[i]); } catch (_) {}
+    }
+    offset += BATCH;
+    if (offset < sorted.length) {
+      // beri napas ke UI thread
+      setTimeout(renderChunk, 0);
+    } else {
+      try { ujForceSqrtVisible(list); } catch (_) {}
+    }
+  };
+  renderChunk();
 }
 
 function closeBsiForm() {
@@ -13456,13 +13729,36 @@ document.getElementById('btnBsiSimpan')?.addEventListener('click', async () => {
   }
   const needOpsi = ['Pilihan Ganda', 'Checkbox', 'Benar / Salah', 'Menjodohkan'].includes(jenisSoal);
   const opsi = needOpsi ? collectBsiOpsi() : [];
+  let pertanyaanFinal = pertanyaan;
+  let opsiFinal = opsi;
+  try {
+    if (/data:image\//i.test(pertanyaanFinal)) {
+      toast('Mengunggah gambar soal ke storage…', 'ok');
+      pertanyaanFinal = await bsReplaceDataImagesWithStorage(pertanyaanFinal, (a, b) => {
+        toast('Upload gambar ' + a + '/' + b + '…', 'ok');
+      });
+    }
+    if (Array.isArray(opsiFinal)) {
+      for (let i = 0; i < opsiFinal.length; i++) {
+        if (opsiFinal[i] && /data:image\//i.test(String(opsiFinal[i].text || ''))) {
+          opsiFinal[i] = {
+            ...opsiFinal[i],
+            text: await bsReplaceDataImagesWithStorage(String(opsiFinal[i].text || '')),
+          };
+        }
+      }
+    }
+  } catch (upErr) {
+    console.warn(upErr);
+    toast('Peringatan upload gambar: ' + errToText(upErr), 'err');
+  }
   const payload = {
     id: document.getElementById('bsiEditId')?.value || undefined,
     bank_soal_id: _bsDetailPaket.id,
     nomor: Number(document.getElementById('bsiNomor')?.value) || 1,
     jenis_soal: jenisSoal,
-    pertanyaan,
-    opsi,
+    pertanyaan: pertanyaanFinal,
+    opsi: opsiFinal,
     kunci: document.getElementById('bsiKunci')?.value?.trim() || '',
     skor: Number(document.getElementById('bsiSkor')?.value) || 1,
   };
@@ -13672,6 +13968,33 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
     if (!confirm(msg)) {
       toast('Impor dibatalkan', 'err');
       return;
+    }
+    stage = 'upload_gambar';
+    // Pindahkan gambar base64 (dari Word) ke storage sebelum simpan DB
+    let imgTotal = 0;
+    for (const it of items) {
+      const blob = String(it.pertanyaan || '') + JSON.stringify(it.opsi || []);
+      imgTotal += (blob.match(/data:image\//gi) || []).length;
+    }
+    if (imgTotal > 0) {
+      toast('☁️ Mengunggah ' + imgTotal + ' gambar ke storage…', 'ok');
+      let n = 0;
+      for (const it of items) {
+        if (/data:image\//i.test(String(it.pertanyaan || ''))) {
+          it.pertanyaan = await bsReplaceDataImagesWithStorage(it.pertanyaan, () => {
+            n++;
+            toast('☁️ Gambar storage ' + n + '/' + imgTotal + '…', 'ok');
+          });
+        }
+        if (Array.isArray(it.opsi)) {
+          for (let i = 0; i < it.opsi.length; i++) {
+            if (it.opsi[i] && /data:image\//i.test(String(it.opsi[i].text || ''))) {
+              it.opsi[i].text = await bsReplaceDataImagesWithStorage(String(it.opsi[i].text || ''));
+              n++;
+            }
+          }
+        }
+      }
     }
     stage = 'upload';
     toast('⬆️ Mengunggah soal ke server…', 'ok');
