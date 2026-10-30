@@ -908,6 +908,24 @@
   .bs-soal-item .bsi-q { font-size:12.5px; color:#222; margin:4px 0 6px; white-space:pre-wrap; }
   .bs-soal-item .bsi-opsi { font-size:11.5px; color:#455a64; padding-left:8px; }
   .bs-soal-item .bsi-opsi div { margin:2px 0; }
+  .bs-soal-item .bs-opsi-line {
+    display:flex; flex-direction:row; align-items:center; gap:6px;
+    margin:3px 0; line-height:1.35;
+  }
+  .bs-soal-item .bs-opsi-letter {
+    flex-shrink:0; font-weight:700; min-width:1.2em; color:#37474f;
+  }
+  .bs-soal-item .bs-opsi-content {
+    flex:1; min-width:0;
+    display:inline-flex; flex-wrap:wrap; align-items:center; gap:2px;
+  }
+  .bs-soal-item .bs-opsi-content p {
+    display:inline; margin:0; padding:0;
+  }
+  .bs-soal-item .bs-opsi-content .bs-math,
+  .bs-soal-item .bs-opsi-content .katex {
+    display:inline-block; vertical-align:middle;
+  }
   .bs-soal-item .bsi-kunci { font-size:11px; color:#2e7d32; font-weight:700; margin-top:4px; }
   .bs-ru-toolbar {
     display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;
@@ -12163,9 +12181,18 @@ function renderBankSoalItems() {
       ? `<div class="bsi-opsi">${opsi.map((o, i) => {
           const lab = typeof o === 'object' ? (o.label || String.fromCharCode(65 + i)) : String.fromCharCode(65 + i);
           let txt = typeof o === 'object' ? (o.text || '') : String(o);
-          // opsi bisa HTML dari Word
-          const txtShow = /<[a-z][\s\S]*>/i.test(txt) ? txt : escapeHtml(txt);
-          return `<div class="bs-opsi-line"><span class="bs-opsi-letter">${escapeHtml(lab)}.</span><span class="bs-opsi-content">${txtShow}</span></div>`;
+          // opsi dari Word sering dibungkus <p> → buat inline agar sejajar huruf A. B. C.
+          if (/<[a-z][\s\S]*>/i.test(txt)) {
+            txt = String(txt)
+              .replace(/<\/?p(?:\s[^>]*)?>/gi, ' ')
+              .replace(/<\/?div(?:\s[^>]*)?>/gi, ' ')
+              .replace(/(<br\s*\/?>\s*)+/gi, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+          } else {
+            txt = escapeHtml(txt);
+          }
+          return `<div class="bs-opsi-line"><span class="bs-opsi-letter">${escapeHtml(lab)}.</span><span class="bs-opsi-content">${txt}</span></div>`;
         }).join('')}</div>`
       : '';
     return `<div class="bs-soal-item" data-id="${escapeHtml(String(it.id))}">
@@ -12616,20 +12643,16 @@ function ommlPlain(fragment) {
 /** OMML XML → LaTeX (pecahan, akar, pangkat, subscript) */
 function ommlToLatex(ommlXml) {
   let s = ommlStripPr(ommlXml);
-  for (let i = 0; i < 50; i++) {
+  // Buka pembungkus run kosong agar struktur lebih sederhana
+  s = s.replace(/<m:r(\s[^>]*)?>/g, '').replace(/<\/m:r>/g, '');
+  for (let i = 0; i < 60; i++) {
     const prev = s;
-    s = s.replace(
-      /<m:rad>\s*(?:<m:deg>([\s\S]*?)<\/m:deg>)?\s*<m:e>([\s\S]*?)<\/m:e>\s*<\/m:rad>/g,
-      (_, deg, e) => {
-        const d = ommlPlain(deg || '');
-        const base = ommlPlain(e);
-        return d ? `\\sqrt[${d}]{${base}}` : `\\sqrt{${base}}`;
-      }
-    );
+    // 1) pecahan dulu (sering di dalam akar/pangkat)
     s = s.replace(
       /<m:f>\s*<m:num>([\s\S]*?)<\/m:num>\s*<m:den>([\s\S]*?)<\/m:den>\s*<\/m:f>/g,
       (_, num, den) => `\\frac{${ommlPlain(num)}}{${ommlPlain(den)}}`
     );
+    // 2) pangkat & subscript
     s = s.replace(
       /<m:sSup>\s*<m:e>([\s\S]*?)<\/m:e>\s*<m:sup>([\s\S]*?)<\/m:sup>\s*<\/m:sSup>/g,
       (_, e, sup) => {
@@ -12651,6 +12674,15 @@ function ommlToLatex(ommlXml) {
       (_, e, sub, sup) => {
         const base = ommlPlain(e);
         return `{${base}}_{${ommlPlain(sub)}}^{${ommlPlain(sup)}}`;
+      }
+    );
+    // 3) akar — dukung <m:deg/>, <m:deg></m:deg>, dan <m:deg>n</m:deg>
+    s = s.replace(
+      /<m:rad>\s*(?:<m:deg\s*\/>|<m:deg>([\s\S]*?)<\/m:deg>)?\s*<m:e>([\s\S]*?)<\/m:e>\s*<\/m:rad>/g,
+      (_, deg, e) => {
+        const d = ommlPlain(deg || '').trim();
+        const base = ommlPlain(e);
+        return d ? `\\sqrt[${d}]{${base}}` : `\\sqrt{${base}}`;
       }
     );
     if (s === prev) break;
