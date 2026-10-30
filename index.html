@@ -12849,6 +12849,7 @@ function parseBankSoalImportHtml(htmlContent, plainText) {
  * Port dari index_ok.html — parse HTML Word hasil mammoth menjadi soal + opsi A–D utuh.
  * Placeholder tabel: <!--TABLE_n--> agar tidak bocor ke semua soal.
  */
+
 function parseSoalFromWordHtml(html) {
   let h = String(html || '');
   const tables = [];
@@ -12857,11 +12858,13 @@ function parseSoalFromWordHtml(html) {
     return '<!--TABLE_' + (tables.length - 1) + '-->';
   });
 
-  const rawBlocks = h.split(/(?=<p[\s>])|(?=<h[1-6][\s>])|(?=<li[\s>])/i).filter(b => b.trim());
+  // pecah per elemen blok, jaga img yang berdiri sendiri
+  const rawBlocks = h.split(/(?=<p[\s>])|(?=<h[1-6][\s>])|(?=<li[\s>])|(?=<div[\s>])/i).filter(b => b.trim());
 
   function blockText(b) {
     return String(b || '')
-      .replace(/<!--TABLE_\d+-->/g, ' ')
+      .replace(/<!--TABLE_\d+-->/g, ' [tabel] ')
+      .replace(/<img[^>]*>/gi, ' [gambar] ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/gi, ' ')
       .replace(/\s+/g, ' ')
@@ -12893,12 +12896,22 @@ function parseSoalFromWordHtml(html) {
     } catch (_) {}
     return s;
   }
+  function isEmptyHtml(htmlStr) {
+    const t = blockText(htmlStr);
+    return !t && !/<img|<table|<!--TABLE_/i.test(String(htmlStr || ''));
+  }
 
   const soals = [];
   let cur = null;
   const jenisDefault = 'Pilihan Ganda';
+  let pendingOptLetter = null; // jika "A." di paragraf sendiri, tunggu konten berikutnya
+
+  function flushPendingOpt() {
+    pendingOptLetter = null;
+  }
 
   function flush() {
+    flushPendingOpt();
     if (!cur) return;
     cur.pertanyaan = restoreTables(stripKunci(cur.pertanyaan || ''));
     ['a', 'b', 'c', 'd', 'e'].forEach(L => {
@@ -12908,13 +12921,12 @@ function parseSoalFromWordHtml(html) {
       }
     });
     const plain = blockText(cur.pertanyaan);
-    if (plain.length >= 3 || /<img|<table|<svg|<!--TABLE_/i.test(cur.pertanyaan)) {
+    if (plain.length >= 2 || /<img|<table|<svg|<!--TABLE_/i.test(cur.pertanyaan)) {
       const allPlain = plain + ' ' + blockText(cur.opsi_a || '') + ' ' + (cur.kunci || '');
       const hasOpts = !!(cur.opsi_a && cur.opsi_b);
       const kunciLetters = cur.kunci ? (String(cur.kunci).toUpperCase().match(/\b[A-E]\b/g) || []) : [];
       const isBS = hasOpts && /benar/i.test(cur.opsi_a || '') && /salah/i.test(cur.opsi_b || '');
-      const isMatch = /jodohkan|menjodohkan|kolom a|kolom b/i.test(allPlain) ||
-        /menjodohkan/i.test(cur.jenis || '');
+      const isMatch = /jodohkan|menjodohkan|kolom a|kolom b/i.test(allPlain);
       const isCheck = kunciLetters.length >= 2;
 
       if (isBS) cur.jenis = 'Benar / Salah';
@@ -12934,14 +12946,17 @@ function parseSoalFromWordHtml(html) {
         cur.kunci = kunciLetters[0];
       }
 
-      // bentuk item API kita
       const opsi = [];
       ['a', 'b', 'c', 'd', 'e'].forEach(L => {
-        const htmlOpt = cur['opsi_' + L];
-        if (htmlOpt) {
-          // simpan HTML opsi (bisa berisi gambar/rumus); tampilan list merender HTML
-          opsi.push({ label: L.toUpperCase(), text: htmlOpt });
-        }
+        let htmlOpt = cur['opsi_' + L];
+        if (!htmlOpt) return;
+        // rapikan sisa <p></p> dari label opsi kosong
+        htmlOpt = String(htmlOpt)
+          .replace(/<p>\s*<\/p>/gi, '')
+          .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')
+          .trim();
+        htmlOpt = stripOpsiLetterPrefix(htmlOpt, L);
+        opsi.push({ label: L.toUpperCase(), text: htmlOpt || '' });
       });
 
       soals.push({
@@ -12956,20 +12971,44 @@ function parseSoalFromWordHtml(html) {
     cur = null;
   }
 
-  for (const block of rawBlocks) {
+  for (let bi = 0; bi < rawBlocks.length; bi++) {
+    const block = rawBlocks[bi];
     const t = blockText(block);
 
+    // lanjutkan opsi pending: "A." + blok berikutnya = konten opsi
+    if (pendingOptLetter && cur) {
+      const isNewQ = /^(?:No\.?\s*)?\d{1,3}[\.\)]\s+\S/i.test(t);
+      const isNewOpt = /^([A-Ea-e])[\.\)]\s*/.test(t) && t.length <= 3 || /^([A-Ea-e])[\.\)]\s+\S/.test(t);
+      const isK = /^Kunci\s*[:.]/i.test(t);
+      if (!isNewQ && !isK && !(isNewOpt && /^[A-Ea-e][\.\)]/i.test(t))) {
+        // konten opsi (angka, teks, gambar)
+        if (!isNewOpt || t.length > 3) {
+          const L = pendingOptLetter;
+          const prev = cur['opsi_' + L] || '';
+          cur['opsi_' + L] = (prev || '') + block;
+          // jika masih kosong teks dan belum media, biarkan pending untuk gabung lagi
+          if (!isEmptyHtml(cur['opsi_' + L])) pendingOptLetter = null;
+          else pendingOptLetter = L;
+          continue;
+        }
+      }
+      pendingOptLetter = null;
+    }
+
     const qm = t.match(/^(?:No\.?\s*)?(\d{1,3})[\.\)]\s+(.+)$/i);
-    const optm = t.match(/^([A-Ea-e])[\.\)]\s+(.+)$/);
+    // opsi: "A. 5" ATAU hanya "A." / "A)"
+    const optmFull = t.match(/^([A-Ea-e])[\.\)]\s+(.+)$/);
+    const optmOnly = t.match(/^([A-Ea-e])[\.\)]\s*$/);
     const isKunci = /^Kunci\s*[:.]/i.test(t);
 
     if (qm) {
       const after = qm[2] || '';
       const afterLen = after.replace(/\s+/g, ' ').trim().length;
       const hasMedia = /<!--TABLE_|<img/i.test(block);
-      const looksLikeQuestion = afterLen >= 12 || hasMedia ||
-        /berikut|adalah|perhatikan|hasil|jika|dari|tentukan|jelaskan|hitung|yang|pada|pilih|nilai/i.test(after);
+      const looksLikeQuestion = afterLen >= 8 || hasMedia ||
+        /berikut|adalah|perhatikan|hasil|jika|dari|tentukan|jelaskan|hitung|yang|pada|pilih|nilai|sederhanakan|bentuk/i.test(after);
 
+      // hindari "1. 5" sebagai soal baru jika cur ada dan terlihat seperti opsi numerik pendek
       if (looksLikeQuestion) {
         flush();
         cur = {
@@ -12987,19 +13026,29 @@ function parseSoalFromWordHtml(html) {
     if (!cur) continue;
 
     if (isKunci) {
+      pendingOptLetter = null;
       cur.kunci = t.replace(/^Kunci\s*[:.]?\s*/i, '').trim();
       continue;
     }
 
-    if (optm) {
-      const L = optm[1].toLowerCase();
+    if (optmFull) {
+      const L = optmFull[1].toLowerCase();
       if ('abcde'.includes(L)) {
         cur['opsi_' + L] = stripOpsiLetterPrefix(block, L);
+        pendingOptLetter = isEmptyHtml(cur['opsi_' + L]) ? L : null;
+        continue;
+      }
+    }
+    if (optmOnly) {
+      const L = optmOnly[1].toLowerCase();
+      if ('abcde'.includes(L)) {
+        cur['opsi_' + L] = block; // sementara, nanti digabung
+        pendingOptLetter = L;
         continue;
       }
     }
 
-    // blok lain (gambar, lanjutan teks) → pertanyaan
+    // blok lain → jika pending opt, sudah di-handle di atas; else pertanyaan
     cur.pertanyaan += block;
   }
   flush();
