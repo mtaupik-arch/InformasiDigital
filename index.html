@@ -907,6 +907,16 @@
   .bs-soal-item .bsi-q { font-size:12.5px; color:#222; margin:4px 0 6px; white-space:pre-wrap; }
   .bs-soal-item .bsi-opsi { font-size:11.5px; color:#455a64; padding-left:8px; }
   .bs-soal-item .bsi-opsi div { margin:2px 0; }
+  .bs-soal-item .bs-opsi-line {
+    display: flex; align-items: flex-start; gap: 6px;
+    margin: 4px 0; padding: 4px 0;
+  }
+  .bs-soal-item .bs-opsi-letter { font-weight: 700; flex-shrink: 0; min-width: 1.2em; }
+  .bs-soal-item .bs-opsi-content { flex: 1; min-width: 0; }
+  .bs-soal-item .bs-opsi-content p { display: inline; margin: 0; }
+  .bs-soal-item .bsi-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .bs-soal-item .bsi-check { margin-right: 4px; }
+
   .bs-soal-item .bsi-kunci { font-size:11px; color:#2e7d32; font-weight:700; margin-top:4px; }
   .bs-ru-toolbar {
     display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;
@@ -3417,6 +3427,7 @@
           <button type="button" class="btn btn-success btn-sm" id="btnBsSoalTambah">+ Tambah</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalImport">Import</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalTemplate">Template</button>
+          <button type="button" class="btn btn-danger btn-sm" id="btnBsSoalHapusTerpilih" title="Hapus soal yang dicentang">🗑 Hapus Terpilih</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalTutup">Tutup</button>
         </div>
         <div class="bs-meta" id="bsSoalMeta">—</div>
@@ -12146,6 +12157,29 @@ async function loadBankSoalItems(bankId) {
   }
 }
 
+
+/** Rapikan HTML opsi Word → teks 1 baris jika tidak ada media */
+function flattenOpsiHtml(htmlStr) {
+  let s = String(htmlStr || '');
+  if (!s) return '';
+  if (/<img|<table|<svg|<!--TABLE_/i.test(s)) {
+    // biarkan HTML media, tapi gabungkan <p> beruntun
+    s = s.replace(/<\/p>\s*<p[^>]*>/gi, ' ').replace(/<p[^>]*>/gi, '').replace(/<\/p>/gi, '').trim();
+    return s;
+  }
+  const d = document.createElement('div');
+  d.innerHTML = s;
+  let t = (d.textContent || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+  // buang sisa label A. di depan
+  t = t.replace(/^[A-E][\.\)\:]\s*/i, '').trim();
+  return t;
+}
+
+function flattenPertanyaanHtml(htmlStr) {
+  // jangan hancurkan media; hanya rapikan spasi ganda di teks
+  return String(htmlStr || '');
+}
+
 function renderBankSoalItems() {
   const list = document.getElementById('bsSoalList');
   if (!list) return;
@@ -12154,7 +12188,14 @@ function renderBankSoalItems() {
     return;
   }
   const sorted = _bsSoalItems.slice().sort((a, b) => (Number(a.nomor) || 0) - (Number(b.nomor) || 0));
-  list.innerHTML = sorted.map(it => {
+  list.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px;color:#546e7a">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="bsiCheckAll" /> Pilih semua
+      </label>
+      <span id="bsiSelectedInfo"></span>
+    </div>
+  ` + sorted.map(it => {
     let opsi = it.opsi;
     if (typeof opsi === 'string') { try { opsi = JSON.parse(opsi); } catch { opsi = []; } }
     if (!Array.isArray(opsi)) opsi = [];
@@ -12162,13 +12203,15 @@ function renderBankSoalItems() {
       ? `<div class="bsi-opsi">${opsi.map((o, i) => {
           const lab = typeof o === 'object' ? (o.label || String.fromCharCode(65 + i)) : String.fromCharCode(65 + i);
           let txt = typeof o === 'object' ? (o.text || '') : String(o);
-          // opsi bisa HTML dari Word
-          const txtShow = /<[a-z][\s\S]*>/i.test(txt) ? txt : escapeHtml(txt);
+          // tampilkan 1 baris: flatten HTML opsi sederhana
+          const flat = flattenOpsiHtml(txt);
+          const txtShow = /<img|<table|<svg/i.test(flat) ? flat : escapeHtml(flat);
           return `<div class="bs-opsi-line"><span class="bs-opsi-letter">${escapeHtml(lab)}.</span><span class="bs-opsi-content">${txtShow}</span></div>`;
         }).join('')}</div>`
       : '';
     return `<div class="bs-soal-item" data-id="${escapeHtml(String(it.id))}">
       <div class="bsi-top">
+        <input type="checkbox" class="bsi-check" data-bsi-id="${escapeHtml(String(it.id))}" />
         <span class="bsi-no">No ${escapeHtml(String(it.nomor || ''))}</span>
         <span class="bsi-jenis">${escapeHtml(it.jenis_soal || it.jenis || '')}</span>
         <span style="font-size:11px;color:#666">Skor ${it.skor != null ? it.skor : 1}</span>
@@ -12330,6 +12373,16 @@ document.getElementById('btnBsiSimpan')?.addEventListener('click', async () => {
 });
 
 document.getElementById('bsSoalList')?.addEventListener('click', async (e) => {
+  if (e.target.id === 'bsiCheckAll') {
+    const on = !!e.target.checked;
+    document.querySelectorAll('.bsi-check').forEach(c => { c.checked = on; });
+    updateBsiSelectedInfo();
+    return;
+  }
+  if (e.target.classList.contains('bsi-check')) {
+    updateBsiSelectedInfo();
+    return;
+  }
   const ed = e.target.closest('[data-bsi-edit]');
   const del = e.target.closest('[data-bsi-del]');
   if (ed) {
@@ -12349,6 +12402,27 @@ document.getElementById('bsSoalList')?.addEventListener('click', async (e) => {
       toast(errToText(err), 'err');
     }
   }
+});
+
+function updateBsiSelectedInfo() {
+  const n = document.querySelectorAll('.bsi-check:checked').length;
+  const el = document.getElementById('bsiSelectedInfo');
+  if (el) el.textContent = n ? n + ' terpilih' : '';
+}
+
+document.getElementById('btnBsSoalHapusTerpilih')?.addEventListener('click', async () => {
+  const ids = [...document.querySelectorAll('.bsi-check:checked')].map(c => c.getAttribute('data-bsi-id')).filter(Boolean);
+  if (!ids.length) { toast('Centang soal yang ingin dihapus', 'err'); return; }
+  if (!confirm('Hapus ' + ids.length + ' soal terpilih?\nPaket bank soal tidak dihapus.')) return;
+  let ok = 0, fail = 0;
+  for (const id of ids) {
+    try {
+      await apiCall('delete_bank_soal_item', { id });
+      ok++;
+    } catch (_) { fail++; }
+  }
+  toast('Terhapus: ' + ok + (fail ? ', gagal: ' + fail : ''), ok ? 'ok' : 'err');
+  if (_bsDetailPaket) await loadBankSoalItems(_bsDetailPaket.id);
 });
 
 document.getElementById('btnBsSoalTemplate')?.addEventListener('click', () => {
@@ -12950,13 +13024,14 @@ function parseSoalFromWordHtml(html) {
       ['a', 'b', 'c', 'd', 'e'].forEach(L => {
         let htmlOpt = cur['opsi_' + L];
         if (!htmlOpt) return;
-        // rapikan sisa <p></p> dari label opsi kosong
         htmlOpt = String(htmlOpt)
           .replace(/<p>\s*<\/p>/gi, '')
           .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')
           .trim();
         htmlOpt = stripOpsiLetterPrefix(htmlOpt, L);
-        opsi.push({ label: L.toUpperCase(), text: htmlOpt || '' });
+        // simpan sebagai teks 1 baris jika tidak ada media (hindari A.\n2)
+        const flat = flattenOpsiHtml(htmlOpt);
+        opsi.push({ label: L.toUpperCase(), text: flat || '' });
       });
 
       soals.push({
