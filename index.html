@@ -787,6 +787,25 @@
   .uj-soal-card .katex .vlist { overflow:visible !important; }
   .uj-soal-card .katex .sqrt { overflow:visible !important; }
   .uj-soal-card .katex .sqrt > .vlist-t { margin-right:0.12em; }
+  /* Siswa HP: equation KaTeX harus sama stabilnya dengan admin */
+  .uj-soal-card .bs-math,
+  .uj-soal-card .katex,
+  .uj-soal-card .katex-html,
+  .uj-soal-card .katex .sqrt,
+  .uj-soal-card .katex .hide-tail,
+  .uj-soal-card .katex .base,
+  .uj-soal-card .katex .vlist,
+  .uj-soal-card .katex .vlist-t,
+  .uj-soal-card .katex .vlist-r {
+    overflow: visible !important;
+  }
+  .uj-soal-card .us-q .bs-math,
+  .uj-soal-card .us-opsi .bs-math {
+    display: inline-block !important;
+    vertical-align: middle;
+    max-width: 100%;
+  }
+
   .uj-soal-card .katex .hide-tail { overflow:visible !important; }
   .uj-soal-card .us-q {
     overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch;
@@ -10372,6 +10391,13 @@ function renderUjSoalList(soal, readonly) {
   });
   // Render ulang semua rumus (akar, pecahan, pangkat) agar tidak jadi garis di HP
   ujRenderAllMath(box);
+  // Re-render math setelah font KaTeX siap (penting di HP siswa)
+  try {
+    const rerun = () => { try { ujRenderAllMath(box); } catch (_) {} };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(rerun).catch(() => {});
+    setTimeout(rerun, 300);
+  } catch (_) {}
+
   // Preview isian yang sudah ada isinya
   box.querySelectorAll('textarea.us-isian').forEach((ta) => {
     ujUpdateIsianPreview(ta);
@@ -10463,17 +10489,20 @@ function ujFormatOpsiHtml(txt) {
 }
 
 /** Render KaTeX di elemen lembar ujian (bs-math + delimiter) + fallback akar */
+/** Render KaTeX di elemen lembar ujian (siswa) — equation sama seperti admin, laptop & HP */
 function ujRenderAllMath(root) {
   if (!root) return;
-  // Marker import yang belum di-wrap
-  root.querySelectorAll('.us-q, .us-opsi').forEach((el) => {
-    if (/⟦MATH:|\[\[MATH:/.test(el.innerHTML || '')) {
-      el.innerHTML = wrapLatexDelimsToMathSpan(el.innerHTML);
+  // Marker import / kunci rusak → span.bs-math
+  root.querySelectorAll('.us-q, .us-opsi, .us-opsi span').forEach((el) => {
+    const h = el.innerHTML || '';
+    if (/⟦MATH:|\[\[MATH:|\[\[\s*MATH/i.test(h)) {
+      try { el.innerHTML = wrapLatexDelimsToMathSpan(h); } catch (_) {}
     }
   });
   if (typeof katex !== 'undefined') {
     root.querySelectorAll('.bs-math[data-latex]').forEach((span) => {
-      let latex = ujFixLatex(span.getAttribute('data-latex') || '');
+      let latex = span.getAttribute('data-latex') || '';
+      if (typeof ujFixLatex === 'function') latex = ujFixLatex(latex);
       if (!latex) return;
       span.setAttribute('data-latex', latex);
       let html = '';
@@ -10486,18 +10515,14 @@ function ujRenderAllMath(root) {
           output: 'html',
         });
       } catch (_) { html = ''; }
-      // Akar: fallback jika struktur hilang ATAU di HP (font radical sering gagal)
-      if (/\sqrt/.test(latex)) {
-        const hasSqrt = html && (/class="sqrt"|class='sqrt'|\bsqrt\b/.test(html));
-        const isNarrow = window.matchMedia('(max-width: 768px)').matches ||
-          (('ontouchstart' in window) && window.innerWidth < 1024);
-        if (!hasSqrt || isNarrow) {
-          html = ujLatexFallbackHtml(latex) || html;
-        }
+      // Hanya fallback unicode jika KaTeX gagal total (jangan paksa di HP)
+      if (!html && typeof ujLatexFallbackHtml === 'function') {
+        html = ujLatexFallbackHtml(latex) || '';
       }
-      if (!html) html = ujLatexFallbackHtml(latex) || escapeHtml(latex);
+      if (!html) html = escapeHtml(latex);
       span.innerHTML = html;
       span.classList.add('bs-math');
+      span.setAttribute('contenteditable', 'false');
     });
   }
   if (typeof renderMathInElement === 'function') {
@@ -10505,8 +10530,8 @@ function ujRenderAllMath(root) {
       renderMathInElement(root, {
         delimiters: [
           { left: '$$', right: '$$', display: true },
-          { left: '\\(', right: '\\)', display: false },
-          { left: '\\[', right: '\\]', display: true },
+          { left: '\(', right: '\)', display: false },
+          { left: '\[', right: '\]', display: true },
         ],
         throwOnError: false,
         strict: false,
@@ -10515,7 +10540,12 @@ function ujRenderAllMath(root) {
   } else if (typeof bsRenderMathIn === 'function') {
     bsRenderMathIn(root);
   }
-  try { ujForceSqrtVisible(root); } catch (_) {}
+  // Pastikan overflow radical tidak terpotong di kartu soal siswa
+  try {
+    root.querySelectorAll('.katex, .katex-html, .katex .sqrt, .katex .base, .bs-math').forEach((n) => {
+      n.style.overflow = 'visible';
+    });
+  } catch (_) {}
 }
 
 function ujUpdateIsianPreview(ta) {
