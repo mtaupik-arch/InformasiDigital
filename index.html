@@ -705,25 +705,68 @@
     position:sticky; top:var(--topbar-h); z-index:20; background:#f0f2f5; padding:8px 0;
   }
   .uj-lembar-title { flex:1; min-width:120px; font-size:13px; font-weight:700; color:#1a237e; }
+  .uj-lembar-foot {
+    display:flex; flex-wrap:wrap; gap:10px; justify-content:stretch; margin:18px 0 8px;
+    padding:12px 0; border-top:1px solid #dfe6ee;
+  }
+  .uj-lembar-foot .btn { flex:1; min-width:120px; padding:12px 14px; font-size:14px; font-weight:700; }
   .uj-soal-list { display:flex; flex-direction:column; gap:14px; }
   .uj-soal-card {
     background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px;
+    overflow:hidden; max-width:100%;
   }
   .uj-soal-card .us-no {
     display:inline-block; background:#1565c0; color:#fff; font-size:11px; font-weight:800;
     padding:2px 8px; border-radius:8px; margin-right:6px;
   }
   .uj-soal-card .us-jenis { font-size:10px; font-weight:700; color:#5c6bc0; }
-  .uj-soal-card .us-q { font-size:13px; color:#222; margin:8px 0 10px; line-height:1.45; }
+  .uj-soal-card .us-q {
+    font-size:13px; color:#222; margin:8px 0 10px; line-height:1.45;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;
+  }
+  .uj-soal-card .us-q img,
+  .uj-soal-card .us-q svg,
+  .uj-soal-card .us-q canvas {
+    max-width:100% !important; height:auto !important; display:block; margin:6px 0;
+  }
+  .uj-soal-card .us-q table {
+    border-collapse:collapse; font-size:12px; max-width:100%;
+  }
+  .uj-soal-card .us-q table td,
+  .uj-soal-card .us-q table th {
+    border:1px solid #cfd8dc; padding:4px 6px; word-break:break-word;
+  }
+  .uj-soal-card .us-media-scroll {
+    overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%; margin:6px 0;
+  }
+  .uj-soal-card .us-opsi {
+    display:flex; flex-direction:column; gap:6px;
+  }
   .uj-soal-card .us-opsi label {
-    display:flex; align-items:flex-start; gap:8px; padding:6px 8px; margin-bottom:4px;
+    display:flex; flex-direction:row; align-items:flex-start; gap:10px;
+    padding:8px 10px; margin:0;
     border:1px solid #e8eef5; border-radius:8px; cursor:pointer; font-size:12.5px;
+    line-height:1.4;
   }
   .uj-soal-card .us-opsi label:hover { background:#f5f9ff; border-color:#90caf9; }
-  .uj-soal-card .us-opsi input { margin-top:3px; }
+  .uj-soal-card .us-opsi input {
+    flex-shrink:0; width:18px; height:18px; margin:2px 0 0;
+  }
+  .uj-soal-card .us-opsi label > span {
+    flex:1; min-width:0; display:block;
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+  }
+  .uj-soal-card .us-opsi label > span img,
+  .uj-soal-card .us-opsi label > span svg {
+    max-width:100% !important; height:auto !important; vertical-align:middle;
+  }
+  .uj-soal-card .us-opsi .bs-math,
+  .uj-soal-card .us-q .bs-math {
+    display:inline-block; max-width:100%; overflow-x:auto; vertical-align:middle;
+  }
   .uj-soal-card textarea.us-isian {
     width:100%; min-height:72px; padding:8px 10px; border:1px solid #cfd8dc; border-radius:8px;
-    font-size:13px; font-family:inherit; resize:vertical;
+    font-size:13px; font-family:inherit; resize:vertical; box-sizing:border-box;
   }
 
   /* ===== PENGUMUMAN KELULUSAN (muat 1 layar HP) ===== */
@@ -3090,10 +3133,12 @@
           <div class="uj-lembar-head">
             <button type="button" class="btn btn-outline btn-sm" id="btnUjKembali">← Kembali</button>
             <div class="uj-lembar-title" id="ujLembarTitle">—</div>
-            <button type="button" class="btn btn-outline btn-sm" id="btnUjSimpan">Simpan</button>
-            <button type="button" class="btn btn-primary btn-sm" id="btnUjSelesai">Kumpulkan</button>
           </div>
           <div id="ujSoalList" class="uj-soal-list"></div>
+          <div class="uj-lembar-foot" id="ujLembarFoot">
+            <button type="button" class="btn btn-outline" id="btnUjSimpan">Simpan jawaban</button>
+            <button type="button" class="btn btn-primary" id="btnUjSelesai">Kumpulkan</button>
+          </div>
         </div>
       </div>
     </div>
@@ -10130,6 +10175,20 @@ function renderUjSoalList(soal, readonly) {
       ${ansHtml}
     </div>`;
   }).join('');
+  // Bungkus tabel & media lebar agar scroll di dalam kartu (HP)
+  box.querySelectorAll('.us-q').forEach((q) => {
+    q.querySelectorAll('table').forEach((tb) => {
+      if (tb.parentElement && tb.parentElement.classList.contains('us-media-scroll')) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'us-media-scroll';
+      tb.parentNode.insertBefore(wrap, tb);
+      wrap.appendChild(tb);
+    });
+    q.querySelectorAll('img').forEach((img) => {
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+    });
+  });
   if (typeof bsRenderMathIn === 'function') bsRenderMathIn(box);
   box.querySelectorAll('.bs-math[data-latex]').forEach(span => {
     const latex = span.getAttribute('data-latex') || '';
@@ -10203,10 +10262,8 @@ async function ujOpenLembar(bankId) {
     }
     document.getElementById('ujListWrap').style.display = 'none';
     document.getElementById('ujLembarWrap').style.display = '';
-    const btnSimpan = document.getElementById('btnUjSimpan');
-    const btnSelesai = document.getElementById('btnUjSelesai');
-    if (btnSimpan) btnSimpan.style.display = _ujState.readonly ? 'none' : '';
-    if (btnSelesai) btnSelesai.style.display = _ujState.readonly ? 'none' : '';
+    const foot = document.getElementById('ujLembarFoot');
+    if (foot) foot.style.display = _ujState.readonly ? 'none' : 'flex';
     renderUjSoalList(_ujState.soal, _ujState.readonly);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
@@ -10325,8 +10382,8 @@ document.getElementById('btnUjSelesai')?.addEventListener('click', async () => {
     const res = await apiCall('selesai_ujian', { ruang_id: _ujState.ruangId, answers });
     toast(res.message || 'Ujian dikumpulkan', 'ok');
     _ujState.readonly = true;
-    document.getElementById('btnUjSimpan').style.display = 'none';
-    document.getElementById('btnUjSelesai').style.display = 'none';
+    const foot = document.getElementById('ujLembarFoot');
+    if (foot) foot.style.display = 'none';
     renderUjSoalList(_ujState.soal.map(s => {
       const a = answers.find(x => String(x.item_id) === String(s.id));
       return a ? { ...s, jawaban: a.jawaban } : s;
