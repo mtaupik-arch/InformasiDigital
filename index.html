@@ -744,18 +744,22 @@
     display:flex; flex-direction:column; gap:6px;
   }
   .uj-soal-card .us-opsi label {
-    display:flex; flex-direction:row; align-items:flex-start; gap:10px;
-    padding:8px 10px; margin:0;
-    border:1px solid #e8eef5; border-radius:8px; cursor:pointer; font-size:12.5px;
-    line-height:1.4;
+    display:flex; flex-direction:row; align-items:center; gap:10px;
+    padding:10px 12px; margin:0;
+    border:1px solid #e8eef5; border-radius:8px; cursor:pointer; font-size:13px;
+    line-height:1.45;
   }
   .uj-soal-card .us-opsi label:hover { background:#f5f9ff; border-color:#90caf9; }
   .uj-soal-card .us-opsi input {
-    flex-shrink:0; width:18px; height:18px; margin:2px 0 0;
+    flex-shrink:0; width:18px; height:18px; margin:0;
   }
+  /* Sejajar horizontal — tanpa overflow-x (scrollbar = garis abu di kanan) */
   .uj-soal-card .us-opsi label > span {
-    flex:1; min-width:0; display:block;
-    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    flex:1; min-width:0; display:inline-flex; flex-wrap:wrap; align-items:center; gap:4px 6px;
+    overflow:visible !important;
+  }
+  .uj-soal-card .us-opsi label > span > b {
+    flex-shrink:0; margin-right:2px;
   }
   .uj-soal-card .us-opsi label > span img,
   .uj-soal-card .us-opsi label > span svg {
@@ -763,25 +767,33 @@
   }
   .uj-soal-card .us-opsi .bs-math,
   .uj-soal-card .us-q .bs-math {
-    display:inline-block; max-width:100%; vertical-align:middle;
-    overflow:visible; padding:2px 1px;
+    display:inline-block !important; max-width:100%; vertical-align:middle;
+    overflow:visible !important; padding:1px 2px;
+  }
+  .uj-soal-card .us-opsi .katex,
+  .uj-soal-card .us-opsi .katex-display {
+    display:inline-block !important; margin:0 !important; text-align:left;
+    overflow:visible !important;
+  }
+  .uj-soal-card .us-opsi .katex-html {
+    display:inline-block !important; overflow:visible !important; border:none !important;
   }
   /* Perbaikan render akar/pecahan KaTeX di HP */
-  .uj-soal-card .katex { font-size:1.12em; line-height:1.35; }
+  .uj-soal-card .katex { font-size:1.15em; line-height:1.4; }
   .uj-soal-card .katex-html { overflow:visible !important; }
   .uj-soal-card .katex .base { overflow:visible !important; }
   .uj-soal-card .katex .vlist-t,
   .uj-soal-card .katex .vlist-r,
   .uj-soal-card .katex .vlist { overflow:visible !important; }
-  .uj-soal-card .katex .sqrt > .vlist-t { margin-right:0.1em; }
+  .uj-soal-card .katex .sqrt { overflow:visible !important; }
+  .uj-soal-card .katex .sqrt > .vlist-t { margin-right:0.12em; }
   .uj-soal-card .katex .hide-tail { overflow:visible !important; }
-  .uj-soal-card .katex-display {
-    display:block; overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch;
-    padding:4px 0; margin:4px 0;
-  }
-  .uj-soal-card .us-q,
-  .uj-soal-card .us-opsi label > span {
+  .uj-soal-card .us-q {
     overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch;
+  }
+  .uj-soal-card .us-q .katex-display {
+    display:block; overflow-x:auto; overflow-y:visible;
+    padding:4px 0; margin:4px 0;
   }
   .uj-soal-card .us-isian-wrap {
     display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start;
@@ -10234,10 +10246,11 @@ function renderUjSoalList(soal, readonly) {
         return `<label><input type="radio" name="uj_${s.id}" value="${escapeHtml(lab)}" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${chk} ${readonly ? 'disabled' : ''}/><span><b>${escapeHtml(lab)}.</b> ${show}</span></label>`;
       }).join('')}</div>`;
     }
+    const qHtml = ujRepairMathInHtml(s.pertanyaan || '');
     return `<div class="uj-soal-card" data-item-id="${escapeHtml(String(s.id))}">
       <span class="us-no">No ${escapeHtml(String(no))}</span>
       <span class="us-jenis">${escapeHtml(jenis)}</span>
-      <div class="us-q">${s.pertanyaan || ''}</div>
+      <div class="us-q">${qHtml}</div>
       ${ansHtml}
     </div>`;
   }).join('');
@@ -10274,40 +10287,67 @@ function ujFixLatex(s) {
   t = t.replace(/\u000c/g, '\\f')  // form feed → \f  (frac)
     .replace(/\u0008/g, '\\b')
     .replace(/\u000b/g, '\\v');
+  // Unicode akar → LaTeX
+  t = t.replace(/√\s*\(([^)]+)\)/g, '\\sqrt{$1}');
+  t = t.replace(/√\s*([0-9]+(?:\.[0-9]+)?)/g, '\\sqrt{$1}');
+  t = t.replace(/√\s*\{([^}]+)\}/g, '\\sqrt{$1}');
+  t = t.replace(/√/g, '\\sqrt{}');
   // Jika backslash hilang total di awal perintah umum
-  if (!/\\frac|\\sqrt|\\times|\\div|\\pm|\\leq|\\geq|\\neq|\\pi|\\alpha|\\beta|\\theta|\\sum|\\int/.test(t)) {
-    t = t.replace(/(^|[^\\])frac\s*\{/g, '$1\\frac{')
-      .replace(/(^|[^\\])sqrt\s*(?:\[|$|\{)/g, (m, p) => p + '\\sqrt' + m.slice(m.indexOf('sqrt') + 4).replace(/^sqrt/, ''))
-      .replace(/(^|[^\\])sqrt\{/g, '$1\\sqrt{')
-      .replace(/(^|[^\\])times\b/g, '$1\\times')
-      .replace(/(^|[^\\])div\b/g, '$1\\div')
-      .replace(/(^|[^\\])pm\b/g, '$1\\pm')
-      .replace(/(^|[^\\])pi\b/g, '$1\\pi');
-  }
-  // Pastikan \frac tetap utuh
-  t = t.replace(/(^|[^\\])frac\{/g, '$1\\frac{');
-  t = t.replace(/(^|[^\\])sqrt\{/g, '$1\\sqrt{');
-  t = t.replace(/(^|[^\\])sqrt\[/g, '$1\\sqrt[');
+  t = t.replace(/(^|[^\\])frac\s*\{/g, '$1\\frac{');
+  t = t.replace(/(^|[^\\])sqrt\s*\{/g, '$1\\sqrt{');
+  t = t.replace(/(^|[^\\])sqrt\s*\[/g, '$1\\sqrt[');
+  t = t.replace(/(^|[^\\])times\b/g, '$1\\times');
+  t = t.replace(/(^|[^\\])div\b/g, '$1\\div');
+  t = t.replace(/(^|[^\\])pm\b/g, '$1\\pm');
+  t = t.replace(/(^|[^\\])pi\b/g, '$1\\pi');
+  t = t.replace(/(^|[^\\])left\b/g, '$1\\left');
+  t = t.replace(/(^|[^\\])right\b/g, '$1\\right');
   return t.trim();
 }
 
-/** Format teks opsi: render LaTeX / bs-math */
+/** Perbaiki HTML soal: span kosong / text √ → bs-math */
+function ujRepairMathInHtml(html) {
+  let h = String(html || '');
+  if (!h) return h;
+  // data-latex rusak di atribut
+  h = h.replace(/data-latex="([^"]*)"/g, (_, v) => {
+    const fixed = ujFixLatex(v);
+    return `data-latex="${fixed.replace(/"/g, '&quot;')}"`;
+  });
+  h = h.replace(/data-latex='([^']*)'/g, (_, v) => {
+    const fixed = ujFixLatex(v);
+    return `data-latex='${fixed.replace(/'/g, '&#39;')}'`;
+  });
+  // Unicode √72 di teks biasa → bungkus latex (hindari double-wrap)
+  if (!/\\sqrt\{/.test(h) && /√/.test(h)) {
+    h = h.replace(/√\s*\(([^)]+)\)/g, '<span class="bs-math" data-latex="\\sqrt{$1}"></span>');
+    h = h.replace(/√\s*([0-9]+(?:\.[0-9]+)?)/g, '<span class="bs-math" data-latex="\\sqrt{$1}"></span>');
+  }
+  return h;
+}
+
+/** Format teks opsi: render LaTeX / bs-math — selalu inline */
 function ujFormatOpsiHtml(txt) {
-  const raw = String(txt || '');
+  let raw = ujRepairMathInHtml(String(txt || ''));
   if (!raw) return '';
   if (/<[a-z]/i.test(raw)) {
-    // HTML: perbaiki data-latex yang rusak
     const div = document.createElement('div');
     div.innerHTML = raw;
     div.querySelectorAll('.bs-math[data-latex]').forEach((sp) => {
       const fixed = ujFixLatex(sp.getAttribute('data-latex') || '');
       if (fixed) sp.setAttribute('data-latex', fixed);
+      // pre-render agar tidak bergantung pass kedua
+      if (fixed && typeof katex !== 'undefined') {
+        try {
+          sp.innerHTML = katex.renderToString(fixed, { throwOnError: false, displayMode: false, strict: false, output: 'html' });
+        } catch (_) {}
+      }
     });
+    // Jika opsi hanya angka/teks biasa di dalam <p>, ambil text
     return div.innerHTML;
   }
-  // Plain: jika mirip LaTeX, bungkus
   const fixed = ujFixLatex(raw);
-  if (/\\frac|\\sqrt|\\sum|\\int|\^{|_[{\\]|\\times|\\div|\\pm|\\pi/.test(fixed)) {
+  if (/\\frac|\\sqrt|\\sum|\\int|\^{|_[{\\]|\\times|\\div|\\pm|\\pi|\\left|\\right/.test(fixed)) {
     const esc = escapeHtml(fixed).replace(/"/g, '&quot;');
     let rendered = '';
     try {
