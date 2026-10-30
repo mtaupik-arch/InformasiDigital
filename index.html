@@ -12,6 +12,10 @@
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.5/tinymce.min.js" referrerpolicy="origin"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathlive@0.98.6/dist/mathlive-static.css">
@@ -726,9 +730,27 @@
     overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;
   }
   .uj-soal-card .us-q img,
-  .uj-soal-card .us-q svg,
   .uj-soal-card .us-q canvas {
     max-width:100% !important; height:auto !important; display:block; margin:6px 0;
+  }
+  /* JANGAN atur svg di .us-q secara global — merusak radical KaTeX (SVG akar jadi hilang, tersisa angka) */
+  .uj-soal-card .us-q img.svg-soal,
+  .uj-soal-card .us-q > svg,
+  .uj-soal-card .us-q p > svg:not(.katex svg) {
+    max-width:100% !important; height:auto !important; display:block; margin:6px 0;
+  }
+  .uj-soal-card .katex svg {
+    display: inline !important;
+    max-width: none !important;
+    height: auto !important;
+    margin: 0 !important;
+    vertical-align: middle;
+  }
+  .uj-soal-card .us-opsi .katex svg {
+    display: inline !important;
+    max-width: none !important;
+    height: auto !important;
+    margin: 0 !important;
   }
   .uj-soal-card .us-q table {
     border-collapse:collapse; font-size:12px; max-width:100%;
@@ -761,8 +783,10 @@
   .uj-soal-card .us-opsi label > span > b {
     flex-shrink:0; margin-right:2px;
   }
-  .uj-soal-card .us-opsi label > span img,
-  .uj-soal-card .us-opsi label > span svg {
+  .uj-soal-card .us-opsi label > span img {
+    max-width:100% !important; height:auto !important; vertical-align:middle;
+  }
+  .uj-soal-card .us-opsi label > span svg:not(.katex svg) {
     max-width:100% !important; height:auto !important; vertical-align:middle;
   }
   .uj-soal-card .us-opsi .bs-math,
@@ -10367,7 +10391,7 @@ function renderUjSoalList(soal, readonly) {
         return `<label><input type="radio" name="uj_${s.id}" value="${escapeHtml(lab)}" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${chk} ${readonly ? 'disabled' : ''}/><span><b>${escapeHtml(lab)}.</b> ${show}</span></label>`;
       }).join('')}</div>`;
     }
-    const qHtml = ujRepairMathInHtml(s.pertanyaan || '');
+    const qHtml = (typeof ujPrepareSoalHtml === 'function' ? ujPrepareSoalHtml(s.pertanyaan || '') : ujRepairMathInHtml(s.pertanyaan || ''));
     return `<div class="uj-soal-card" data-item-id="${escapeHtml(String(s.id))}">
       <span class="us-no">No ${escapeHtml(String(no))}</span>
       <span class="us-jenis">${escapeHtml(jenis)}</span>
@@ -10431,6 +10455,53 @@ function ujFixLatex(s) {
   t = t.replace(/(^|[^\\])left\b/g, '$1\\left');
   t = t.replace(/(^|[^\\])right\b/g, '$1\\right');
   return t.trim();
+}
+
+/** Siapkan HTML soal siswa: pastikan math ter-render KaTeX (bukan rusak CSS/SVG) */
+function ujPrepareSoalHtml(html) {
+  let h = String(html || '');
+  if (!h) return '';
+  if (typeof ujRepairMathInHtml === 'function') h = ujRepairMathInHtml(h);
+  if (typeof wrapLatexDelimsToMathSpan === 'function' && /⟦MATH:|\[\[MATH:|\\\(|\\\[|\$\$/.test(h)) {
+    h = wrapLatexDelimsToMathSpan(h);
+  }
+  try {
+    const div = document.createElement('div');
+    div.innerHTML = h;
+    // Re-render setiap .bs-math dari data-latex
+    div.querySelectorAll('.bs-math[data-latex]').forEach((sp) => {
+      let latex = sp.getAttribute('data-latex') || '';
+      if (typeof ujFixLatex === 'function') latex = ujFixLatex(latex);
+      if (!latex || typeof katex === 'undefined') return;
+      try {
+        sp.innerHTML = katex.renderToString(latex, {
+          throwOnError: false, displayMode: false, strict: false, trust: true, output: 'html',
+        });
+        sp.setAttribute('data-latex', latex);
+      } catch (_) {}
+    });
+    // Blok .katex lama: ambil LaTeX dari annotation, render ulang
+    div.querySelectorAll('.katex').forEach((kx) => {
+      if (kx.closest('.bs-math')) return;
+      const ann = kx.querySelector('annotation[encoding="application/x-tex"]');
+      let latex = ann ? (ann.textContent || '').trim() : '';
+      if (!latex) return;
+      if (typeof ujFixLatex === 'function') latex = ujFixLatex(latex);
+      try {
+        const sp = document.createElement('span');
+        sp.className = 'bs-math';
+        sp.setAttribute('data-latex', latex);
+        sp.setAttribute('contenteditable', 'false');
+        sp.innerHTML = katex.renderToString(latex, {
+          throwOnError: false, displayMode: false, strict: false, trust: true, output: 'html',
+        });
+        kx.replaceWith(sp);
+      } catch (_) {}
+    });
+    return div.innerHTML;
+  } catch (_) {
+    return h;
+  }
 }
 
 /** Perbaiki HTML soal: span kosong / text √ → bs-math */
