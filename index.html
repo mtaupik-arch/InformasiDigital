@@ -13160,20 +13160,23 @@ function renderBankSoalItems() {
         <button type="button" class="btn btn-outline btn-sm" data-bsi-edit="${escapeHtml(String(it.id))}">Edit</button>
         <button type="button" class="btn btn-danger btn-sm" data-bsi-del="${escapeHtml(String(it.id))}">Hapus</button>
       </div>
-      <div class="bsi-q">${it.pertanyaan || ''}</div>
+      <div class="bsi-q">${typeof wrapLatexDelimsToMathSpan === 'function' ? wrapLatexDelimsToMathSpan(it.pertanyaan || '') : (it.pertanyaan || '')}</div>
       ${opsiHtml}
-      ${it.kunci ? `<div class="bsi-kunci">Kunci: ${escapeHtml(String(it.kunci))}</div>` : ''}
+      ${it.kunci ? `<div class="bsi-kunci">Kunci: ${ujFormatKunciHtml(it.kunci)}</div>` : ''}
     </div>`;
   }).join('');
-  bsRenderMathIn(list);
-  // re-render katex spans with data-latex
-  list.querySelectorAll('.bs-math[data-latex]').forEach(span => {
-    const latex = span.getAttribute('data-latex') || '';
-    if (!latex || typeof katex === 'undefined') return;
-    try {
-      span.innerHTML = katex.renderToString(latex, { throwOnError: false, displayMode: false });
-    } catch (_) {}
-  });
+  if (typeof ujRenderAllMath === 'function') ujRenderAllMath(list);
+  else {
+    bsRenderMathIn(list);
+    list.querySelectorAll('.bs-math[data-latex]').forEach(span => {
+      let latex = span.getAttribute('data-latex') || '';
+      if (typeof ujFixLatex === 'function') latex = ujFixLatex(latex);
+      if (!latex || typeof katex === 'undefined') return;
+      try {
+        span.innerHTML = katex.renderToString(latex, { throwOnError: false, displayMode: false, strict: false, output: 'html' });
+      } catch (_) {}
+    });
+  }
 }
 
 function closeBsiForm() {
@@ -13201,7 +13204,17 @@ function openBsiForm(item) {
     jSel.value = j0;
   }
   document.getElementById('bsiSkor').value = item?.skor != null ? item.skor : 1;
-  document.getElementById('bsiKunci').value = item?.kunci || '';
+  // Kunci: tampilkan LaTeX mentah di input (bukan marker/HTML)
+  {
+    let k = String(item?.kunci || '');
+    if (/bs-math|data-latex|⟦MATH|\[\[MATH/i.test(k)) {
+      const d = document.createElement('div');
+      d.innerHTML = typeof wrapLatexDelimsToMathSpan === 'function' ? wrapLatexDelimsToMathSpan(k) : k;
+      const parts = [...d.querySelectorAll('.bs-math[data-latex]')].map(s => s.getAttribute('data-latex') || '');
+      k = parts.length ? parts.join(' ') : (d.textContent || k).trim();
+    }
+    document.getElementById('bsiKunci').value = k;
+  }
   let opsi = item?.opsi;
   if (typeof opsi === 'string') { try { opsi = JSON.parse(opsi); } catch { opsi = []; } }
   if (!Array.isArray(opsi) || !opsi.length) {
@@ -13506,14 +13519,23 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
     if (!items.length) {
       throw new Error('Tidak ada soal terdeteksi. Gunakan format Template (NO: / JENIS: / PERTANYAAN: / A. / KUNCI:) atau nomor 1. 2. 3. Pastikan persamaan disimpan sebagai Equation di Word (bukan gambar saja).');
     }
-    // Bungkus \(...\) menjadi span.bs-math agar KaTeX render stabil
+    // Bungkus marker MATH / \(...\) → span.bs-math (pertanyaan, opsi, kunci)
     items.forEach(it => {
       it.pertanyaan = wrapLatexDelimsToMathSpan(it.pertanyaan);
       if (Array.isArray(it.opsi)) {
         it.opsi = it.opsi.map(o => {
           if (o && typeof o === 'object') return { ...o, text: wrapLatexDelimsToMathSpan(o.text) };
-          return o;
+          return wrapLatexDelimsToMathSpan(String(o || ''));
         });
+      }
+      if (it.kunci) {
+        // Kunci disimpan sebagai LaTeX plain (untuk penilaian), bukan HTML marker
+        let k = String(it.kunci);
+        k = k.replace(/⟦\s*MATH\s*:\s*([\s\S]+?)⟧/gi, '$1')
+          .replace(/\[\[\s*MATH\s*:\s*([\s\S]+?)\]\]/gi, '$1')
+          .replace(/\\$$|\\$$|\\\(|\\\)/g, '');
+        if (typeof ujFixLatex === 'function') k = ujFixLatex(k);
+        it.kunci = k.trim();
       }
     });
     const nImg = items.reduce((a, it) => a + (String(it.pertanyaan || '').match(/<img /gi) || []).length, 0);
@@ -13711,14 +13733,31 @@ function wrapLatexDelimsToMathSpan(html) {
     }
     return `<span class="bs-math" data-latex="${esc}">${rendered}</span>`;
   };
-  // Marker import baru (utama)
-  s = s.replace(/⟦MATH:([\s\S]+?)⟧/g, (_, L) => toSpan(L));
-  s = s.replace(/\[\[MATH:([\s\S]+?)\]\]/g, (_, L) => toSpan(L));
+  // Marker import (unicode + ASCII fallback jika font/encoding mengubah kurung)
+  s = s.replace(/⟦\s*MATH\s*:\s*([\s\S]+?)⟧/gi, (_, L) => toSpan(L));
+  s = s.replace(/\[\[\s*MATH\s*:\s*([\s\S]+?)\]\]/gi, (_, L) => toSpan(L));
+  s = s.replace(/〔\s*MATH\s*:\s*([\s\S]+?)〕/gi, (_, L) => toSpan(L));
+  s = s.replace(/\{\{\s*MATH\s*:\s*([\s\S]+?)\}\}/gi, (_, L) => toSpan(L));
   // Delimiter lama
   s = s.replace(/\$\$([\s\S]+?)\$\$/g, (_, L) => toSpan(L.trim()));
   s = s.replace(/\\\[([\s\S]+?)\\\]/g, (_, L) => toSpan(L.trim()));
   s = s.replace(/\\\(([\s\S]+?)\\\)/g, (_, L) => toSpan(L.trim()));
   return s;
+}
+
+/** Tampilkan kunci (LaTeX plain / marker / HTML) sebagai rumus */
+function ujFormatKunciHtml(kunci) {
+  let k = String(kunci || '').trim();
+  if (!k) return '';
+  if (/<[a-z]|⟦|\[\[MATH|data-latex/i.test(k)) {
+    return typeof wrapLatexDelimsToMathSpan === 'function' ? wrapLatexDelimsToMathSpan(k) : escapeHtml(k);
+  }
+  if (/\\frac|\\sqrt|\\sum|\\int|\\times|\\div|\\pm|\\pi|\^{|_[{\\]|\\left|\\right/.test(k)) {
+    if (typeof wrapLatexDelimsToMathSpan === 'function') {
+      return wrapLatexDelimsToMathSpan('\\(' + k + '\\)');
+    }
+  }
+  return escapeHtml(k);
 }
 
 /** Fallback teks/HTML bila font KaTeX akar gagal di HP */
