@@ -12600,96 +12600,64 @@ function parseOneSoalBlock(block, defaultNo) {
 }
 
 /** Ekstrak opsi A–H dari teks blok soal — robust untuk baris, inline, dan "A. B. C. D." rusak */
+
 function extractOpsiFromText(block) {
-  const b = String(block || '');
-  const opsi = [];
+  const raw = String(block || '').replace(/\r/g, '\n');
+  // potong meta kunci di akhir agar tidak masuk opsi
+  const kunciCut = raw.search(/\n\s*KUNCI\s*[:=]/i);
+  const b = kunciCut >= 0 ? raw.slice(0, kunciCut) : raw;
 
-  // 1) Baris sendiri: "A. teks" / "A) teks" / "A: teks"
-  const lineRe = /^[ \t]*([A-H])[ \t]*[\.\)\:]\s+(.*)$/gm;
-  let m;
-  const lineHits = [];
-  while ((m = lineRe.exec(b))) {
-    lineHits.push({ label: m[1].toUpperCase(), text: m[2].trim(), idx: m.index });
-  }
-  // Filter: jika text hanyalah label opsi berikutnya ("B." / "B) xxx" pendek yang terlihat seperti label), pecah
-  for (const h of lineHits) {
-    // "B." saja sebagai text → opsi kosong untuk A, B akan muncul dari hit berikutnya
-    const onlyNextLabel = h.text.match(/^([A-H])[\.\)]\s*(.*)$/i);
-    if (onlyNextLabel && h.text.length <= 3) {
-      opsi.push({ label: h.label, text: '' });
-      continue;
-    }
-    // "B. konten asli" tertangkap sebagai text A → pecah
-    if (onlyNextLabel && /^[A-H]$/i.test(onlyNextLabel[1]) && onlyNextLabel[1].toUpperCase() !== h.label) {
-      opsi.push({ label: h.label, text: '' });
-      // sisa di-handle oleh hit line berikutnya biasanya
-      continue;
-    }
-    opsi.push({ label: h.label, text: h.text });
-  }
-  if (opsi.length >= 2) return mergeOpsiKeepContent(opsi);
-
-  // 2) Inline dalam satu paragraf: A. ... B. ... C. ... D. ...
-  // Pakai split pada boundary label (bukan [^A-H] yang putus di tengah kata)
-  const kunciIdx = b.search(/\bKUNCI\s*[:=]/i);
-  const slice = kunciIdx >= 0 ? b.slice(0, kunciIdx) : b;
-  // cari posisi "A." "B." dst yang tampak sebagai opsi (awal string, setelah newline, atau setelah spasi panjang)
-  const inlineRe = /(?:^|[\n\r]|[\s]{2,})([A-H])[ \t]*[\.\)]\s+/g;
+  // Kumpulkan semua posisi label opsi A–H yang valid
+  // Valid: awal baris ATAU setelah newline, pola "A." "A)" "A:"
   const positions = [];
-  while ((m = inlineRe.exec(slice))) {
-    positions.push({ label: m[1].toUpperCase(), start: m.index + m[0].length - (m[0].match(/[A-H][ \t]*[\.\)]\s+/)[0].length), contentStart: m.index + m[0].length });
-    // fix contentStart
-    const labMatch = m[0].match(/([A-H])[ \t]*[\.\)]\s+/);
-    const labLen = labMatch ? labMatch[0].length : 3;
-    positions[positions.length - 1].contentStart = m.index + m[0].length;
-    positions[positions.length - 1].labelStart = m.index + m[0].length - labLen;
-  }
-  // re-scan simpler
-  const pos2 = [];
-  const simpleRe = /(?:^|[\n\r])[ \t]*([A-H])[ \t]*[\.\)][ \t]+/gm;
-  while ((m = simpleRe.exec(slice))) {
-    pos2.push({ label: m[1].toUpperCase(), contentStart: m.index + m[0].length, labelAt: m.index });
-  }
-  if (pos2.length < 2) {
-    // coba spasi: " A. " di tengah
-    const midRe = /\s([A-H])[\.\)]\s+/g;
-    while ((m = midRe.exec(slice))) {
-      // hindari match di tengah kata soal — butuh spasi sebelum label
-      pos2.push({ label: m[1].toUpperCase(), contentStart: m.index + m[0].length, labelAt: m.index + 1 });
-    }
-  }
-  // unique by label order of appearance
-  if (pos2.length >= 2) {
-    pos2.sort((a, b) => a.labelAt - b.labelAt);
-    const seen = new Set();
-    const ordered = [];
-    for (const p of pos2) {
-      if (seen.has(p.label)) continue;
-      seen.add(p.label);
-      ordered.push(p);
-    }
-    for (let i = 0; i < ordered.length; i++) {
-      const start = ordered[i].contentStart;
-      const end = i + 1 < ordered.length ? ordered[i + 1].labelAt : slice.length;
-      let text = slice.slice(start, end).trim();
-      text = text.replace(/\s*KUNCI\s*[:=][\s\S]*$/i, '').trim();
-      opsi.push({ label: ordered[i].label, text });
-    }
-    if (opsi.length >= 2) return mergeOpsiKeepContent(opsi);
+  const re = /(^|\n)[ \t]*([A-H])[ \t]*[\.\)\:][ \t]*/g;
+  let m;
+  while ((m = re.exec(b))) {
+    const label = m[2].toUpperCase();
+    const contentStart = m.index + m[0].length;
+    // tolak jika ini bagian dari kata (jarang di awal baris)
+    positions.push({ label, contentStart, labelAt: m.index + (m[1] ? m[1].length : 0) });
   }
 
-  // 3) Pola "A)teks B)teks" tanpa spasi rapi
-  const tight = [];
-  const tightRe = /([A-H])[\.\)]\s*([^A-H]*?)(?=\s*[A-H][\.\)]|\s*KUNCI\s*[:=]|$)/gi;
-  while ((m = tightRe.exec(slice))) {
-    const lab = m[1].toUpperCase();
-    let text = (m[2] || '').trim();
-    // jika text adalah label berikutnya saja, kosongkan
-    if (/^[A-H][\.\)]?$/i.test(text)) text = '';
-    tight.push({ label: lab, text });
+  // Fallback: inline " A. " di paragraf yang sama (minimal 2 label)
+  if (positions.length < 2) {
+    positions.length = 0;
+    const re2 = /(?:^|[\s\n])([A-H])[\.\)\:][ \t]+/g;
+    while ((m = re2.exec(b))) {
+      const label = m[1].toUpperCase();
+      const full = m[0];
+      const contentStart = m.index + full.length;
+      const labelAt = m.index + full.indexOf(m[1]);
+      positions.push({ label, contentStart, labelAt });
+    }
   }
-  if (tight.length >= 2) return mergeOpsiKeepContent(tight);
 
+  if (positions.length < 2) return [];
+
+  // urutkan & unique: jika label sama muncul 2x, ambil yang pertama
+  positions.sort((a, b) => a.labelAt - b.labelAt);
+  const seen = new Set();
+  const ordered = [];
+  for (const p of positions) {
+    if (seen.has(p.label)) continue;
+    seen.add(p.label);
+    ordered.push(p);
+  }
+  if (ordered.length < 2) return [];
+
+  const opsi = [];
+  for (let i = 0; i < ordered.length; i++) {
+    const start = ordered[i].contentStart;
+    const end = i + 1 < ordered.length ? ordered[i + 1].labelAt : b.length;
+    let text = b.slice(start, end);
+    // bersihkan
+    text = text.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+    // buang jika text sebenarnya label opsi berikutnya yang lolos
+    text = text.replace(/^[A-H][\.\)\:]\s*/i, '').trim();
+    // buang sisa kunci
+    text = text.replace(/\s*KUNCI\s*[:=].*$/i, '').trim();
+    opsi.push({ label: ordered[i].label, text });
+  }
   return mergeOpsiKeepContent(opsi);
 }
 
@@ -12697,10 +12665,16 @@ function mergeOpsiKeepContent(list) {
   const map = new Map();
   for (const o of list || []) {
     const lab = String(o.label || '').toUpperCase();
-    if (!/[A-H]/.test(lab)) continue;
-    const text = String(o.text || '').trim();
+    if (!/^[A-H]$/.test(lab)) continue;
+    let text = String(o.text || '').trim();
+    // buang text yang hanya huruf label kosong
+    if (/^[A-H][\.\)\:]?$/i.test(text)) text = '';
     if (!map.has(lab)) map.set(lab, text);
-    else if (text && text.length > String(map.get(lab) || '').length) map.set(lab, text);
+    else {
+      const prev = map.get(lab) || '';
+      // pilih yang lebih berisi
+      if (text.length > prev.length) map.set(lab, text);
+    }
   }
   return [...map.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -12709,52 +12683,142 @@ function mergeOpsiKeepContent(list) {
 
 function stripOpsiFromPertanyaan(pertanyaan, opsi) {
   let p = String(pertanyaan || '');
-  if (!opsi || !opsi.length) {
-    // potong dari "A." di awal baris
-    p = p.replace(/\n[ \t]*[A-H][ \t]*[\.\)\:]\s+[\s\S]*$/m, '');
-    return p.trim();
+  // dari label opsi pertama di awal baris
+  if (opsi && opsi.length) {
+    const first = opsi[0].label;
+    const re = new RegExp('(?:\\n|^)[ \\t]*' + first + '[ \\t]*[\\.\\)\\:]\\s+', 'im');
+    const idx = p.search(re);
+    if (idx >= 0) p = p.slice(0, idx);
   }
-  // potong mulai label opsi pertama yang muncul
-  const first = opsi[0].label;
-  const re = new RegExp('(?:\\n|^)[ \\t]*' + first + '[ \\t]*[\\.\\)\\:]\\s+', 'im');
-  const idx = p.search(re);
-  if (idx >= 0) p = p.slice(0, idx);
-  // juga buang sisa inline A. B. C. di akhir
-  p = p.replace(/\s+[A-H][\.\)]\s+\S[\s\S]*$/m, (tail) => {
-    // hanya buang jika terlihat seperti daftar opsi
-    if ((tail.match(/[A-H][\.\)]/g) || []).length >= 2) return '';
-    return tail;
-  });
-  return p.trim();
+  // potong blok opsi multi-baris di akhir
+  p = p.replace(/\n[ \t]*[A-H][ \t]*[\.\)\:]\s+[\s\S]*$/im, '');
+  // potong inline A. … B. … C. … di akhir (min 2 label)
+  const inlineIdx = p.search(/\s[A-H][\.\)\:]\s+\S.*\s[A-H][\.\)\:]\s+/i);
+  if (inlineIdx >= 0) {
+    // pastikan ini di separuh akhir string
+    if (inlineIdx > p.length * 0.3) p = p.slice(0, inlineIdx);
+  }
+  return cleanPertanyaanResidu(p);
 }
 
-/** Ambil opsi dari HTML segmen (paragraf / sel tabel / list) */
+/** Hapus sisa huruf/angka sampah: KUNCI, label opsi nyasar, spasi ganda */
+function cleanPertanyaanResidu(text) {
+  let p = String(text || '');
+  const isHtml = /<[a-z][\s\S]*>/i.test(p);
+  let work = p;
+  if (isHtml) {
+    const d = document.createElement('div');
+    d.innerHTML = p;
+    work = d.textContent || '';
+  }
+  work = work.replace(/\s*KUNCI\s*[:=]\s*[A-H0-9,\s\/\-]*/gi, '');
+  work = work.replace(/\s*JAWABAN\s*[:=]\s*[A-H0-9,\s\/\-]*/gi, '');
+  work = work.replace(/\s*JENIS\s*[:=]\s*[^\r\n]*/gi, '');
+  work = work.replace(/\s*SKOR\s*[:=]\s*\d+/gi, '');
+  work = work.replace(/\s*NO\s*[:=]\s*\d+/gi, '');
+  work = work.replace(/(?:[\s,;]+[A-H][\.\)\:]){2,}\s*$/gi, '');
+  work = work.replace(/(^|[\r\n])[ \t]*[A-H][ \t]*[\.\)\:][ \t]*(?=$|[\r\n])/gm, '$1');
+  work = work.replace(/[A-H][\.\)\:]\s*[A-H][\.\)\:]\s*[A-H][\.\)\:]\s*[A-H][\.\)\:]?/gi, '');
+  work = work.replace(/\s+[A-H][\.\)\:]\s+\S+(?:\s+[A-H][\.\)\:]\s+\S+){1,}\s*$/i, '');
+  work = work.replace(/[ \t]+([\r\n])/g, '$1').replace(/(?:[\r\n]){3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim();
+  if (isHtml) {
+    if (!/<img|<table/i.test(p)) return work;
+    const d = document.createElement('div');
+    d.innerHTML = p;
+    d.querySelectorAll('p,li,div,span').forEach(el => {
+      if (el.querySelector('img,table')) return;
+      const t = (el.textContent || '').trim();
+      if (/^[A-H][\.\)\:]/i.test(t) || /^(KUNCI|JENIS|SKOR|NO)\s*[:=]/i.test(t)) el.remove();
+    });
+    return d.innerHTML;
+  }
+  return work;
+}
+
 function extractOpsiFromHtml(segmentHtml) {
   if (!segmentHtml) return [];
   const div = document.createElement('div');
   div.innerHTML = String(segmentHtml);
-  const candidates = [];
+  const found = [];
 
-  const consider = (text) => {
-    const t = String(text || '').replace(/\s+/g, ' ').trim();
-    const m = t.match(/^([A-H])[\.\)\:]\s+(.+)$/i);
-    if (m) candidates.push({ label: m[1].toUpperCase(), text: m[2].trim() });
+  const norm = (raw) => String(raw || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const take = (raw) => {
+    const t = norm(raw);
+    if (!t) return false;
+    const m = t.match(/^([A-H])[\.\)\:]\s*(.*)$/i);
+    if (m) {
+      let text = (m[2] || '').trim();
+      if (/^[A-H][\.\)\:]?$/i.test(text)) text = '';
+      found.push({ label: m[1].toUpperCase(), text });
+      return true;
+    }
+    return false;
   };
 
-  div.querySelectorAll('p,li,td,th,div,span').forEach(el => {
-    // skip if has nested block that will be visited
-    if (el.querySelector('p,li,td')) return;
-    consider(el.textContent);
-  });
-
-  // tabel opsi: sering 1 baris 4 kolom A B C D
+  // 1) TABEL: sel-per-sel + pasangan (label | konten)
   div.querySelectorAll('table').forEach(tb => {
-    tb.querySelectorAll('td,th').forEach(cell => consider(cell.textContent));
+    tb.querySelectorAll('tr').forEach(tr => {
+      const cells = [...tr.querySelectorAll('td,th')].map(c => norm(c.textContent));
+      for (let i = 0; i < cells.length; i++) {
+        const c = cells[i];
+        const m = c.match(/^([A-H])[\.\)\:]?\s*(.*)$/i);
+        if (!m) continue;
+        const label = m[1].toUpperCase();
+        let text = (m[2] || '').trim();
+        // jika sel hanya "A" / "A." → konten di sel berikutnya
+        if (!text && i + 1 < cells.length) {
+          const next = cells[i + 1];
+          // next bukan label opsi lain
+          if (next && !/^[A-H][\.\)\:]?\s*$/i.test(next) && !/^[A-H][\.\)\:]\s+\S/i.test(next)) {
+            text = next;
+            i++; // skip next
+          } else if (next && /^[A-H][\.\)\:]\s+(.+)$/i.test(next)) {
+            // next is "B. something" — jangan ambil
+          }
+        }
+        if (/^[A-H][\.\)\:]?$/i.test(text)) text = '';
+        found.push({ label, text });
+      }
+    });
   });
 
-  return mergeOpsiKeepContent(candidates);
-}
+  // 2) list items
+  div.querySelectorAll('li').forEach(li => take(li.textContent));
 
+  // 3) paragraf berurutan: "A." lalu baris konten, atau "A. konten"
+  const paras = [...div.querySelectorAll('p')].map(p => norm(p.textContent)).filter(Boolean);
+  for (let i = 0; i < paras.length; i++) {
+    const t = paras[i];
+    // multi-opsi satu baris
+    if (((t.match(/[A-H][\.\)\:]/g) || []).length >= 2)) {
+      extractOpsiFromText('\n' + t).forEach(o => found.push(o));
+      continue;
+    }
+    const m = t.match(/^([A-H])[\.\)\:]\s*(.*)$/i);
+    if (m) {
+      let text = (m[2] || '').trim();
+      // paragraf berikutnya sebagai konten jika kosong
+      if (!text && i + 1 < paras.length) {
+        const next = paras[i + 1];
+        if (next && !/^[A-H][\.\)\:]/.test(next) && !/^(NO|JENIS|SKOR|KUNCI)\s*[:=]/i.test(next)) {
+          text = next;
+          i++;
+        }
+      }
+      if (/^[A-H][\.\)\:]?$/i.test(text)) text = '';
+      found.push({ label: m[1].toUpperCase(), text });
+    }
+  }
+
+  // 4) div/span sisa
+  div.querySelectorAll('div,span').forEach(el => {
+    if (el.querySelector('p,div,table,li,td')) return;
+    take(el.textContent);
+  });
+
+  return mergeOpsiKeepContent(found);
+}
 
 function parseBankSoalImportHtml(htmlContent, plainText) {
   const plainItems = parseBankSoalImportText(plainText || stripHtmlToText(htmlContent || ''));
@@ -12775,16 +12839,20 @@ function parseBankSoalImportHtml(htmlContent, plainText) {
     // opsi dari HTML sering lebih lengkap (tabel Word)
     const htmlOpsi = extractOpsiFromHtml(seg);
     let opsi = it.opsi || [];
-    if (htmlOpsi.length > opsi.length) {
-      opsi = htmlOpsi;
-    } else if (htmlOpsi.length) {
-      // merge: isi text kosong dari html
-      const map = new Map(opsi.map(o => [o.label, o.text]));
-      for (const h of htmlOpsi) {
-        if (!map.has(h.label) || !map.get(h.label)) map.set(h.label, h.text);
+    const score = (arr) => (arr || []).reduce((s, o) => s + (String(o.text || '').trim().length > 0 ? 3 : 1), 0);
+    if (htmlOpsi.length) {
+      if (score(htmlOpsi) > score(opsi)) {
+        opsi = htmlOpsi;
+      } else {
+        const map = new Map(opsi.map(o => [o.label, o.text || '']));
+        for (const h of htmlOpsi) {
+          const prev = map.get(h.label) || '';
+          if (!prev || (h.text && h.text.length > prev.length)) map.set(h.label, h.text || '');
+        }
+        opsi = [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([label,text])=>({label,text}));
       }
-      opsi = [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([label,text])=>({label,text}));
     }
+
     // pastikan A-D ada jika kunci menyebutnya
     const kunciLabs = String(it.kunci || '').toUpperCase().split(/[,;\s]+/).filter(x => /^[A-H]$/.test(x));
     if (kunciLabs.length && opsi.length < kunciLabs.length) {
