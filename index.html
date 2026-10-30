@@ -819,6 +819,31 @@
   .katex .sqrt, .katex .hide-tail { overflow: visible !important; }
   .katex .sqrt > .vlist-t { margin-right: 0.12em; }
   .bs-math { overflow: visible !important; }
+  /* Pastikan fallback √ selalu tebal dan terbaca di HP */
+  .uj-fb-sqrt {
+    font-family: 'Times New Roman', Times, Georgia, serif !important;
+    font-size: 1.2em !important;
+    font-weight: 700 !important;
+    color: inherit;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .uj-fb-sqrt::before { content: none; }
+  /* Jika font KaTeX radical hilang, sisipkan √ via CSS pada .sqrt */
+  @media (max-width: 900px) {
+    .katex .sqrt > .vlist-t > .vlist-r > .vlist > span:first-child {
+      font-family: 'Times New Roman', Times, serif !important;
+    }
+    .katex .sqrt::before {
+      content: '√';
+      font-family: 'Times New Roman', Times, serif;
+      font-weight: 700;
+      font-size: 1.05em;
+      margin-right: 1px;
+      line-height: 1;
+    }
+  }
+
   .uj-fb-frac {
     display:inline-flex; flex-direction:column; align-items:center;
     vertical-align:middle; margin:0 2px; line-height:1.1;
@@ -10492,6 +10517,7 @@ function ujRenderAllMath(root) {
   } else if (typeof bsRenderMathIn === 'function') {
     bsRenderMathIn(root);
   }
+  try { ujForceSqrtVisible(root); } catch (_) {}
 }
 
 function ujUpdateIsianPreview(ta) {
@@ -13178,25 +13204,7 @@ function bsRenderMathIn(el) {
       });
     } catch (_) {}
   }
-  // Pasca-render: di HP/WebKit font radical KaTeX sering tidak termuat → pakai fallback √
-  try {
-    const isNarrow = (typeof window !== 'undefined') && (
-      window.matchMedia('(max-width: 768px)').matches ||
-      (('ontouchstart' in window) && window.innerWidth < 1024)
-    );
-    el.querySelectorAll('.bs-math[data-latex]').forEach((span) => {
-      const latex = span.getAttribute('data-latex') || '';
-      if (!/\sqrt/.test(latex)) return;
-      const html = span.innerHTML || '';
-      const hasSqrtStruct = /class="sqrt"|class='sqrt'|\bsqrt\b|uj-fb-sqrt|√/.test(html);
-      // di layar sempit selalu fallback agar √ pasti terlihat
-      const needFb = !hasSqrtStruct || isNarrow;
-      if (needFb && typeof ujLatexFallbackHtml === 'function') {
-        const fb = ujLatexFallbackHtml(latex);
-        if (fb) span.innerHTML = fb;
-      }
-    });
-  } catch (_) {}
+  try { ujForceSqrtVisible(el); } catch (_) {}
 }
 
 
@@ -13284,6 +13292,14 @@ function renderBankSoalItems() {
   const chkAll = document.getElementById('bsSoalCheckAll');
   if (chkAll) chkAll.checked = false;
   bsRenderMathIn(list);
+  try { ujForceSqrtVisible(list); } catch (_) {}
+  // Setelah font KaTeX (gagal/berhasil) selesai, paksa lagi di HP
+  try {
+    const rerun = () => { try { ujForceSqrtVisible(list); } catch (_) {} };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(rerun).catch(() => {});
+    setTimeout(rerun, 400);
+    setTimeout(rerun, 1200);
+  } catch (_) {}
 }
 
 function closeBsiForm() {
@@ -13848,18 +13864,122 @@ function wrapLatexDelimsToMathSpan(html) {
 function ujLatexFallbackHtml(latex) {
   let t = String(latex || '');
   if (!t) return '';
-  // akar
-  t = t.replace(/\\sqrt\[([^\]]+)\]\{([^{}]+)\}/g, '<span class="uj-fb-sqrt"><sup>$1</sup>√($2)</span>');
-  t = t.replace(/\\sqrt\{([^{}]+)\}/g, '<span class="uj-fb-sqrt">√($1)</span>');
-  // pecahan sederhana
-  t = t.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '<span class="uj-fb-frac"><span class="uj-fb-num">$1</span><span class="uj-fb-den">$2</span></span>');
+  // Normalisasi
+  t = t.replace(/\s+/g, ' ').trim();
+  // akar berindeks dulu, lalu akar biasa (ulang sampai habis untuk nested sederhana)
+  for (let i = 0; i < 12; i++) {
+    const prev = t;
+    t = t.replace(/\\sqrt\[([^\]]+)\]\{([^{}]*)\}/g, '<span class="uj-fb-sqrt"><sup>$1</sup>√($2)</span>');
+    t = t.replace(/\\sqrt\{([^{}]*)\}/g, '<span class="uj-fb-sqrt">√($1)</span>');
+    // \sqrt2 atau \sqrt 48 tanpa kurung
+    t = t.replace(/\\sqrt\s*([0-9]+(?:\.[0-9]+)?)/g, '<span class="uj-fb-sqrt">√($1)</span>');
+    if (t === prev) break;
+  }
+  // pecahan
+  for (let i = 0; i < 8; i++) {
+    const prev = t;
+    t = t.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '<span class="uj-fb-frac"><span class="uj-fb-num">$1</span><span class="uj-fb-den">$2</span></span>');
+    if (t === prev) break;
+  }
   t = t.replace(/\\times/g, '×').replace(/\\div/g, '÷').replace(/\\pm/g, '±').replace(/\\pi/g, 'π');
+  t = t.replace(/\\cdot/g, '·').replace(/\\leq/g, '≤').replace(/\\geq/g, '≥').replace(/\\neq/g, '≠');
   t = t.replace(/\\left\(/g, '(').replace(/\\right\)/g, ')');
   t = t.replace(/\\left\[/g, '[').replace(/\\right\]/g, ']');
+  t = t.replace(/\\left\\{/g, '{').replace(/\\right\\}/g, '}');
   t = t.replace(/\^{([^{}]+)}/g, '<sup>$1</sup>').replace(/_{([^{}]+)}/g, '<sub>$1</sub>');
+  t = t.replace(/\^(\d)/g, '<sup>$1</sup>').replace(/_(\d)/g, '<sub>$1</sub>');
+  // buang sisa perintah latex
   t = t.replace(/\\[a-zA-Z]+/g, '');
+  t = t.replace(/[{}]/g, '');
   return t;
 }
+
+/** Deteksi HP / font KaTeX radical tidak siap */
+function ujNeedSqrtFallback() {
+  try {
+    if (typeof window === 'undefined') return false;
+    if (window.matchMedia('(max-width: 900px)').matches) return true;
+    if (('ontouchstart' in window) && window.innerWidth < 1200) return true;
+    if (document.fonts && document.fonts.check) {
+      const okMain = document.fonts.check('12px KaTeX_Main');
+      const okSize = document.fonts.check('12px KaTeX_Size1') || document.fonts.check('12px KaTeX_Size2');
+      // jika API bilang font belum ada → fallback
+      if (!okMain && !okSize) return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
+/**
+ * Paksa tanda akar terlihat di root DOM.
+ * - .bs-math[data-latex] yang mengandung \sqrt
+ * - .katex yang punya annotation x-tex / struktur .sqrt
+ */
+function ujForceSqrtVisible(root) {
+  if (!root || typeof root.querySelectorAll !== 'function') return;
+  const force = ujNeedSqrtFallback();
+  // 1) span.bs-math dengan data-latex
+  root.querySelectorAll('.bs-math[data-latex]').forEach((span) => {
+    let latex = span.getAttribute('data-latex') || '';
+    if (typeof ujFixLatex === 'function') latex = ujFixLatex(latex);
+    if (!/\\sqrt/.test(latex)) return;
+    const html = span.innerHTML || '';
+    const hasFb = /uj-fb-sqrt|√\s*\(/.test(html);
+    const hasStruct = /class="sqrt"|class='sqrt'|\bsqrt\b/.test(html);
+    if (hasFb) return;
+    if (force || !hasStruct) {
+      const fb = ujLatexFallbackHtml(latex);
+      if (fb) {
+        span.innerHTML = fb;
+        span.classList.add('bs-math', 'uj-fb-applied');
+      }
+    }
+  });
+  // 2) blok .katex murni (hasil TinyMCE / render Math) — ambil LaTeX dari annotation
+  root.querySelectorAll('.katex').forEach((kx) => {
+    if (kx.closest('.uj-fb-applied')) return;
+    if (kx.querySelector('.uj-fb-sqrt')) return;
+    let latex = '';
+    const ann = kx.querySelector('annotation[encoding="application/x-tex"]');
+    if (ann) latex = (ann.textContent || '').trim();
+    if (!latex) {
+      const parent = kx.closest('[data-latex]');
+      if (parent) latex = parent.getAttribute('data-latex') || '';
+    }
+    if (!latex || !/\\sqrt/.test(latex)) {
+      // jika ada struktur .sqrt tapi font gagal → coba bangun dari teks
+      if (force && kx.querySelector('.sqrt')) {
+        const plain = (kx.textContent || '').replace(/\s+/g, ' ').trim();
+        if (plain) {
+          // bungkus setiap token angka sebagai √(n) jika seluruh katex adalah satu akar
+          // fallback kasar: tampilkan √ di depan teks
+          const holder = document.createElement('span');
+          holder.className = 'bs-math uj-fb-applied';
+          holder.innerHTML = '<span class="uj-fb-sqrt">√(' + plain.replace(/[<>&]/g, '') + ')</span>';
+          kx.replaceWith(holder);
+        }
+      }
+      return;
+    }
+    if (!force && kx.querySelector('.sqrt')) return;
+    const fb = ujLatexFallbackHtml(latex);
+    if (!fb) return;
+    const holder = document.createElement('span');
+    holder.className = 'bs-math uj-fb-applied';
+    if (kx.closest('[data-latex]')) {
+      // ganti isi parent bs-math
+      const p = kx.closest('.bs-math') || kx.closest('[data-latex]');
+      if (p) {
+        p.innerHTML = fb;
+        p.classList.add('uj-fb-applied');
+        return;
+      }
+    }
+    holder.innerHTML = fb;
+    kx.replaceWith(holder);
+  });
+}
+
 
 
 function parseBankSoalImportText(text) {
