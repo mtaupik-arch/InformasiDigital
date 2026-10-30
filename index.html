@@ -3618,26 +3618,26 @@
     <h4>∑ Sisipkan Persamaan / Rumus</h4>
     <p style="font-size:12px;color:#666;margin:0 0 8px">Pilih tombol cepat atau ketik LaTeX. Keyboard virtual MathLive juga tersedia.</p>
     <div class="bs-math-quick" id="bsMathQuick">
-      <button type="button" data-latex="\frac{a}{b}" title="Pecahan">𝑎/𝑏</button>
-      <button type="button" data-latex="\sqrt{x}" title="Akar">√𝑥</button>
-      <button type="button" data-latex="\sqrt[n]{x}" title="Akar n">ⁿ√𝑥</button>
-      <button type="button" data-latex="x^{n}" title="Pangkat">𝑥ⁿ</button>
-      <button type="button" data-latex="x_{n}" title="Subscript">𝑥ₙ</button>
-      <button type="button" data-latex="\pm" title="Plus-minus">±</button>
-      <button type="button" data-latex="\times" title="Kali">×</button>
-      <button type="button" data-latex="\div" title="Bagi">÷</button>
-      <button type="button" data-latex="\leq" title="≤">≤</button>
-      <button type="button" data-latex="\geq" title="≥">≥</button>
-      <button type="button" data-latex="\neq" title="≠">≠</button>
-      <button type="button" data-latex="\infty" title="Infinity">∞</button>
-      <button type="button" data-latex="\pi" title="Pi">π</button>
-      <button type="button" data-latex="\alpha" title="Alpha">α</button>
-      <button type="button" data-latex="\beta" title="Beta">β</button>
-      <button type="button" data-latex="\theta" title="Theta">θ</button>
-      <button type="button" data-latex="\sum_{i=1}^{n}" title="Sigma">Σ</button>
-      <button type="button" data-latex="\int_{a}^{b}" title="Integral">∫</button>
-      <button type="button" data-latex="\overline{AB}" title="Garis">AB̅</button>
-      <button type="button" data-latex="\vec{v}" title="Vektor">v⃗</button>
+      <button type="button" data-lx="frac" title="Pecahan">𝑎/𝑏</button>
+      <button type="button" data-lx="sqrt" title="Akar">√𝑥</button>
+      <button type="button" data-lx="sqrtn" title="Akar n">ⁿ√𝑥</button>
+      <button type="button" data-lx="pow" title="Pangkat">𝑥ⁿ</button>
+      <button type="button" data-lx="sub" title="Subscript">𝑥ₙ</button>
+      <button type="button" data-lx="pm" title="Plus-minus">±</button>
+      <button type="button" data-lx="times" title="Kali">×</button>
+      <button type="button" data-lx="div" title="Bagi">÷</button>
+      <button type="button" data-lx="leq" title="≤">≤</button>
+      <button type="button" data-lx="geq" title="≥">≥</button>
+      <button type="button" data-lx="neq" title="≠">≠</button>
+      <button type="button" data-lx="inf" title="Infinity">∞</button>
+      <button type="button" data-lx="pi" title="Pi">π</button>
+      <button type="button" data-lx="alpha" title="Alpha">α</button>
+      <button type="button" data-lx="beta" title="Beta">β</button>
+      <button type="button" data-lx="theta" title="Theta">θ</button>
+      <button type="button" data-lx="sum" title="Sigma">Σ</button>
+      <button type="button" data-lx="int" title="Integral">∫</button>
+      <button type="button" data-lx="bar" title="Garis">AB̅</button>
+      <button type="button" data-lx="vec" title="Vektor">v⃗</button>
     </div>
     <math-field id="bsMathField" style="width:100%;min-height:72px;font-size:22px;">x=\frac{-b\pm\sqrt{b^{2}-4ac}}{2a}</math-field>
     <label style="display:block;font-size:11px;color:#666;margin-top:8px">LaTeX (bisa diketik manual)</label>
@@ -12071,14 +12071,15 @@ function bsInitEditor(initialHtml) {
 function bsGetMathLatex() {
   const mf = document.getElementById('bsMathField');
   const inp = document.getElementById('bsMathLatex');
-  let latex = '';
+  // Input teks dulu (tombol cepat menulis ke sini)
+  let latex = (inp && inp.value) ? String(inp.value) : '';
+  if (latex.trim()) return latex.trim();
   try {
     if (mf) {
       if (typeof mf.getValue === 'function') latex = mf.getValue('latex') || mf.getValue() || '';
       else latex = mf.value || '';
     }
   } catch (_) {}
-  if (!latex && inp) latex = inp.value || '';
   return String(latex || '').trim();
 }
 
@@ -12103,34 +12104,47 @@ function bsSyncMathPreview() {
   }
 }
 
-function bsMathInsertLatex(piece) {
+const BS_MATH_QUICK = {
+  frac: '\\frac{a}{b}',
+  sqrt: '\\sqrt{x}',
+  sqrtn: '\\sqrt[n]{x}',
+  pow: 'x^{n}',
+  sub: 'x_{n}',
+  pm: '\\pm',
+  times: '\\times',
+  div: '\\div',
+  leq: '\\leq',
+  geq: '\\geq',
+  neq: '\\neq',
+  inf: '\\infty',
+  pi: '\\pi',
+  alpha: '\\alpha',
+  beta: '\\beta',
+  theta: '\\theta',
+  sum: '\\sum_{i=1}^{n}',
+  int: '\\int_{a}^{b}',
+  bar: '\\overline{AB}',
+  vec: '\\vec{v}',
+};
+
+function bsSetMathFieldValue(latex) {
   const mf = document.getElementById('bsMathField');
-  const inp = document.getElementById('bsMathLatex');
+  if (!mf) return;
   try {
-    if (mf) {
-      if (typeof mf.executeCommand === 'function') {
-        // sisipkan di kursor
-        mf.focus();
-        mf.executeCommand('insertMath', piece);
-      } else if (typeof mf.insert === 'function') {
-        mf.focus();
-        mf.insert(piece);
-      } else {
-        const cur = (typeof mf.getValue === 'function' ? mf.getValue() : mf.value) || '';
-        const next = cur + piece;
-        if (typeof mf.setValue === 'function') mf.setValue(next);
-        else mf.value = next;
-      }
-    }
-  } catch (_) {
-    if (inp) inp.value = (inp.value || '') + piece;
-  }
-  if (inp && mf) {
-    try {
-      const v = typeof mf.getValue === 'function' ? mf.getValue() : mf.value;
-      if (v != null) inp.value = v;
-    } catch (_) {}
-  }
+    if (typeof mf.setValue === 'function') mf.setValue(String(latex || ''));
+    else if ('value' in mf) mf.value = String(latex || '');
+  } catch (_) {}
+}
+
+function bsMathInsertLatex(piece, mode) {
+  piece = String(piece || '');
+  if (!piece) return;
+  const inp = document.getElementById('bsMathLatex');
+  const cur = (inp ? inp.value : '') || bsGetMathLatex() || '';
+  // mode 'replace' = ganti seluruh isi; default append
+  const next = mode === 'replace' ? piece : (cur ? (cur + piece) : piece);
+  if (inp) inp.value = next;
+  bsSetMathFieldValue(next);
   bsSyncMathPreview();
 }
 
@@ -12152,9 +12166,10 @@ function bsOpenMathModal() {
         });
       }
       mf.setAttribute('virtual-keyboard-mode', 'onfocus');
-      setTimeout(() => { try { mf.focus(); } catch (_) {} }, 100);
+      setTimeout(() => { try { mf.focus(); } catch (_) {} }, 80);
     }
   } catch (e) { console.warn('mathfield', e); }
+  // sinkronkan preview dari input jika sudah ada isi
   bsSyncMathPreview();
 }
 
@@ -12171,18 +12186,25 @@ document.getElementById('bsMathOverlay')?.addEventListener('click', (e) => {
 });
 
 document.getElementById('bsMathQuick')?.addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-latex]');
+  const btn = e.target.closest('button[data-lx],button[data-latex]');
   if (!btn) return;
-  bsMathInsertLatex(btn.getAttribute('data-latex') || '');
+  e.preventDefault();
+  e.stopPropagation();
+  let piece = '';
+  const key = btn.getAttribute('data-lx') || '';
+  if (key && BS_MATH_QUICK[key]) piece = BS_MATH_QUICK[key];
+  else piece = btn.getAttribute('data-latex') || '';
+  if (!piece) {
+    toast('Tombol rumus tidak punya template', 'err');
+    return;
+  }
+  // ganti isi (lebih jelas saat klik tombol cepat)
+  bsMathInsertLatex(piece, 'replace');
 });
 
 document.getElementById('bsMathLatex')?.addEventListener('input', () => {
   const latex = document.getElementById('bsMathLatex')?.value || '';
-  const mf = document.getElementById('bsMathField');
-  try {
-    if (mf && typeof mf.setValue === 'function') mf.setValue(latex);
-    else if (mf) mf.value = latex;
-  } catch (_) {}
+  bsSetMathFieldValue(latex);
   bsSyncMathPreview();
 });
 
@@ -12190,13 +12212,26 @@ document.getElementById('bsMathLatex')?.addEventListener('input', () => {
 (function bindMathField() {
   const mf = document.getElementById('bsMathField');
   if (!mf) return;
-  mf.addEventListener('input', () => bsSyncMathPreview());
-  mf.addEventListener('change', () => bsSyncMathPreview());
+  const sync = () => {
+    const inp = document.getElementById('bsMathLatex');
+    try {
+      let v = '';
+      if (typeof mf.getValue === 'function') v = mf.getValue('latex') || mf.getValue() || '';
+      else v = mf.value || '';
+      if (inp && document.activeElement !== inp) inp.value = v;
+    } catch (_) {}
+    bsSyncMathPreview();
+  };
+  mf.addEventListener('input', sync);
+  mf.addEventListener('change', sync);
 })();
 
 document.getElementById('btnBsMathInsert')?.addEventListener('click', () => {
-  const latex = bsGetMathLatex();
-  if (!latex) { toast('Rumus kosong', 'err'); return; }
+  // prioritaskan input teks (paling andal)
+  const inp = document.getElementById('bsMathLatex');
+  let latex = (inp && inp.value ? inp.value : '') || bsGetMathLatex();
+  latex = String(latex || '').trim();
+  if (!latex) { toast('Rumus kosong — klik tombol cepat atau ketik LaTeX', 'err'); return; }
   let rendered = '';
   try {
     if (typeof katex !== 'undefined') {
