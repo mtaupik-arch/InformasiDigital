@@ -936,9 +936,22 @@
     border:1px solid #90caf9; background:#e3f2fd; color:#1565c0; border-radius:8px; cursor:pointer;
   }
   .uj-soal-card .us-isian-preview {
-    width:100%; min-height:0; padding:4px 2px; font-size:14px; color:#1a237e;
+    width:100%; flex-basis:100%; order:3;
+    min-height:0; padding:10px 12px; margin-top:2px;
+    font-size:16px; color:#0d47a1; line-height:1.5;
+    background:#f3f8ff; border:1px solid #bbdefb; border-radius:8px;
+    box-sizing:border-box;
   }
   .uj-soal-card .us-isian-preview:empty { display:none; }
+  .uj-soal-card .us-isian-preview .uj-prev-label {
+    display:block; font-size:11px; font-weight:700; color:#546e7a;
+    margin-bottom:6px; letter-spacing:.2px;
+  }
+  .uj-soal-card .us-isian-preview .uj-prev-math {
+    display:block; overflow:visible; font-size:1.15em;
+  }
+  .uj-soal-card textarea.us-isian { order:1; }
+  .uj-soal-card .btn-uj-math { order:2; }
   /* Hilangkan garis sisa di samping pecahan (konflik overflow/border) */
   .uj-soal-card .katex .frac-line { border-bottom-color: currentColor !important; }
   .uj-soal-card .katex .mfrac { border: none !important; }
@@ -10398,7 +10411,7 @@ function renderUjSoalList(soal, readonly) {
     const jaw = s.jawaban != null ? String(s.jawaban) : '';
     if (jl.includes('uraian') || jl.includes('isian') || jl.includes('unggah') || (!opsi.length && !jl.includes('pilihan') && !jl.includes('benar') && !jl.includes('check'))) {
       ansHtml = `<div class="us-isian-wrap">
-        <textarea class="us-isian" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${readonly ? 'readonly' : ''} placeholder="Tulis jawaban atau sisipkan rumus (∑)…">${escapeHtml(jaw)}</textarea>
+        <textarea class="us-isian" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${readonly ? 'readonly' : ''} placeholder="Ketik jawaban, atau tekan ∑ untuk pilih akar / pecahan / pangkat…">${escapeHtml(jaw)}</textarea>
         ${readonly ? '' : `<button type="button" class="btn-opsi-math btn-uj-math" data-uj-math-item="${escapeHtml(String(s.id))}" title="Sisipkan rumus">∑</button>`}
         <div class="us-isian-preview" data-preview-for="${escapeHtml(String(s.id))}"></div>
       </div>`;
@@ -10758,21 +10771,55 @@ function ujFixKatexSqrtDom(root) {
 
 
 
+/** Normalisasi ketikan siswa → LaTeX yang bisa dirender */
+function ujNormalizeStudentLatex(raw) {
+  let t = String(raw || '').trim();
+  if (!t) return '';
+  t = t.replace(/√\s*\(([^)]+)\)/g, '\\sqrt{$1}');
+  t = t.replace(/√\s*([0-9]+(?:\.[0-9]+)?)/g, '\\sqrt{$1}');
+  t = t.replace(/√\s*\{([^}]*)\}/g, '\\sqrt{$1}');
+  t = t.replace(/√/g, '\\sqrt');
+  t = t.replace(/(^|[^\\a-zA-Z])sqrt\s*\{/g, '$1\\sqrt{');
+  t = t.replace(/(^|[^\\a-zA-Z])frac\s*\{/g, '$1\\frac{');
+  t = t.replace(/(^|[^\\a-zA-Z])times\b/g, '$1\\times');
+  t = t.replace(/(^|[^\\a-zA-Z])div\b/g, '$1\\div');
+  t = t.replace(/(^|[^\\a-zA-Z])pm\b/g, '$1\\pm');
+  t = t.replace(/(^|[^\\a-zA-Z])pi\b/g, '$1\\pi');
+  if (/^\s*-?\d+\s*\/\s*-?\d+\s*$/.test(t)) {
+    const m = t.match(/^\s*(-?\d+)\s*\/\s*(-?\d+)\s*$/);
+    if (m) t = '\\frac{' + m[1] + '}{' + m[2] + '}';
+  }
+  if (typeof ujFixLatex === 'function') t = ujFixLatex(t);
+  return t.trim();
+}
+
 function ujUpdateIsianPreview(ta) {
   if (!ta) return;
   const id = ta.getAttribute('data-item-id');
-  const prev = document.querySelector(`.us-isian-preview[data-preview-for="${id}"]`);
+  const prev = document.querySelector('.us-isian-preview[data-preview-for="' + id + '"]');
   if (!prev) return;
   const raw = String(ta.value || '').trim();
   if (!raw) { prev.innerHTML = ''; return; }
-  const latex = ujFixLatex(raw);
-  if (/\\frac|\\sqrt|\\sum|\\int|\^{|_[{\\]|\\times|\\div|\\pm|\\pi|\\left|\\right/.test(latex) && typeof katex !== 'undefined') {
+  const latex = ujNormalizeStudentLatex(raw);
+  const looksMath = /\\frac|\\sqrt|\\sum|\\int|\\times|\\div|\\pm|\\pi|\\left|\\right|\^[{\w]|_\{/.test(latex);
+  if (looksMath && typeof katex !== 'undefined') {
     try {
-      prev.innerHTML = katex.renderToString(latex, { throwOnError: false, displayMode: false, strict: false, output: 'html' });
-      return;
+      const html = katex.renderToString(latex, {
+        throwOnError: false, displayMode: false, strict: false, trust: true, output: 'html',
+      });
+      if (html) {
+        prev.innerHTML = '<span class="uj-prev-label">Tampilan rumus:</span><span class="uj-prev-math">' + html + '</span>';
+        try { if (typeof ujFixKatexSqrtDom === 'function') ujFixKatexSqrtDom(prev); } catch (_) {}
+        return;
+      }
     } catch (_) {}
   }
-  prev.innerHTML = '';
+  if (raw.length > 0) {
+    const esc = (typeof escapeHtml === 'function') ? escapeHtml(raw) : raw;
+    prev.innerHTML = '<span class="uj-prev-label">Tampilan:</span><span class="uj-prev-math">' + esc + '</span>';
+  } else {
+    prev.innerHTML = '';
+  }
 }
 
 function collectUjAnswers() {
@@ -13596,10 +13643,12 @@ document.getElementById('btnBsMathInsert')?.addEventListener('click', () => {
     const cur = String(tgt.value || '');
     const sep = cur && !/\s$/.test(cur) ? ' ' : '';
     tgt.value = cur + sep + latex;
+    try { tgt.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+    try { if (typeof ujUpdateIsianPreview === 'function') ujUpdateIsianPreview(tgt); } catch (_) {}
     try { tgt.focus(); } catch (_) {}
     _bsMathInsertTarget = 'pertanyaan';
     bsCloseMathModal();
-    toast('Rumus disisipkan ke opsi', 'ok');
+    toast('Rumus disisipkan — lihat tampilan di bawah kolom', 'ok');
     return;
   }
 
