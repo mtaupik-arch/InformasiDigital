@@ -814,6 +814,11 @@
   }
   /* Fallback akar/pecahan (jika font KaTeX tidak load di HP) */
   .uj-fb-sqrt { font-family: 'Times New Roman', Times, serif; font-size:1.15em; white-space:nowrap; }
+  /* Global KaTeX: cegah clipping radical di WebKit/HP */
+  .katex-html, .katex .base, .katex .vlist-t, .katex .vlist-r, .katex .vlist,
+  .katex .sqrt, .katex .hide-tail { overflow: visible !important; }
+  .katex .sqrt > .vlist-t { margin-right: 0.12em; }
+  .bs-math { overflow: visible !important; }
   .uj-fb-frac {
     display:inline-flex; flex-direction:column; align-items:center;
     vertical-align:middle; margin:0 2px; line-height:1.1;
@@ -1096,6 +1101,49 @@
     display:inline-block; vertical-align:middle;
   }
   .bs-soal-item .bsi-kunci { font-size:11px; color:#2e7d32; font-weight:700; margin-top:4px; }
+  /* KaTeX di bank soal — agar akar/pecahan tampil di HP (sama seperti uj-soal-card) */
+  .bs-soal-item, .bs-soal-item .bsi-q, .bs-soal-item .bsi-opsi {
+    overflow: visible !important;
+  }
+  .bs-soal-item .bsi-q {
+    overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch;
+    max-width: 100%; line-height: 1.45;
+  }
+  .bs-soal-item .bs-math,
+  .bs-soal-item .katex,
+  .bs-soal-item .katex-display {
+    display: inline-block !important;
+    max-width: 100%;
+    vertical-align: middle;
+    overflow: visible !important;
+  }
+  .bs-soal-item .katex { font-size: 1.15em; line-height: 1.45; }
+  .bs-soal-item .katex-html,
+  .bs-soal-item .katex .base,
+  .bs-soal-item .katex .vlist-t,
+  .bs-soal-item .katex .vlist-r,
+  .bs-soal-item .katex .vlist,
+  .bs-soal-item .katex .sqrt,
+  .bs-soal-item .katex .hide-tail {
+    overflow: visible !important;
+  }
+  .bs-soal-item .katex .sqrt > .vlist-t { margin-right: 0.12em; }
+  .bs-soal-item .bsi-check-wrap {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 28px; min-height: 28px; margin: 0; cursor: pointer;
+    flex-shrink: 0;
+  }
+  .bs-soal-item .bsi-check {
+    width: 18px !important; height: 18px !important;
+    accent-color: #1565c0; cursor: pointer;
+  }
+  .bs-soal-select-all {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 600; color: #1565c0;
+    padding: 4px 8px; border-radius: 6px; background: #e3f2fd;
+    border: 1px solid #90caf9; cursor: pointer; user-select: none;
+  }
+  .bs-soal-select-all input { width: 16px; height: 16px; accent-color: #1565c0; cursor: pointer; }
   .bs-ru-toolbar {
     display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;
   }
@@ -3636,6 +3684,10 @@
           <button type="button" class="btn btn-success btn-sm" id="btnBsSoalTambah">+ Tambah</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalImport">Import</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalTemplate">Template</button>
+          <label class="bs-soal-select-all" title="Centang semua soal untuk hapus massal">
+            <input type="checkbox" id="bsSoalCheckAll" />
+            Pilih semua
+          </label>
           <button type="button" class="btn btn-danger btn-sm" id="btnBsSoalHapusTerpilih" title="Hapus soal yang dicentang">Hapus terpilih</button>
           <button type="button" class="btn btn-outline btn-sm" id="btnBsSoalTutup">Tutup</button>
         </div>
@@ -10411,10 +10463,12 @@ function ujRenderAllMath(root) {
           output: 'html',
         });
       } catch (_) { html = ''; }
-      // Jika ada \sqrt tapi hasil KaTeX tidak memuat struktur akar → fallback unicode
-      if (/\\sqrt/.test(latex)) {
+      // Akar: fallback jika struktur hilang ATAU di HP (font radical sering gagal)
+      if (/\sqrt/.test(latex)) {
         const hasSqrt = html && (/class="sqrt"|class='sqrt'|\bsqrt\b/.test(html));
-        if (!hasSqrt) {
+        const isNarrow = window.matchMedia('(max-width: 768px)').matches ||
+          (('ontouchstart' in window) && window.innerWidth < 1024);
+        if (!hasSqrt || isNarrow) {
           html = ujLatexFallbackHtml(latex) || html;
         }
       }
@@ -13071,15 +13125,76 @@ document.getElementById('bsiOpsiList')?.addEventListener('click', (e) => {
 
 
 function bsRenderMathIn(el) {
-  if (!el || typeof renderMathInElement !== 'function') return;
+  if (!el) return;
+  // Marker import yang belum di-wrap
   try {
-    renderMathInElement(el, {
-      delimiters: [
-        { left: '$$', right: '$$', display: true },
-        { left: '\\(', right: '\\)', display: false },
-        { left: '\\[', right: '\\]', display: true },
-      ],
-      throwOnError: false,
+    if (typeof wrapLatexDelimsToMathSpan === 'function' && /⟦MATH:|\[\[MATH:|\\\(|\\\[|\$\$/.test(el.innerHTML || '')) {
+      // hanya proses node yang mengandung delimiter, bukan seluruh panel berulang
+      el.querySelectorAll('.bsi-q, .bs-opsi-content, .bsi-opsi').forEach((node) => {
+        const h = node.innerHTML || '';
+        if (/⟦MATH:|\[\[MATH:|\\\(|\\\[|\$\$/.test(h)) {
+          node.innerHTML = wrapLatexDelimsToMathSpan(h);
+        }
+      });
+    }
+  } catch (_) {}
+  // Render .bs-math[data-latex] + fallback akar (penting di HP bila font KaTeX radical gagal)
+  if (typeof katex !== 'undefined') {
+    el.querySelectorAll('.bs-math[data-latex]').forEach((span) => {
+      let latex = span.getAttribute('data-latex') || '';
+      if (typeof ujFixLatex === 'function') latex = ujFixLatex(latex);
+      if (!latex) return;
+      span.setAttribute('data-latex', latex);
+      let html = '';
+      try {
+        html = katex.renderToString(latex, {
+          throwOnError: false, displayMode: false, strict: false, trust: true, output: 'html',
+        });
+      } catch (_) { html = ''; }
+      if (/\\sqrt/.test(latex)) {
+        const hasSqrt = html && (/class="sqrt"|class='sqrt'|\bsqrt\b/.test(html));
+        if (!hasSqrt) {
+          html = (typeof ujLatexFallbackHtml === 'function' ? ujLatexFallbackHtml(latex) : '') || html;
+        }
+      }
+      if (!html) {
+        html = (typeof ujLatexFallbackHtml === 'function' ? ujLatexFallbackHtml(latex) : '') || latex;
+      }
+      span.innerHTML = html;
+      span.classList.add('bs-math');
+      span.setAttribute('contenteditable', 'false');
+    });
+  }
+  if (typeof renderMathInElement === 'function') {
+    try {
+      renderMathInElement(el, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '\\[', right: '\\]', display: true },
+        ],
+        throwOnError: false,
+        strict: false,
+      });
+    } catch (_) {}
+  }
+  // Pasca-render: di HP/WebKit font radical KaTeX sering tidak termuat → pakai fallback √
+  try {
+    const isNarrow = (typeof window !== 'undefined') && (
+      window.matchMedia('(max-width: 768px)').matches ||
+      (('ontouchstart' in window) && window.innerWidth < 1024)
+    );
+    el.querySelectorAll('.bs-math[data-latex]').forEach((span) => {
+      const latex = span.getAttribute('data-latex') || '';
+      if (!/\sqrt/.test(latex)) return;
+      const html = span.innerHTML || '';
+      const hasSqrtStruct = /class="sqrt"|class='sqrt'|\bsqrt\b|uj-fb-sqrt|√/.test(html);
+      // di layar sempit selalu fallback agar √ pasti terlihat
+      const needFb = !hasSqrtStruct || isNarrow;
+      if (needFb && typeof ujLatexFallbackHtml === 'function') {
+        const fb = ujLatexFallbackHtml(latex);
+        if (fb) span.innerHTML = fb;
+      }
     });
   } catch (_) {}
 }
@@ -13150,8 +13265,8 @@ function renderBankSoalItems() {
       : '';
     return `<div class="bs-soal-item" data-id="${escapeHtml(String(it.id))}">
       <div class="bsi-top">
-        <label style="display:inline-flex;align-items:center;margin:0;cursor:pointer" title="Pilih untuk hapus massal">
-          <input type="checkbox" class="bsi-check" value="${escapeHtml(String(it.id))}" style="width:16px;height:16px;margin-right:6px" />
+        <label class="bsi-check-wrap" title="Pilih untuk hapus massal">
+          <input type="checkbox" class="bsi-check" value="${escapeHtml(String(it.id))}" />
         </label>
         <span class="bsi-no">No ${escapeHtml(String(it.nomor || ''))}</span>
         <span class="bsi-jenis">${escapeHtml(it.jenis_soal || it.jenis || '')}</span>
@@ -13160,23 +13275,15 @@ function renderBankSoalItems() {
         <button type="button" class="btn btn-outline btn-sm" data-bsi-edit="${escapeHtml(String(it.id))}">Edit</button>
         <button type="button" class="btn btn-danger btn-sm" data-bsi-del="${escapeHtml(String(it.id))}">Hapus</button>
       </div>
-      <div class="bsi-q">${typeof wrapLatexDelimsToMathSpan === 'function' ? wrapLatexDelimsToMathSpan(it.pertanyaan || '') : (it.pertanyaan || '')}</div>
+      <div class="bsi-q">${it.pertanyaan || ''}</div>
       ${opsiHtml}
-      ${it.kunci ? `<div class="bsi-kunci">Kunci: ${ujFormatKunciHtml(it.kunci)}</div>` : ''}
+      ${it.kunci ? `<div class="bsi-kunci">Kunci: ${escapeHtml(String(it.kunci))}</div>` : ''}
     </div>`;
   }).join('');
-  if (typeof ujRenderAllMath === 'function') ujRenderAllMath(list);
-  else {
-    bsRenderMathIn(list);
-    list.querySelectorAll('.bs-math[data-latex]').forEach(span => {
-      let latex = span.getAttribute('data-latex') || '';
-      if (typeof ujFixLatex === 'function') latex = ujFixLatex(latex);
-      if (!latex || typeof katex === 'undefined') return;
-      try {
-        span.innerHTML = katex.renderToString(latex, { throwOnError: false, displayMode: false, strict: false, output: 'html' });
-      } catch (_) {}
-    });
-  }
+  // Reset pilih semua
+  const chkAll = document.getElementById('bsSoalCheckAll');
+  if (chkAll) chkAll.checked = false;
+  bsRenderMathIn(list);
 }
 
 function closeBsiForm() {
@@ -13204,17 +13311,7 @@ function openBsiForm(item) {
     jSel.value = j0;
   }
   document.getElementById('bsiSkor').value = item?.skor != null ? item.skor : 1;
-  // Kunci: tampilkan LaTeX mentah di input (bukan marker/HTML)
-  {
-    let k = String(item?.kunci || '');
-    if (/bs-math|data-latex|⟦MATH|\[\[MATH/i.test(k)) {
-      const d = document.createElement('div');
-      d.innerHTML = typeof wrapLatexDelimsToMathSpan === 'function' ? wrapLatexDelimsToMathSpan(k) : k;
-      const parts = [...d.querySelectorAll('.bs-math[data-latex]')].map(s => s.getAttribute('data-latex') || '');
-      k = parts.length ? parts.join(' ') : (d.textContent || k).trim();
-    }
-    document.getElementById('bsiKunci').value = k;
-  }
+  document.getElementById('bsiKunci').value = item?.kunci || '';
   let opsi = item?.opsi;
   if (typeof opsi === 'string') { try { opsi = JSON.parse(opsi); } catch { opsi = []; } }
   if (!Array.isArray(opsi) || !opsi.length) {
@@ -13279,6 +13376,19 @@ document.getElementById('btnBsSoalTutup')?.addEventListener('click', () => {
   _bsDetailPaket = null;
 });
 document.getElementById('btnBsSoalTambah')?.addEventListener('click', () => openBsiForm(null));
+document.getElementById('bsSoalCheckAll')?.addEventListener('change', (e) => {
+  const on = !!e.target.checked;
+  document.querySelectorAll('#bsSoalList .bsi-check').forEach(c => { c.checked = on; });
+});
+document.getElementById('bsSoalList')?.addEventListener('change', (e) => {
+  if (!e.target.classList.contains('bsi-check')) return;
+  const all = [...document.querySelectorAll('#bsSoalList .bsi-check')];
+  const chkAll = document.getElementById('bsSoalCheckAll');
+  if (chkAll && all.length) {
+    chkAll.checked = all.every(c => c.checked);
+    chkAll.indeterminate = !chkAll.checked && all.some(c => c.checked);
+  }
+});
 document.getElementById('btnBsSoalHapusTerpilih')?.addEventListener('click', async () => {
   if (!_bsDetailPaket?.id) { toast('Buka paket dulu', 'err'); return; }
   const ids = [...document.querySelectorAll('#bsSoalList .bsi-check:checked')].map(c => c.value).filter(Boolean);
@@ -13519,23 +13629,14 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
     if (!items.length) {
       throw new Error('Tidak ada soal terdeteksi. Gunakan format Template (NO: / JENIS: / PERTANYAAN: / A. / KUNCI:) atau nomor 1. 2. 3. Pastikan persamaan disimpan sebagai Equation di Word (bukan gambar saja).');
     }
-    // Bungkus marker MATH / \(...\) → span.bs-math (pertanyaan, opsi, kunci)
+    // Bungkus \(...\) menjadi span.bs-math agar KaTeX render stabil
     items.forEach(it => {
       it.pertanyaan = wrapLatexDelimsToMathSpan(it.pertanyaan);
       if (Array.isArray(it.opsi)) {
         it.opsi = it.opsi.map(o => {
           if (o && typeof o === 'object') return { ...o, text: wrapLatexDelimsToMathSpan(o.text) };
-          return wrapLatexDelimsToMathSpan(String(o || ''));
+          return o;
         });
-      }
-      if (it.kunci) {
-        // Kunci disimpan sebagai LaTeX plain (untuk penilaian), bukan HTML marker
-        let k = String(it.kunci);
-        k = k.replace(/⟦\s*MATH\s*:\s*([\s\S]+?)⟧/gi, '$1')
-          .replace(/\[\[\s*MATH\s*:\s*([\s\S]+?)\]\]/gi, '$1')
-          .replace(/\\$$|\\$$|\\\(|\\\)/g, '');
-        if (typeof ujFixLatex === 'function') k = ujFixLatex(k);
-        it.kunci = k.trim();
       }
     });
     const nImg = items.reduce((a, it) => a + (String(it.pertanyaan || '').match(/<img /gi) || []).length, 0);
@@ -13733,31 +13834,14 @@ function wrapLatexDelimsToMathSpan(html) {
     }
     return `<span class="bs-math" data-latex="${esc}">${rendered}</span>`;
   };
-  // Marker import (unicode + ASCII fallback jika font/encoding mengubah kurung)
-  s = s.replace(/⟦\s*MATH\s*:\s*([\s\S]+?)⟧/gi, (_, L) => toSpan(L));
-  s = s.replace(/\[\[\s*MATH\s*:\s*([\s\S]+?)\]\]/gi, (_, L) => toSpan(L));
-  s = s.replace(/〔\s*MATH\s*:\s*([\s\S]+?)〕/gi, (_, L) => toSpan(L));
-  s = s.replace(/\{\{\s*MATH\s*:\s*([\s\S]+?)\}\}/gi, (_, L) => toSpan(L));
+  // Marker import baru (utama)
+  s = s.replace(/⟦MATH:([\s\S]+?)⟧/g, (_, L) => toSpan(L));
+  s = s.replace(/\[\[MATH:([\s\S]+?)\]\]/g, (_, L) => toSpan(L));
   // Delimiter lama
   s = s.replace(/\$\$([\s\S]+?)\$\$/g, (_, L) => toSpan(L.trim()));
   s = s.replace(/\\\[([\s\S]+?)\\\]/g, (_, L) => toSpan(L.trim()));
   s = s.replace(/\\\(([\s\S]+?)\\\)/g, (_, L) => toSpan(L.trim()));
   return s;
-}
-
-/** Tampilkan kunci (LaTeX plain / marker / HTML) sebagai rumus */
-function ujFormatKunciHtml(kunci) {
-  let k = String(kunci || '').trim();
-  if (!k) return '';
-  if (/<[a-z]|⟦|\[\[MATH|data-latex/i.test(k)) {
-    return typeof wrapLatexDelimsToMathSpan === 'function' ? wrapLatexDelimsToMathSpan(k) : escapeHtml(k);
-  }
-  if (/\\frac|\\sqrt|\\sum|\\int|\\times|\\div|\\pm|\\pi|\^{|_[{\\]|\\left|\\right/.test(k)) {
-    if (typeof wrapLatexDelimsToMathSpan === 'function') {
-      return wrapLatexDelimsToMathSpan('\\(' + k + '\\)');
-    }
-  }
-  return escapeHtml(k);
 }
 
 /** Fallback teks/HTML bila font KaTeX akar gagal di HP */
