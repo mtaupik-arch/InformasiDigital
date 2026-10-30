@@ -790,11 +790,38 @@
   .uj-soal-card .katex .hide-tail { overflow:visible !important; }
   .uj-soal-card .us-q {
     overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch;
+    scrollbar-width: none; /* Firefox — hilangkan garis abu scrollbar */
   }
+  .uj-soal-card .us-q::-webkit-scrollbar { height:0; width:0; display:none; }
   .uj-soal-card .us-q .katex-display {
     display:block; overflow-x:auto; overflow-y:visible;
-    padding:4px 0; margin:4px 0;
+    padding:4px 0; margin:4px 0; scrollbar-width: none;
   }
+  .uj-soal-card .us-media-scroll { scrollbar-width: none; }
+  .uj-soal-card .us-media-scroll::-webkit-scrollbar { height:0; width:0; display:none; }
+  /* Cegah garis sisa di kiri/kanan kartu opsi & soal */
+  .uj-soal-card,
+  .uj-soal-card .us-opsi label,
+  .uj-soal-card .us-q,
+  .uj-soal-card .bs-math,
+  .uj-soal-card .katex,
+  .uj-soal-card .katex-html {
+    border-left: none !important;
+    box-shadow: none !important;
+  }
+  .uj-soal-card .us-opsi label {
+    border: 1px solid #e8eef5 !important; /* reset hanya border penuh */
+  }
+  /* Fallback akar/pecahan (jika font KaTeX tidak load di HP) */
+  .uj-fb-sqrt { font-family: 'Times New Roman', Times, serif; font-size:1.15em; white-space:nowrap; }
+  .uj-fb-frac {
+    display:inline-flex; flex-direction:column; align-items:center;
+    vertical-align:middle; margin:0 2px; line-height:1.1;
+  }
+  .uj-fb-frac .uj-fb-num {
+    border-bottom:1px solid currentColor; padding:0 3px 1px; font-size:0.95em;
+  }
+  .uj-fb-frac .uj-fb-den { padding:1px 3px 0; font-size:0.95em; }
   .uj-soal-card .us-isian-wrap {
     display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start;
   }
@@ -10360,30 +10387,40 @@ function ujFormatOpsiHtml(txt) {
   return escapeHtml(raw);
 }
 
-/** Render KaTeX di elemen lembar ujian (bs-math + delimiter) */
+/** Render KaTeX di elemen lembar ujian (bs-math + delimiter) + fallback akar */
 function ujRenderAllMath(root) {
   if (!root) return;
+  // Marker import yang belum di-wrap
+  root.querySelectorAll('.us-q, .us-opsi').forEach((el) => {
+    if (/⟦MATH:|\[\[MATH:/.test(el.innerHTML || '')) {
+      el.innerHTML = wrapLatexDelimsToMathSpan(el.innerHTML);
+    }
+  });
   if (typeof katex !== 'undefined') {
     root.querySelectorAll('.bs-math[data-latex]').forEach((span) => {
       let latex = ujFixLatex(span.getAttribute('data-latex') || '');
       if (!latex) return;
       span.setAttribute('data-latex', latex);
+      let html = '';
       try {
-        span.innerHTML = katex.renderToString(latex, {
+        html = katex.renderToString(latex, {
           throwOnError: false,
           displayMode: false,
           strict: false,
           trust: true,
           output: 'html',
         });
-        span.classList.add('bs-math');
-      } catch (_) {}
-    });
-    // Teks di pertanyaan yang masih mentah \sqrt / \frac tanpa span
-    root.querySelectorAll('.us-q').forEach((q) => {
-      if (q.querySelector('.bs-math, .katex')) return;
-      const tx = q.textContent || '';
-      if (!/\\frac|\\sqrt|\\times/.test(tx) && !/\u000c/.test(q.innerHTML)) return;
+      } catch (_) { html = ''; }
+      // Jika ada \sqrt tapi hasil KaTeX tidak memuat struktur akar → fallback unicode
+      if (/\\sqrt/.test(latex)) {
+        const hasSqrt = html && (/class="sqrt"|class='sqrt'|\bsqrt\b/.test(html));
+        if (!hasSqrt) {
+          html = ujLatexFallbackHtml(latex) || html;
+        }
+      }
+      if (!html) html = ujLatexFallbackHtml(latex) || escapeHtml(latex);
+      span.innerHTML = html;
+      span.classList.add('bs-math');
     });
   }
   if (typeof renderMathInElement === 'function') {
@@ -13528,22 +13565,19 @@ async function preprocessDocxMathToLatex(arrayBuffer) {
   if (!f) return { buffer: arrayBuffer, eqCount: 0 };
   let xml = await f.async('string');
   let eqCount = 0;
+  // Marker tanpa backslash — aman lewat XML + mammoth (\\frac sering rusak jadi form-feed)
   xml = xml.replace(/<m:oMath(\s[^>]*)?>[\s\S]*?<\/m:oMath>/g, (m) => {
     eqCount++;
     let latex = ommlToLatex(m);
     latex = String(latex || '').trim();
     if (!latex) latex = '?';
-    // Hindari karakter XML ilegal di dalam w:t
     const safe = latex
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    // Delimiter \( \) dikenali KaTeX auto-render
-    return `<w:r><w:t xml:space="preserve">\\(${safe}\\)</w:t></w:r>`;
+    return `<w:r><w:t xml:space="preserve">⟦MATH:${safe}⟧</w:t></w:r>`;
   });
-  // Bersihkan sisa oMathPara kosong / pembungkus
   xml = xml.replace(/<m:oMathPara(\s[^>]*)?>[\s\S]*?<\/m:oMathPara>/g, (m) => {
-    // Jika masih ada oMath (seharusnya sudah diganti), ekstrak teks
     if (/<m:oMath/.test(m)) return m;
     const texts = [...m.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)].map(x => x[1]).join('');
     if (!texts.trim()) return '';
@@ -13586,69 +13620,122 @@ function ommlPlain(fragment) {
 /** OMML XML → LaTeX (pecahan, akar, pangkat, subscript) */
 function ommlToLatex(ommlXml) {
   let s = ommlStripPr(ommlXml);
-  // Buka pembungkus run kosong agar struktur lebih sederhana
+  // Hapus rPr sisa & buka run
+  s = s.replace(/<w:rPr[\s\S]*?<\/w:rPr>/g, '').replace(/<w:rPr[^/]*\/>/g, '');
   s = s.replace(/<m:r(\s[^>]*)?>/g, '').replace(/<\/m:r>/g, '');
-  for (let i = 0; i < 60; i++) {
+  // Hapus radPr yang mungkin tersisa
+  s = s.replace(/<m:radPr[\s\S]*?<\/m:radPr>/g, '');
+  s = s.replace(/<m:fPr[\s\S]*?<\/m:fPr>/g, '');
+
+  const convertInner = (frag) => {
+    const t = String(frag || '');
+    if (/<m:/.test(t)) {
+      // rekursi terbatas: jalankan pass yang sama pada fragmen
+      return ommlToLatex(`<m:oMath>${t}</m:oMath>`) || ommlPlain(t);
+    }
+    return ommlPlain(t);
+  };
+
+  for (let i = 0; i < 80; i++) {
     const prev = s;
-    // 1) pecahan dulu (sering di dalam akar/pangkat)
+    // 1) pecahan
     s = s.replace(
       /<m:f>\s*<m:num>([\s\S]*?)<\/m:num>\s*<m:den>([\s\S]*?)<\/m:den>\s*<\/m:f>/g,
-      (_, num, den) => `\\frac{${ommlPlain(num)}}{${ommlPlain(den)}}`
+      (_, num, den) => `\\frac{${convertInner(num)}}{${convertInner(den)}}`
     );
     // 2) pangkat & subscript
     s = s.replace(
       /<m:sSup>\s*<m:e>([\s\S]*?)<\/m:e>\s*<m:sup>([\s\S]*?)<\/m:sup>\s*<\/m:sSup>/g,
       (_, e, sup) => {
-        const base = ommlPlain(e);
-        const sp = ommlPlain(sup);
+        const base = convertInner(e);
+        const sp = convertInner(sup);
         return base.length === 1 ? `${base}^{${sp}}` : `{${base}}^{${sp}}`;
       }
     );
     s = s.replace(
       /<m:sSub>\s*<m:e>([\s\S]*?)<\/m:e>\s*<m:sub>([\s\S]*?)<\/m:sub>\s*<\/m:sSub>/g,
       (_, e, sub) => {
-        const base = ommlPlain(e);
-        const sb = ommlPlain(sub);
+        const base = convertInner(e);
+        const sb = convertInner(sub);
         return base.length === 1 ? `${base}_{${sb}}` : `{${base}}_{${sb}}`;
       }
     );
     s = s.replace(
       /<m:sSubSup>\s*<m:e>([\s\S]*?)<\/m:e>\s*<m:sub>([\s\S]*?)<\/m:sub>\s*<m:sup>([\s\S]*?)<\/m:sup>\s*<\/m:sSubSup>/g,
-      (_, e, sub, sup) => {
-        const base = ommlPlain(e);
-        return `{${base}}_{${ommlPlain(sub)}}^{${ommlPlain(sup)}}`;
-      }
+      (_, e, sub, sup) => `{${convertInner(e)}}_{${convertInner(sub)}}^{${convertInner(sup)}}`
     );
-    // 3) akar — dukung <m:deg/>, <m:deg></m:deg>, dan <m:deg>n</m:deg>
+    // 3) akar — deg opsional / self-closing / kosong
     s = s.replace(
-      /<m:rad>\s*(?:<m:deg\s*\/>|<m:deg>([\s\S]*?)<\/m:deg>)?\s*<m:e>([\s\S]*?)<\/m:e>\s*<\/m:rad>/g,
+      /<m:rad>\s*(?:<m:deg\s*\/>|<m:deg>\s*<\/m:deg>|<m:deg>([\s\S]*?)<\/m:deg>)?\s*<m:e>([\s\S]*?)<\/m:e>\s*<\/m:rad>/g,
       (_, deg, e) => {
-        const d = ommlPlain(deg || '').trim();
-        const base = ommlPlain(e);
+        const d = convertInner(deg || '').trim();
+        const base = convertInner(e);
         return d ? `\\sqrt[${d}]{${base}}` : `\\sqrt{${base}}`;
       }
+    );
+    // fallback: rad tanpa deg eksplisit
+    s = s.replace(
+      /<m:rad>\s*<m:e>([\s\S]*?)<\/m:e>\s*<\/m:rad>/g,
+      (_, e) => `\\sqrt{${convertInner(e)}}`
     );
     if (s === prev) break;
   }
   return ommlPlain(s);
 }
 
-/** Ubah \( latex \) / \[ latex \] di HTML/teks menjadi <span class="bs-math" data-latex="..."> */
+/** Ubah marker MATH / \( latex \) menjadi <span class="bs-math"> + render KaTeX */
 function wrapLatexDelimsToMathSpan(html) {
   let s = String(html || '');
   if (!s) return s;
-  const toSpan = (latex) => {
-    const esc = String(latex || '')
+  const toSpan = (latexRaw) => {
+    let latex = String(latexRaw || '').trim();
+    // decode xml entities
+    latex = latex.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+    if (typeof ujFixLatex === 'function') latex = ujFixLatex(latex);
+    const esc = latex
       .replace(/&/g, '&amp;')
       .replace(/"/g, '&quot;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    return `<span class="bs-math" data-latex="${esc}"></span>`;
+    let rendered = '';
+    try {
+      if (typeof katex !== 'undefined' && latex) {
+        rendered = katex.renderToString(latex, {
+          throwOnError: false, displayMode: false, strict: false, trust: true, output: 'html',
+        });
+      }
+    } catch (_) {}
+    // Fallback visual jika KaTeX gagal / akar tidak tampil
+    if (!rendered || ( /\\sqrt/.test(latex) && !/\bsqrt\b/.test(rendered) )) {
+      rendered = ujLatexFallbackHtml(latex) || esc;
+    }
+    return `<span class="bs-math" data-latex="${esc}">${rendered}</span>`;
   };
+  // Marker import baru (utama)
+  s = s.replace(/⟦MATH:([\s\S]+?)⟧/g, (_, L) => toSpan(L));
+  s = s.replace(/\[\[MATH:([\s\S]+?)\]\]/g, (_, L) => toSpan(L));
+  // Delimiter lama
   s = s.replace(/\$\$([\s\S]+?)\$\$/g, (_, L) => toSpan(L.trim()));
   s = s.replace(/\\\[([\s\S]+?)\\\]/g, (_, L) => toSpan(L.trim()));
   s = s.replace(/\\\(([\s\S]+?)\\\)/g, (_, L) => toSpan(L.trim()));
   return s;
+}
+
+/** Fallback teks/HTML bila font KaTeX akar gagal di HP */
+function ujLatexFallbackHtml(latex) {
+  let t = String(latex || '');
+  if (!t) return '';
+  // akar
+  t = t.replace(/\\sqrt\[([^\]]+)\]\{([^{}]+)\}/g, '<span class="uj-fb-sqrt"><sup>$1</sup>√($2)</span>');
+  t = t.replace(/\\sqrt\{([^{}]+)\}/g, '<span class="uj-fb-sqrt">√($1)</span>');
+  // pecahan sederhana
+  t = t.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '<span class="uj-fb-frac"><span class="uj-fb-num">$1</span><span class="uj-fb-den">$2</span></span>');
+  t = t.replace(/\\times/g, '×').replace(/\\div/g, '÷').replace(/\\pm/g, '±').replace(/\\pi/g, 'π');
+  t = t.replace(/\\left\(/g, '(').replace(/\\right\)/g, ')');
+  t = t.replace(/\\left\[/g, '[').replace(/\\right\]/g, ']');
+  t = t.replace(/\^{([^{}]+)}/g, '<sup>$1</sup>').replace(/_{([^{}]+)}/g, '<sub>$1</sub>');
+  t = t.replace(/\\[a-zA-Z]+/g, '');
+  return t;
 }
 
 
