@@ -783,10 +783,26 @@
   .uj-soal-card .us-opsi label > span {
     overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch;
   }
+  .uj-soal-card .us-isian-wrap {
+    display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start;
+  }
   .uj-soal-card textarea.us-isian {
-    width:100%; min-height:72px; padding:8px 10px; border:1px solid #cfd8dc; border-radius:8px;
+    flex:1; min-width:160px; min-height:72px; padding:8px 10px; border:1px solid #cfd8dc; border-radius:8px;
     font-size:13px; font-family:inherit; resize:vertical; box-sizing:border-box;
   }
+  .uj-soal-card .btn-uj-math {
+    flex-shrink:0; padding:8px 12px; font-size:14px; font-weight:800;
+    border:1px solid #90caf9; background:#e3f2fd; color:#1565c0; border-radius:8px; cursor:pointer;
+  }
+  .uj-soal-card .us-isian-preview {
+    width:100%; min-height:0; padding:4px 2px; font-size:14px; color:#1a237e;
+  }
+  .uj-soal-card .us-isian-preview:empty { display:none; }
+  /* Hilangkan garis sisa di samping pecahan (konflik overflow/border) */
+  .uj-soal-card .katex .frac-line { border-bottom-color: currentColor !important; }
+  .uj-soal-card .katex .mfrac { border: none !important; }
+  .uj-soal-card .us-opsi .katex { border: none !important; box-shadow: none !important; }
+  .uj-soal-card .us-opsi label > span .katex-html { border: none !important; }
 
   /* ===== PENGUMUMAN KELULUSAN (muat 1 layar HP) ===== */
   #page-pengumuman-lulus {
@@ -10195,13 +10211,17 @@ function renderUjSoalList(soal, readonly) {
     let ansHtml = '';
     const jaw = s.jawaban != null ? String(s.jawaban) : '';
     if (jl.includes('uraian') || jl.includes('isian') || jl.includes('unggah') || (!opsi.length && !jl.includes('pilihan') && !jl.includes('benar') && !jl.includes('check'))) {
-      ansHtml = `<textarea class="us-isian" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${readonly ? 'readonly' : ''} placeholder="Tulis jawaban…">${escapeHtml(jaw)}</textarea>`;
+      ansHtml = `<div class="us-isian-wrap">
+        <textarea class="us-isian" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${readonly ? 'readonly' : ''} placeholder="Tulis jawaban atau sisipkan rumus (∑)…">${escapeHtml(jaw)}</textarea>
+        ${readonly ? '' : `<button type="button" class="btn-opsi-math btn-uj-math" data-uj-math-item="${escapeHtml(String(s.id))}" title="Sisipkan rumus">∑</button>`}
+        <div class="us-isian-preview" data-preview-for="${escapeHtml(String(s.id))}"></div>
+      </div>`;
     } else if (jl.includes('check')) {
       const selected = jaw.split(/[,;]/).map(x => x.trim().toUpperCase()).filter(Boolean);
       ansHtml = `<div class="us-opsi">${opsi.map((o, i) => {
         const lab = (typeof o === 'object' ? o.label : null) || String.fromCharCode(65 + i);
         const txt = typeof o === 'object' ? (o.text || '') : String(o || '');
-        const show = /<[a-z]/i.test(txt) ? txt : escapeHtml(txt);
+        const show = ujFormatOpsiHtml(txt);
         const chk = selected.includes(String(lab).toUpperCase()) ? 'checked' : '';
         return `<label><input type="checkbox" name="uj_${s.id}" value="${escapeHtml(lab)}" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${chk} ${readonly ? 'disabled' : ''}/><span><b>${escapeHtml(lab)}.</b> ${show}</span></label>`;
       }).join('')}</div>`;
@@ -10209,7 +10229,7 @@ function renderUjSoalList(soal, readonly) {
       ansHtml = `<div class="us-opsi">${opsi.map((o, i) => {
         const lab = (typeof o === 'object' ? o.label : null) || String.fromCharCode(65 + i);
         const txt = typeof o === 'object' ? (o.text || '') : String(o || '');
-        const show = /<[a-z]/i.test(txt) ? txt : escapeHtml(txt);
+        const show = ujFormatOpsiHtml(txt);
         const chk = String(jaw).toUpperCase() === String(lab).toUpperCase() ? 'checked' : '';
         return `<label><input type="radio" name="uj_${s.id}" value="${escapeHtml(lab)}" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${chk} ${readonly ? 'disabled' : ''}/><span><b>${escapeHtml(lab)}.</b> ${show}</span></label>`;
       }).join('')}</div>`;
@@ -10237,6 +10257,67 @@ function renderUjSoalList(soal, readonly) {
   });
   // Render ulang semua rumus (akar, pecahan, pangkat) agar tidak jadi garis di HP
   ujRenderAllMath(box);
+  // Preview isian yang sudah ada isinya
+  box.querySelectorAll('textarea.us-isian').forEach((ta) => {
+    ujUpdateIsianPreview(ta);
+    ta.addEventListener('input', () => ujUpdateIsianPreview(ta));
+  });
+}
+
+/** Perbaiki LaTeX yang rusak: \f di \frac terbaca form-feed, dll. */
+function ujFixLatex(s) {
+  let t = String(s || '');
+  // HTML entities
+  t = t.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  // Escape sequences yang "dimakan" JS/JSON/HTML
+  t = t.replace(/\u000c/g, '\\f')  // form feed → \f  (frac)
+    .replace(/\u0008/g, '\\b')
+    .replace(/\u000b/g, '\\v');
+  // Jika backslash hilang total di awal perintah umum
+  if (!/\\frac|\\sqrt|\\times|\\div|\\pm|\\leq|\\geq|\\neq|\\pi|\\alpha|\\beta|\\theta|\\sum|\\int/.test(t)) {
+    t = t.replace(/(^|[^\\])frac\s*\{/g, '$1\\frac{')
+      .replace(/(^|[^\\])sqrt\s*(?:\[|$|\{)/g, (m, p) => p + '\\sqrt' + m.slice(m.indexOf('sqrt') + 4).replace(/^sqrt/, ''))
+      .replace(/(^|[^\\])sqrt\{/g, '$1\\sqrt{')
+      .replace(/(^|[^\\])times\b/g, '$1\\times')
+      .replace(/(^|[^\\])div\b/g, '$1\\div')
+      .replace(/(^|[^\\])pm\b/g, '$1\\pm')
+      .replace(/(^|[^\\])pi\b/g, '$1\\pi');
+  }
+  // Pastikan \frac tetap utuh
+  t = t.replace(/(^|[^\\])frac\{/g, '$1\\frac{');
+  t = t.replace(/(^|[^\\])sqrt\{/g, '$1\\sqrt{');
+  t = t.replace(/(^|[^\\])sqrt\[/g, '$1\\sqrt[');
+  return t.trim();
+}
+
+/** Format teks opsi: render LaTeX / bs-math */
+function ujFormatOpsiHtml(txt) {
+  const raw = String(txt || '');
+  if (!raw) return '';
+  if (/<[a-z]/i.test(raw)) {
+    // HTML: perbaiki data-latex yang rusak
+    const div = document.createElement('div');
+    div.innerHTML = raw;
+    div.querySelectorAll('.bs-math[data-latex]').forEach((sp) => {
+      const fixed = ujFixLatex(sp.getAttribute('data-latex') || '');
+      if (fixed) sp.setAttribute('data-latex', fixed);
+    });
+    return div.innerHTML;
+  }
+  // Plain: jika mirip LaTeX, bungkus
+  const fixed = ujFixLatex(raw);
+  if (/\\frac|\\sqrt|\\sum|\\int|\^{|_[{\\]|\\times|\\div|\\pm|\\pi/.test(fixed)) {
+    const esc = escapeHtml(fixed).replace(/"/g, '&quot;');
+    let rendered = '';
+    try {
+      if (typeof katex !== 'undefined') {
+        rendered = katex.renderToString(fixed, { throwOnError: false, displayMode: false, strict: false, output: 'html' });
+      }
+    } catch (_) {}
+    return `<span class="bs-math" data-latex="${esc}">${rendered || esc}</span>`;
+  }
+  return escapeHtml(raw);
 }
 
 /** Render KaTeX di elemen lembar ujian (bs-math + delimiter) */
@@ -10244,12 +10325,9 @@ function ujRenderAllMath(root) {
   if (!root) return;
   if (typeof katex !== 'undefined') {
     root.querySelectorAll('.bs-math[data-latex]').forEach((span) => {
-      const latex = (span.getAttribute('data-latex') || '').trim();
+      let latex = ujFixLatex(span.getAttribute('data-latex') || '');
       if (!latex) return;
-      // skip jika sudah berisi .katex yang valid (punya sqrt/frac utuh)
-      if (span.querySelector('.katex .sqrt, .katex .mfrac, .katex .mord')) {
-        // tetap re-render agar CSS baru berlaku
-      }
+      span.setAttribute('data-latex', latex);
       try {
         span.innerHTML = katex.renderToString(latex, {
           throwOnError: false,
@@ -10261,6 +10339,12 @@ function ujRenderAllMath(root) {
         span.classList.add('bs-math');
       } catch (_) {}
     });
+    // Teks di pertanyaan yang masih mentah \sqrt / \frac tanpa span
+    root.querySelectorAll('.us-q').forEach((q) => {
+      if (q.querySelector('.bs-math, .katex')) return;
+      const tx = q.textContent || '';
+      if (!/\\frac|\\sqrt|\\times/.test(tx) && !/\u000c/.test(q.innerHTML)) return;
+    });
   }
   if (typeof renderMathInElement === 'function') {
     try {
@@ -10269,7 +10353,6 @@ function ujRenderAllMath(root) {
           { left: '$$', right: '$$', display: true },
           { left: '\\(', right: '\\)', display: false },
           { left: '\\[', right: '\\]', display: true },
-          { left: '$', right: '$', display: false },
         ],
         throwOnError: false,
         strict: false,
@@ -10278,6 +10361,23 @@ function ujRenderAllMath(root) {
   } else if (typeof bsRenderMathIn === 'function') {
     bsRenderMathIn(root);
   }
+}
+
+function ujUpdateIsianPreview(ta) {
+  if (!ta) return;
+  const id = ta.getAttribute('data-item-id');
+  const prev = document.querySelector(`.us-isian-preview[data-preview-for="${id}"]`);
+  if (!prev) return;
+  const raw = String(ta.value || '').trim();
+  if (!raw) { prev.innerHTML = ''; return; }
+  const latex = ujFixLatex(raw);
+  if (/\\frac|\\sqrt|\\sum|\\int|\^{|_[{\\]|\\times|\\div|\\pm|\\pi|\\left|\\right/.test(latex) && typeof katex !== 'undefined') {
+    try {
+      prev.innerHTML = katex.renderToString(latex, { throwOnError: false, displayMode: false, strict: false, output: 'html' });
+      return;
+    } catch (_) {}
+  }
+  prev.innerHTML = '';
 }
 
 function collectUjAnswers() {
@@ -10440,6 +10540,18 @@ document.getElementById('ujPaketList')?.addEventListener('click', (e) => {
   if (!btn || btn.disabled) return;
   const id = btn.getAttribute('data-uj-start');
   if (id) ujOpenLembar(id);
+});
+
+// Tombol ∑ rumus di isian jawaban siswa
+document.getElementById('ujSoalList')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-uj-math-item]');
+  if (!btn) return;
+  e.preventDefault();
+  const itemId = btn.getAttribute('data-uj-math-item');
+  const ta = document.querySelector(`#ujSoalList textarea.us-isian[data-item-id="${itemId}"]`);
+  if (!ta) { toast('Kolom jawaban tidak ditemukan', 'err'); return; }
+  if (typeof bsOpenMathModal === 'function') bsOpenMathModal(ta);
+  else toast('Editor rumus tidak tersedia', 'err');
 });
 
 document.getElementById('btnUjKembali')?.addEventListener('click', () => {
@@ -12563,15 +12675,17 @@ function opsiHtmlToEditableText(txt) {
 
 /** Simpan opsi: jika teks berisi perintah LaTeX, bungkus span.bs-math */
 function opsiEditableTextToHtml(txt) {
-  const t = String(txt || '').trim();
+  let t = String(txt || '').trim();
   if (!t) return '';
   if (/class\s*=\s*["']bs-math/i.test(t) || /data-latex\s*=/i.test(t)) return t;
-  if (/\\frac|\\sqrt|\\sum|\\int|\\pi|\\times|\\div|\^{|_[{\\]/.test(t)) {
+  if (typeof ujFixLatex === 'function') t = ujFixLatex(t);
+  if (/\\frac|\\sqrt|\\sum|\\int|\\pi|\\times|\\div|\^{|_[{\\]|\\left|\\right/.test(t)) {
+    // escape untuk atribut: backslash harus tetap utuh
     const esc = t.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     let rendered = '';
     try {
       if (typeof katex !== 'undefined') {
-        rendered = katex.renderToString(t, { throwOnError: false, displayMode: false });
+        rendered = katex.renderToString(t, { throwOnError: false, displayMode: false, strict: false, output: 'html' });
       }
     } catch (_) {}
     return `<span class="bs-math" data-latex="${esc}" contenteditable="false">${rendered || esc}</span>`;
