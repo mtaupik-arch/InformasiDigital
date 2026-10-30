@@ -673,6 +673,58 @@
   }
   .ujian-locked .ul-ico { font-size:42px; margin-bottom:8px; }
   .ujian-locked h4 { color:#1565c0; font-size:15px; margin-bottom:6px; }
+  .uj-siswa-bar {
+    display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:14px;
+    background:linear-gradient(135deg,#e3f2fd,#f3e5f5); border-radius:12px; border:1px solid #c5cae9;
+  }
+  .uj-foto {
+    width:64px; height:64px; min-width:64px; border-radius:50%; overflow:hidden;
+    background:linear-gradient(135deg,#1565c0,#7e57c2); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800;
+    box-shadow:0 2px 8px rgba(21,101,192,.25);
+  }
+  .uj-foto img { width:100%; height:100%; object-fit:cover; display:block; }
+  .uj-id { flex:1; min-width:0; }
+  .uj-nama { font-size:15px; font-weight:800; color:#1a237e; text-transform:uppercase; letter-spacing:.2px; }
+  .uj-meta { font-size:12px; color:#455a64; margin-top:2px; }
+  .uj-paket-list { display:flex; flex-direction:column; gap:10px; }
+  .uj-paket-card {
+    background:#fff; border:1px solid #e0e7ef; border-radius:10px; padding:12px 14px;
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;
+  }
+  .uj-paket-card .up-title { font-size:13.5px; font-weight:700; color:#1565c0; }
+  .uj-paket-card .up-meta { font-size:11.5px; color:#607d8b; margin-top:2px; line-height:1.4; }
+  .uj-paket-card .up-badge {
+    display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px;
+    background:#e8f5e9; color:#2e7d32; margin-left:6px;
+  }
+  .uj-paket-card .up-badge.warn { background:#fff3e0; color:#ef6c00; }
+  .uj-paket-card .up-badge.done { background:#e3f2fd; color:#1565c0; }
+  .uj-lembar-head {
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px;
+    position:sticky; top:var(--topbar-h); z-index:20; background:#f0f2f5; padding:8px 0;
+  }
+  .uj-lembar-title { flex:1; min-width:120px; font-size:13px; font-weight:700; color:#1a237e; }
+  .uj-soal-list { display:flex; flex-direction:column; gap:14px; }
+  .uj-soal-card {
+    background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px;
+  }
+  .uj-soal-card .us-no {
+    display:inline-block; background:#1565c0; color:#fff; font-size:11px; font-weight:800;
+    padding:2px 8px; border-radius:8px; margin-right:6px;
+  }
+  .uj-soal-card .us-jenis { font-size:10px; font-weight:700; color:#5c6bc0; }
+  .uj-soal-card .us-q { font-size:13px; color:#222; margin:8px 0 10px; line-height:1.45; }
+  .uj-soal-card .us-opsi label {
+    display:flex; align-items:flex-start; gap:8px; padding:6px 8px; margin-bottom:4px;
+    border:1px solid #e8eef5; border-radius:8px; cursor:pointer; font-size:12.5px;
+  }
+  .uj-soal-card .us-opsi label:hover { background:#f5f9ff; border-color:#90caf9; }
+  .uj-soal-card .us-opsi input { margin-top:3px; }
+  .uj-soal-card textarea.us-isian {
+    width:100%; min-height:72px; padding:8px 10px; border:1px solid #cfd8dc; border-radius:8px;
+    font-size:13px; font-family:inherit; resize:vertical;
+  }
 
   /* ===== PENGUMUMAN KELULUSAN (muat 1 layar HP) ===== */
   #page-pengumuman-lulus {
@@ -3020,11 +3072,28 @@
         <p style="font-size:13px;line-height:1.4">Admin belum mengaktifkan <b>Izin Ujian</b>. Silakan cek lagi nanti.</p>
       </div>
       <div id="ujianOpen" style="display:none">
-        <p style="font-size:13px;color:#555;margin-bottom:12px">
-          Akses ujian dibuka. Fitur bank soal / pengerjaan akan terhubung di sini.
-        </p>
-        <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:12px 14px;font-size:13px;color:#2e7d32;font-weight:600">
-          ✓ Izin Ujian aktif — siswa dapat mengerjakan tugas/ujian.
+        <!-- Header identitas siswa -->
+        <div class="uj-siswa-bar" id="ujSiswaBar">
+          <div class="uj-foto" id="ujFoto">👤</div>
+          <div class="uj-id">
+            <div class="uj-nama" id="ujNama">—</div>
+            <div class="uj-meta"><b>NISN</b> <span id="ujNisn">—</span> · <b>Kelas</b> <span id="ujKelas">—</span></div>
+          </div>
+        </div>
+        <!-- Daftar paket -->
+        <div id="ujListWrap">
+          <p style="font-size:12.5px;color:#555;margin:0 0 10px">Paket soal <b>Aktif</b> untuk kelas Anda. Klik <b>Kerjakan</b> untuk mulai.</p>
+          <div id="ujPaketList" class="uj-paket-list"><div class="bs-empty">Memuat…</div></div>
+        </div>
+        <!-- Lembar soal -->
+        <div id="ujLembarWrap" style="display:none">
+          <div class="uj-lembar-head">
+            <button type="button" class="btn btn-outline btn-sm" id="btnUjKembali">← Kembali</button>
+            <div class="uj-lembar-title" id="ujLembarTitle">—</div>
+            <button type="button" class="btn btn-outline btn-sm" id="btnUjSimpan">Simpan</button>
+            <button type="button" class="btn btn-primary btn-sm" id="btnUjSelesai">Kumpulkan</button>
+          </div>
+          <div id="ujSoalList" class="uj-soal-list"></div>
         </div>
       </div>
     </div>
@@ -9960,6 +10029,183 @@ document.getElementById('izinQ')?.addEventListener('input', () => {
   }, 280);
 });
 
+let _ujState = { ruangId: null, bankId: null, soal: [], siswa: null, readonly: false };
+
+function ujSetSiswaHeader(siswa) {
+  const namaEl = document.getElementById('ujNama');
+  const nisnEl = document.getElementById('ujNisn');
+  const kelasEl = document.getElementById('ujKelas');
+  const fotoEl = document.getElementById('ujFoto');
+  if (namaEl) namaEl.textContent = siswa?.nama || '—';
+  if (nisnEl) nisnEl.textContent = siswa?.nisn || '—';
+  if (kelasEl) kelasEl.textContent = siswa?.kelas || '—';
+  if (fotoEl) {
+    if (siswa?.foto_url) {
+      fotoEl.innerHTML = `<img src="${escapeHtml(siswa.foto_url)}" alt="" onerror="this.remove()" />`;
+    } else {
+      const init = (siswa?.nama || '?').trim().charAt(0).toUpperCase();
+      fotoEl.textContent = init || '👤';
+    }
+  }
+}
+
+function ujFmtJadwal(a, b) {
+  const f = (v) => {
+    if (!v) return '';
+    try {
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return String(v).slice(0, 16);
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch { return ''; }
+  };
+  const x = f(a); const y = f(b);
+  if (!x && !y) return 'Tanpa batas waktu';
+  if (x && y) return `${x} → ${y}`;
+  return x || y;
+}
+
+function renderUjPaketList(rows) {
+  const box = document.getElementById('ujPaketList');
+  if (!box) return;
+  if (!rows?.length) {
+    box.innerHTML = '<div class="bs-empty">Tidak ada paket ujian Aktif untuk kelas Anda.</div>';
+    return;
+  }
+  box.innerHTML = rows.map((r) => {
+    let badge = '';
+    if (r.status_siswa === 'Selesai') badge = `<span class="up-badge done">Selesai${r.skor != null ? ' · skor ' + r.skor : ''}</span>`;
+    else if (r.status_siswa === 'Mengerjakan') badge = `<span class="up-badge">Sedang dikerjakan</span>`;
+    else if (!r.jadwal_ok) badge = `<span class="up-badge warn">${escapeHtml(r.jadwal_msg || 'Tutup')}</span>`;
+    const btnLabel = r.status_siswa === 'Mengerjakan' ? 'Lanjutkan' : (r.status_siswa === 'Selesai' ? 'Lihat' : 'Kerjakan');
+    const can = r.can_start || r.status_siswa === 'Selesai' || r.status_siswa === 'Mengerjakan';
+    return `<div class="uj-paket-card" data-bank-id="${escapeHtml(String(r.id))}">
+      <div style="flex:1;min-width:160px">
+        <div class="up-title">${escapeHtml(r.mapel_nama || 'Mapel')} · ${escapeHtml(r.jenis || '')} Ke-${r.penilaian_ke != null ? r.penilaian_ke : 1}${badge}</div>
+        <div class="up-meta">Kelas ${escapeHtml(r.kelas_nama || '—')} · ${r.jml_soal || 0} soal · Attempt ${r.attempt || 1}<br>${escapeHtml(ujFmtJadwal(r.waktu_mulai, r.waktu_selesai))}</div>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm" data-uj-start="${escapeHtml(String(r.id))}" ${can ? '' : 'disabled'}>${btnLabel}</button>
+    </div>`;
+  }).join('');
+}
+
+function renderUjSoalList(soal, readonly) {
+  const box = document.getElementById('ujSoalList');
+  if (!box) return;
+  if (!soal?.length) {
+    box.innerHTML = '<div class="bs-empty">Belum ada soal di paket ini.</div>';
+    return;
+  }
+  box.innerHTML = soal.map((s, idx) => {
+    const no = s.nomor != null ? s.nomor : (idx + 1);
+    const jenis = s.jenis_soal || 'Pilihan Ganda';
+    const jl = String(jenis).toLowerCase();
+    const opsi = Array.isArray(s.opsi) ? s.opsi : [];
+    let ansHtml = '';
+    const jaw = s.jawaban != null ? String(s.jawaban) : '';
+    if (jl.includes('uraian') || jl.includes('isian') || jl.includes('unggah') || (!opsi.length && !jl.includes('pilihan') && !jl.includes('benar') && !jl.includes('check'))) {
+      ansHtml = `<textarea class="us-isian" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${readonly ? 'readonly' : ''} placeholder="Tulis jawaban…">${escapeHtml(jaw)}</textarea>`;
+    } else if (jl.includes('check')) {
+      const selected = jaw.split(/[,;]/).map(x => x.trim().toUpperCase()).filter(Boolean);
+      ansHtml = `<div class="us-opsi">${opsi.map((o, i) => {
+        const lab = (typeof o === 'object' ? o.label : null) || String.fromCharCode(65 + i);
+        const txt = typeof o === 'object' ? (o.text || '') : String(o || '');
+        const show = /<[a-z]/i.test(txt) ? txt : escapeHtml(txt);
+        const chk = selected.includes(String(lab).toUpperCase()) ? 'checked' : '';
+        return `<label><input type="checkbox" name="uj_${s.id}" value="${escapeHtml(lab)}" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${chk} ${readonly ? 'disabled' : ''}/><span><b>${escapeHtml(lab)}.</b> ${show}</span></label>`;
+      }).join('')}</div>`;
+    } else {
+      ansHtml = `<div class="us-opsi">${opsi.map((o, i) => {
+        const lab = (typeof o === 'object' ? o.label : null) || String.fromCharCode(65 + i);
+        const txt = typeof o === 'object' ? (o.text || '') : String(o || '');
+        const show = /<[a-z]/i.test(txt) ? txt : escapeHtml(txt);
+        const chk = String(jaw).toUpperCase() === String(lab).toUpperCase() ? 'checked' : '';
+        return `<label><input type="radio" name="uj_${s.id}" value="${escapeHtml(lab)}" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${chk} ${readonly ? 'disabled' : ''}/><span><b>${escapeHtml(lab)}.</b> ${show}</span></label>`;
+      }).join('')}</div>`;
+    }
+    return `<div class="uj-soal-card" data-item-id="${escapeHtml(String(s.id))}">
+      <span class="us-no">No ${escapeHtml(String(no))}</span>
+      <span class="us-jenis">${escapeHtml(jenis)}</span>
+      <div class="us-q">${s.pertanyaan || ''}</div>
+      ${ansHtml}
+    </div>`;
+  }).join('');
+  if (typeof bsRenderMathIn === 'function') bsRenderMathIn(box);
+  box.querySelectorAll('.bs-math[data-latex]').forEach(span => {
+    const latex = span.getAttribute('data-latex') || '';
+    if (!latex || typeof katex === 'undefined') return;
+    try { span.innerHTML = katex.renderToString(latex, { throwOnError: false, displayMode: false }); } catch (_) {}
+  });
+}
+
+function collectUjAnswers() {
+  const answers = [];
+  const seen = new Set();
+  document.querySelectorAll('#ujSoalList [data-item-id]').forEach(el => {
+    const itemId = el.getAttribute('data-item-id');
+    if (!itemId || seen.has(itemId)) return;
+    // prefer input/textarea with data-item-id
+    const radios = document.querySelectorAll(`#ujSoalList input[type="radio"][data-item-id="${itemId}"]`);
+    const checks = document.querySelectorAll(`#ujSoalList input[type="checkbox"][data-item-id="${itemId}"]`);
+    const ta = document.querySelector(`#ujSoalList textarea[data-item-id="${itemId}"]`);
+    let jawaban = '';
+    let nomor = null;
+    let jenis = '';
+    if (checks.length) {
+      const vals = [...checks].filter(c => c.checked).map(c => c.value);
+      jawaban = vals.join(',');
+      nomor = checks[0].getAttribute('data-nomor');
+      jenis = checks[0].getAttribute('data-jenis') || '';
+    } else if (radios.length) {
+      const sel = [...radios].find(r => r.checked);
+      jawaban = sel ? sel.value : '';
+      nomor = radios[0].getAttribute('data-nomor');
+      jenis = radios[0].getAttribute('data-jenis') || '';
+    } else if (ta) {
+      jawaban = ta.value || '';
+      nomor = ta.getAttribute('data-nomor');
+      jenis = ta.getAttribute('data-jenis') || '';
+    } else return;
+    seen.add(itemId);
+    answers.push({ item_id: itemId, nomor: nomor != null ? Number(nomor) : null, jenis_soal: jenis, jawaban });
+  });
+  return answers;
+}
+
+async function ujOpenLembar(bankId) {
+  try {
+    toast('Menyiapkan lembar ujian…', 'ok');
+    const start = await apiCall('mulai_ujian', { bank_soal_id: bankId });
+    const ruang = start.data;
+    if (!ruang?.id) throw new Error('Gagal membuat sesi ujian');
+    const lembar = await apiCall('get_lembar_ujian', { bank_soal_id: bankId, ruang_id: ruang.id });
+    const d = lembar.data || {};
+    _ujState = {
+      ruangId: ruang.id,
+      bankId,
+      soal: d.soal || [],
+      siswa: d.siswa || _ujState.siswa,
+      readonly: String(ruang.status) === 'Selesai' || String(ruang.status) === 'Timeout',
+    };
+    if (d.siswa) ujSetSiswaHeader(d.siswa);
+    const title = document.getElementById('ujLembarTitle');
+    if (title) {
+      const b = d.bank || {};
+      title.textContent = `${b.mapel_nama || ''} · ${b.jenis || ''} Ke-${b.penilaian_ke != null ? b.penilaian_ke : 1} · ${b.kelas_nama || ''}`;
+    }
+    document.getElementById('ujListWrap').style.display = 'none';
+    document.getElementById('ujLembarWrap').style.display = '';
+    const btnSimpan = document.getElementById('btnUjSimpan');
+    const btnSelesai = document.getElementById('btnUjSelesai');
+    if (btnSimpan) btnSimpan.style.display = _ujState.readonly ? 'none' : '';
+    if (btnSelesai) btnSelesai.style.display = _ujState.readonly ? 'none' : '';
+    renderUjSoalList(_ujState.soal, _ujState.readonly);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) {
+    toast(errToText(e), 'err');
+  }
+}
+
 async function initTugasUjianPage() {
   updatePeriodeBadges();
   const badge = document.getElementById('badgePeriodeUjian');
@@ -9970,7 +10216,7 @@ async function initTugasUjianPage() {
   const sess = getSession();
   let allowed = false;
   if (sess?.role === 'admin' || sess?.role === 'guru') {
-    allowed = true; // admin/guru boleh lihat halaman
+    allowed = true;
   } else if (sess?.role === 'siswa') {
     const nisn = String(sess.user?.nisn || sess.user?.kode || '').replace(/\D/g, '');
     try {
@@ -9978,14 +10224,89 @@ async function initTugasUjianPage() {
       allowed = !!res.allowed;
     } catch (_) { allowed = false; }
   }
-  if (allowed) {
-    if (locked) locked.style.display = 'none';
-    if (open) open.style.display = '';
-  } else {
+  if (!allowed) {
     if (locked) locked.style.display = '';
     if (open) open.style.display = 'none';
+    return;
+  }
+  if (locked) locked.style.display = 'none';
+  if (open) open.style.display = '';
+
+  // Reset ke daftar
+  document.getElementById('ujListWrap').style.display = '';
+  document.getElementById('ujLembarWrap').style.display = 'none';
+  _ujState = { ruangId: null, bankId: null, soal: [], siswa: null, readonly: false };
+
+  try {
+    const res = await apiCall('list_ujian_tersedia', {});
+    const siswa = res.siswa || null;
+    _ujState.siswa = siswa;
+    // fallback identitas dari session
+    if (!siswa?.nama && sess?.role === 'siswa') {
+      ujSetSiswaHeader({
+        nama: sess.user?.nama || '',
+        nisn: sess.user?.nisn || sess.user?.kode || '',
+        kelas: sess.user?.kelas || '',
+        foto_url: null,
+      });
+    } else {
+      ujSetSiswaHeader(siswa);
+    }
+    // lengkapi foto dari store lokal bila perlu
+    if (siswa?.nisn && !siswa.foto_url) {
+      const fotoRec = (store.user_foto || []).find(f => f.role === 'siswa' && String(f.ref_key) === String(siswa.nisn));
+      if (fotoRec?.foto_url) {
+        siswa.foto_url = fotoRec.foto_url;
+        ujSetSiswaHeader(siswa);
+      }
+    }
+    renderUjPaketList(res.data || []);
+  } catch (e) {
+    console.warn(e);
+    const box = document.getElementById('ujPaketList');
+    if (box) box.innerHTML = `<div class="bs-empty" style="color:#c62828">${escapeHtml(errToText(e))}</div>`;
   }
 }
+
+document.getElementById('ujPaketList')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-uj-start]');
+  if (!btn || btn.disabled) return;
+  const id = btn.getAttribute('data-uj-start');
+  if (id) ujOpenLembar(id);
+});
+
+document.getElementById('btnUjKembali')?.addEventListener('click', () => {
+  document.getElementById('ujLembarWrap').style.display = 'none';
+  document.getElementById('ujListWrap').style.display = '';
+  initTugasUjianPage();
+});
+
+document.getElementById('btnUjSimpan')?.addEventListener('click', async () => {
+  if (!_ujState.ruangId || _ujState.readonly) return;
+  try {
+    const answers = collectUjAnswers();
+    const res = await apiCall('simpan_jawaban_ujian', { ruang_id: _ujState.ruangId, answers });
+    toast(res.message || 'Jawaban disimpan', 'ok');
+  } catch (e) { toast(errToText(e), 'err'); }
+});
+
+document.getElementById('btnUjSelesai')?.addEventListener('click', async () => {
+  if (!_ujState.ruangId || _ujState.readonly) return;
+  if (!confirm('Kumpulkan ujian sekarang? Jawaban tidak dapat diubah setelah dikumpulkan.')) return;
+  try {
+    const answers = collectUjAnswers();
+    const res = await apiCall('selesai_ujian', { ruang_id: _ujState.ruangId, answers });
+    toast(res.message || 'Ujian dikumpulkan', 'ok');
+    _ujState.readonly = true;
+    document.getElementById('btnUjSimpan').style.display = 'none';
+    document.getElementById('btnUjSelesai').style.display = 'none';
+    renderUjSoalList(_ujState.soal.map(s => {
+      const a = answers.find(x => String(x.item_id) === String(s.id));
+      return a ? { ...s, jawaban: a.jawaban } : s;
+    }), true);
+  } catch (e) { toast(errToText(e), 'err'); }
+});
+
 
 /** Cek izin per-user sebelum daftar/absen sidik jari */
 async function assertFpIzin(roleTarget, ownerKey) {
