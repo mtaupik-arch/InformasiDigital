@@ -3430,12 +3430,14 @@
               <th>Jenis</th>
               <th style="width:52px;text-align:center">Ke-</th>
               <th style="width:64px;text-align:center">Jml Soal</th>
+              <th style="width:48px;text-align:center">Attempt</th>
+              <th style="min-width:120px">Jadwal</th>
               <th style="width:72px">Status</th>
               <th class="col-act">Aksi</th>
             </tr>
           </thead>
           <tbody id="tbodyBankSoal">
-            <tr><td colspan="8" class="bs-empty">Memuat…</td></tr>
+            <tr><td colspan="10" class="bs-empty">Memuat…</td></tr>
           </tbody>
         </table>
       </div>
@@ -11568,10 +11570,17 @@ function renderBankSoalTable() {
     meta.textContent = `${rows.length} paket ditampil · ${_bsRows.length} total · ${nA} aktif`;
   }
   if (!rows.length) {
-    if (tb) tb.innerHTML = '<tr><td colspan="8" class="bs-empty">Belum ada paket soal. Klik + Buat Paket Soal.</td></tr>';
+    if (tb) tb.innerHTML = '<tr><td colspan="10" class="bs-empty">Belum ada paket soal. Klik + Buat Paket Soal.</td></tr>';
     return;
   }
   const canEdit = getSession()?.role === 'admin' || getSession()?.role === 'guru';
+  const fmtJadwal = (r) => {
+    const a = r.waktu_mulai ? bsToDatetimeLocal(r.waktu_mulai).replace('T', ' ') : '';
+    const b = r.waktu_selesai ? bsToDatetimeLocal(r.waktu_selesai).replace('T', ' ') : '';
+    if (!a && !b) return '—';
+    if (a && b) return `<span style="font-size:10.5px;line-height:1.3;display:block">${escapeHtml(a)}<br>→ ${escapeHtml(b)}</span>`;
+    return escapeHtml(a || b);
+  };
   if (tb) {
     tb.innerHTML = rows.map((r, i) => {
       let acts = '';
@@ -11587,6 +11596,8 @@ function renderBankSoalTable() {
         <td>${escapeHtml(r.jenis || '—')}</td>
         <td style="text-align:center;font-weight:700">${r.penilaian_ke != null ? r.penilaian_ke : 1}</td>
         <td style="text-align:center;font-weight:700">${r.jml_soal != null ? r.jml_soal : 0}</td>
+        <td style="text-align:center;font-weight:700">${r.attempt != null ? r.attempt : 1}</td>
+        <td>${fmtJadwal(r)}</td>
         <td>${bsStatusPill(r.status)}</td>
         <td class="col-act">${acts}</td>
       </tr>`;
@@ -11692,6 +11703,17 @@ function bsJenisOptions(selected) {
   return opts;
 }
 
+/** Format nilai DB → datetime-local (YYYY-MM-DDTHH:mm) */
+function bsToDatetimeLocal(v) {
+  if (!v) return '';
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0, 16);
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function openBankSoalForm(row) {
   const isEdit = !!(row && row.id);
   crudState = { entity: 'bank_soal', id: isEdit ? row.id : null };
@@ -11735,13 +11757,21 @@ function openBankSoalForm(row) {
           <option value="Selesai" ${row?.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
         </select>
       </div>
-      <div class="form-group full">
-        <label>Judul / Keterangan (opsional)</label>
-        <input type="text" name="judul" value="${escapeHtml(row?.judul || '')}" placeholder="Mis. Ulangan Harian 1 — Aljabar" />
+      <div class="form-group">
+        <label>Tgl / Jam Mulai</label>
+        <input type="datetime-local" name="waktu_mulai" id="bsFormMulai" value="${escapeHtml(bsToDatetimeLocal(row?.waktu_mulai || row?.mulai || ''))}" />
+      </div>
+      <div class="form-group">
+        <label>Tgl / Jam Selesai</label>
+        <input type="datetime-local" name="waktu_selesai" id="bsFormSelesai" value="${escapeHtml(bsToDatetimeLocal(row?.waktu_selesai || row?.selesai || ''))}" />
+      </div>
+      <div class="form-group">
+        <label>Attempt (kesempatan)</label>
+        <input type="number" name="attempt" id="bsFormAttempt" min="1" max="99" value="${row?.attempt != null ? Number(row.attempt) : 1}" />
       </div>
       ${isEdit ? `<input type="hidden" name="id" value="${escapeHtml(String(row.id))}" />` : ''}
     </div>
-    <p style="font-size:11px;color:#666;margin-top:8px">Penilaian Ke- mengikuti logika Input Nilai (1–30; yang sudah terpakai untuk mapel/kelas/jenis yang sama dinonaktifkan).</p>`;
+    <p style="font-size:11px;color:#666;margin-top:8px">Penilaian Ke- mengikuti logika Input Nilai (1–30; yang sudah terpakai untuk mapel/kelas/jenis yang sama dinonaktifkan). Attempt = berapa kali siswa boleh mengerjakan paket ini.</p>`;
   document.getElementById('crudModal')?.classList.add('active');
 
   document.getElementById('bsFormMapel')?.addEventListener('change', (ev) => {
@@ -11816,6 +11846,13 @@ async function saveBankSoalHook() {
   data.jml_soal = Number(data.jml_soal) || 0;
   data.penilaian_ke = Math.min(30, Math.max(1, Number(data.penilaian_ke || document.getElementById('bsFormKe')?.value) || 1));
   data.status = data.status || 'Draft';
+  data.attempt = Math.min(99, Math.max(1, Number(data.attempt) || 1));
+  // datetime-local → ISO (kosong = null)
+  const wm = (data.waktu_mulai || document.getElementById('bsFormMulai')?.value || '').trim();
+  const ws = (data.waktu_selesai || document.getElementById('bsFormSelesai')?.value || '').trim();
+  data.waktu_mulai = wm ? new Date(wm).toISOString() : null;
+  data.waktu_selesai = ws ? new Date(ws).toISOString() : null;
+  delete data.judul;
   if (crudState.id) data.id = crudState.id;
   try {
     const res = await apiCall('save_bank_soal', { row: data });
