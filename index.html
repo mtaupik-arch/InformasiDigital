@@ -12352,66 +12352,65 @@ document.getElementById('bsSoalList')?.addEventListener('click', async (e) => {
 });
 
 document.getElementById('btnBsSoalTemplate')?.addEventListener('click', () => {
-  const htmlDoc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office"
-xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="utf-8"><title>Template Bank Soal</title>
-<style>body{font-family:Arial,sans-serif;font-size:12pt}pre{background:#f5f5f5;padding:8px;white-space:pre-wrap}</style></head><body>
-<h1>TEMPLATE BANK SOAL (Import MS Word)</h1>
-<p>Simpan sebagai .docx lalu Import. Setiap soal dipisah --- atau dimulai dengan NO:</p>
-<pre>NO: 1
-JENIS: Pilihan Ganda
-SKOR: 1
-PERTANYAAN: Ibu kota Indonesia adalah?
-A. Jakarta
-B. Bandung
-C. Surabaya
-D. Medan
-KUNCI: A
----
-NO: 2
-JENIS: Isian Singkat
-SKOR: 1
-PERTANYAAN: 2 + 2 = …
-KUNCI: 4
----
-NO: 3
-JENIS: Uraian
-SKOR: 5
-PERTANYAAN: Jelaskan fotosintesis!
-KUNCI:
----
-NO: 4
-JENIS: Benar / Salah
-SKOR: 1
-PERTANYAAN: Bumi mengelilingi matahari.
-A. Benar
-B. Salah
-KUNCI: A
----
-NO: 5
-JENIS: Checkbox
-SKOR: 2
-PERTANYAAN: Pilih bilangan genap!
-A. 1
-B. 2
-C. 3
-D. 4
-KUNCI: B,D
----
-NO: 6
-JENIS: Menjodohkan
-SKOR: 2
-PERTANYAAN: Jodohkan negara dengan ibukota
-A. Indonesia=Jakarta
-B. Malaysia=Kuala Lumpur
-KUNCI: A,B
----
-NO: 7
-JENIS: Unggah File
-SKOR: 5
-PERTANYAAN: Unggah laporan PDF.
-KUNCI:</pre>
-<p>JENIS: Pilihan Ganda | Isian Singkat | Uraian | Benar / Salah | Checkbox | Menjodohkan | Unggah File</p>
+  // Format mengikuti parser parseSoalFromWordHtml (sama seperti index_ok)
+  const contoh = [
+    'CONTOH FORMAT SOAL — simpan sebagai .docx lalu Import',
+    '',
+    'Aturan:',
+    '1) Nomor soal di awal baris: 1.  2.  3.  (atau No. 1)',
+    '2) Opsi di baris sendiri: A.  B.  C.  D.',
+    '3) Kunci di baris sendiri: Kunci: B',
+    '4) Sisipkan gambar/tabel di Word di bawah teks pertanyaan (sebelum opsi)',
+    '5) Jangan gabung opsi dalam satu baris',
+    '',
+    '1. Ibu kota Indonesia adalah…',
+    'A. Bandung',
+    'B. Jakarta',
+    'C. Surabaya',
+    'D. Medan',
+    'Kunci: B',
+    '',
+    '2. Bumi berputar mengelilingi matahari.',
+    'A. Benar',
+    'B. Salah',
+    'Kunci: A',
+    '',
+    '3. Hasil 12 × 12 =',
+    'Kunci: 144',
+    '',
+    '4. Jelaskan pengertian fotosintesis.',
+    'Kunci: Proses tumbuhan mengubah cahaya menjadi energi.',
+    '',
+    '5. Perhatikan gambar/tabel pada soal (sisipkan di Word di sini).',
+    'Nilai yang tepat adalah…',
+    'A. 5',
+    'B. 6',
+    'C. 7',
+    'D. 25',
+    'Kunci: A',
+    '',
+    '6. Pilih bilangan genap! (boleh lebih dari satu)',
+    'A. 1',
+    'B. 2',
+    'C. 3',
+    'D. 4',
+    'Kunci: B, D',
+    '',
+    '7. Jodohkan ekspresi dengan hasilnya!',
+    'A. 2+2 = 4',
+    'B. 3×3 = 9',
+    'C. 10-1 = 9',
+    'D. 5+5 = 10',
+    'Kunci: A, B, C, D',
+  ].join('\n');
+
+  // .doc HTML agar mudah dibuka di Word
+  const htmlDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Template Bank Soal</title>
+<style>body{font-family:Arial,sans-serif;font-size:12pt;line-height:1.5}
+pre{background:#f8fafc;border:1px solid #e2e8f0;padding:12px;white-space:pre-wrap}</style></head><body>
+<h2>Template Bank Soal (Import Word)</h2>
+<p>Salin contoh di bawah ke Microsoft Word, edit sesuai kebutuhan, lalu <b>Simpan sebagai .docx</b> dan Import.</p>
+<pre>${contoh.replace(/</g, '&lt;')}</pre>
 </body></html>`;
   const blob = new Blob(['\ufeff', htmlDoc], { type: 'application/msword' });
   const a = document.createElement('a');
@@ -12419,7 +12418,7 @@ KUNCI:</pre>
   a.download = 'Template_Bank_Soal.doc';
   a.click();
   URL.revokeObjectURL(a.href);
-  toast('Template diunduh (.doc)', 'ok');
+  toast('Template diunduh — format nomor 1. / A. B. C. D. / Kunci:', 'ok');
 });
 
 document.getElementById('btnBsSoalImport')?.addEventListener('click', () => {
