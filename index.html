@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="fix-hari-libur-v3-2026-10-31">
+<meta name="sis-fix" content="fix-login-mask-2026-10-31">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -529,9 +529,19 @@
   .login-body label { display:block; font-size:12px; font-weight:600; color:#555; margin-bottom:6px; }
   .login-body input {
     width:100%; padding:12px 14px; border:1.5px solid #d0d7e2; border-radius:10px;
-    font-size:16px; letter-spacing:2px; text-align:center; outline:none; transition:.2s;
+    font-size:16px; letter-spacing:4px; text-align:center; outline:none; transition:.2s;
   }
   .login-body input:focus { border-color:var(--biru); box-shadow:0 0 0 3px rgba(33,150,243,.15); }
+  /* Masking kuat: password + disc (HP sering menampilkan digit terakhir) */
+  .login-body input#inputIdentifier,
+  .login-body input.login-pin-mask {
+    -webkit-text-security: disc !important;
+    text-security: disc !important;
+    font-family: text-security-disc, 'Segoe UI', Tahoma, sans-serif !important;
+    letter-spacing: 6px !important;
+    /* cegah browser menampilkan karakter terakhir sebentar */
+    ime-mode: disabled;
+  }
   .login-hint { display:none !important; }
   .login-error {
     display:none; margin-top:10px; padding:8px 12px; background:#fdecea; color:#c62828;
@@ -2681,8 +2691,10 @@
       <p id="loginSekolahNama">SMA Negeri 1 Nusantara</p>
     </div>
     <div class="login-body">
-      <input type="password" id="inputIdentifier" inputmode="numeric" pattern="[0-9]*"
-             maxlength="10" autocomplete="current-password" />
+      <input type="password" id="inputIdentifier" class="login-pin-mask"
+             inputmode="numeric" pattern="[0-9]*" maxlength="10"
+             autocomplete="off" autocapitalize="off" autocorrect="off"
+             spellcheck="false" enterkeyhint="done" aria-label="Kode login NISN atau PIN" />
       <div class="login-error" id="loginError"></div>
       <button class="login-btn" id="btnDoLogin">Masuk</button>
     </div>
@@ -4993,10 +5005,17 @@ const btnDoLogin = document.getElementById('btnDoLogin');
 
 function openLogin() {
   loginError.classList.remove('show');
-  inputIdentifier.value = '';
+  if (inputIdentifier) {
+    inputIdentifier.setAttribute('type', 'password');
+    inputIdentifier.value = '';
+  }
   try { applySekolahToUI(); } catch (_) {}
   loginOverlay.classList.add('active');
-  setTimeout(() => inputIdentifier.focus(), 200);
+  setTimeout(() => {
+    if (!inputIdentifier) return;
+    inputIdentifier.setAttribute('type', 'password');
+    inputIdentifier.focus();
+  }, 200);
 }
 function closeLogin() {
   loginOverlay.classList.remove('active');
@@ -5009,8 +5028,22 @@ loginOverlay.addEventListener('click', (e) => {
   if (e.target === loginOverlay) closeLogin();
 });
 
-inputIdentifier.addEventListener('input', () => {
-  inputIdentifier.value = inputIdentifier.value.replace(/\D/g, '').slice(0, 10);
+// Masking: pastikan type selalu password + hanya digit
+function enforceLoginMask() {
+  if (!inputIdentifier) return;
+  if (inputIdentifier.getAttribute('type') !== 'password') {
+    inputIdentifier.setAttribute('type', 'password');
+  }
+  const digits = String(inputIdentifier.value || '').replace(/\D/g, '').slice(0, 10);
+  if (inputIdentifier.value !== digits) inputIdentifier.value = digits;
+}
+inputIdentifier.addEventListener('input', enforceLoginMask);
+inputIdentifier.addEventListener('keyup', enforceLoginMask);
+inputIdentifier.addEventListener('paste', (e) => {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+  inputIdentifier.value = String(text).replace(/\D/g, '').slice(0, 10);
+  enforceLoginMask();
 });
 inputIdentifier.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') doLogin();
