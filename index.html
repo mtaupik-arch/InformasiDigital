@@ -3175,6 +3175,45 @@
 
 
 
+
+  <!-- ========== PAGE: BACKUP DATA ========== -->
+  <div class="page" id="page-backup-data">
+    <div class="page-title">💾 Backup Data</div>
+    <div class="card" style="padding:14px;margin-bottom:12px;">
+      <div style="font-size:13px;color:#475569;line-height:1.45;margin-bottom:10px;">
+        Unduh salinan <b>semua data menu</b> dari database ke file <b>JSON</b> di perangkat Anda.
+        Cocok untuk paket gratis Supabase. Simpan di Drive/USB secara berkala (1–2× seminggu),
+        terutama sebelum naik kelas, kelulusan, atau arsip absensi.
+        File dapat berisi PIN — simpan di tempat aman.
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;">Pilih tabel</div>
+      <div id="backupTableList" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-bottom:12px;font-size:13px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <button type="button" class="btn btn-outline" id="btnBackupSelectAll" style="flex:1;">☑ Pilih semua</button>
+        <button type="button" class="btn btn-outline" id="btnBackupSelectNone" style="flex:1;">☐ Kosongkan</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" id="btnBackupExport" style="flex:1;">⬇ Unduh Backup JSON</button>
+        <button type="button" class="btn btn-outline" id="btnBackupCount" style="flex:1;">🔢 Cek Jumlah Baris</button>
+      </div>
+      <div id="backupProgress" style="margin-top:12px;font-size:12px;color:#64748b;white-space:pre-wrap;"></div>
+    </div>
+
+    <div class="card" style="padding:14px;margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;color:#0f172a;">↩ Pulihkan dari Backup</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.4;">
+        Unggah file JSON hasil backup. Data akan di-<b>upsert</b> (baris dengan id sama diperbarui).
+        Tidak menghapus data lain yang tidak ada di file. Gunakan hati-hati.
+      </div>
+      <input type="file" id="backupRestoreFile" accept="application/json,.json" style="display:none;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-outline" id="btnBackupPickRestore" style="flex:1;">📂 Pilih File JSON</button>
+        <button type="button" class="btn" id="btnBackupRestore" style="flex:1;background:#b45309;color:#fff;border:none;">↩ Pulihkan</button>
+      </div>
+      <div id="backupRestoreInfo" style="margin-top:10px;font-size:12px;color:#64748b;white-space:pre-wrap;"></div>
+    </div>
+  </div>
+
   <!-- ========== PAGE: DOWNLOAD ABSENSI ========== -->
   <div class="page" id="page-download-absensi">
     <div class="page-title">⬇️ Download Absensi</div>
@@ -5241,7 +5280,7 @@ let navReady = false;
 let navTrapArmed = false;
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal','download-absensi'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal','download-absensi','backup-data'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   if (page === 'pengumuman-lulus') target = 'validasi-lulusan';
@@ -5329,6 +5368,7 @@ function navigate(page, opts = {}) {
   if (target === 'input-daftar-nilai') runPage(() => initNilaiPage());
   if (target === 'rekap-data') runPage(() => initRekapPage());
   if (target === 'download-absensi') runPage(() => initDownloadAbsensiPage());
+  if (target === 'backup-data') runPage(() => initBackupPage());
   if (target === 'reset-pin') runPage(() => initResetPinPage());
   if (target === 'naik-kelas') runPage(() => initNaikKelasPage());
   if (target === 'syarat-naik') runPage(() => initSyaratNaikPage());
@@ -17021,6 +17061,265 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 // juga setelah renderUserUI admin
 const _renderUserUI_orig = typeof renderUserUI === 'function' ? renderUserUI : null;
+
+
+/* ============================================================
+   BACKUP / RESTORE DATA — semua tabel menu (admin, via API)
+   ============================================================ */
+const BACKUP_TABLES_DEFAULT = [
+  { key: 'siswa', label: 'Siswa' },
+  { key: 'guru', label: 'Guru' },
+  { key: 'admin', label: 'Admin' },
+  { key: 'lulusan', label: 'Lulusan' },
+  { key: 'mapel', label: 'Mapel' },
+  { key: 'kelas', label: 'Kelas' },
+  { key: 'periode', label: 'Periode' },
+  { key: 'sesi', label: 'Sesi' },
+  { key: 'hari_libur', label: 'Hari Libur' },
+  { key: 'nilai', label: 'Nilai' },
+  { key: 'bobot_nilai', label: 'Bobot Nilai' },
+  { key: 'guru_ampu', label: 'Guru Ampu' },
+  { key: 'absensi', label: 'Absensi (aktif)' },
+  { key: 'absensi_historis', label: 'Absensi Historis' },
+  { key: 'absensi_siswa', label: 'Absensi Siswa (legacy)' },
+  { key: 'absensi_guru', label: 'Absensi Guru (legacy)' },
+  { key: 'bank_soal', label: 'Bank Soal' },
+  { key: 'bank_soal_item', label: 'Item Bank Soal' },
+  { key: 'ruang_ujian', label: 'Ruang Ujian' },
+  { key: 'ujian_jawaban', label: 'Jawaban Ujian' },
+  { key: 'jadwal_mapel', label: 'Jadwal Mapel' },
+  { key: 'jadwal_mapel_kelas', label: 'Jadwal Mapel Kelas' },
+  { key: 'izin_user', label: 'Izin Sidik/Ujian' },
+  { key: 'fingerprint_cred', label: 'Sidik Jari (cred)' },
+  { key: 'pengaturan_absensi', label: 'Pengaturan Absensi' },
+  { key: 'data_sekolah', label: 'Data Sekolah' },
+  { key: 'user_foto', label: 'Foto User' },
+  { key: 'gdrive_config', label: 'GDrive Config' },
+  { key: 'gdrive_files', label: 'GDrive Files' },
+  { key: 'login_log', label: 'Log Login' },
+];
+
+let _backupTables = BACKUP_TABLES_DEFAULT.slice();
+let _backupRestorePayload = null;
+
+async function initBackupPage() {
+  const sess = getSession();
+  if (!sess || sess.role !== 'admin') {
+    const box = document.getElementById('backupTableList');
+    if (box) box.innerHTML = '<div style="color:#c62828;grid-column:1/-1;">Hanya Admin yang dapat mengakses Backup Data.</div>';
+    return;
+  }
+  try {
+    const res = await apiCall('backup_tables', {});
+    if (Array.isArray(res.data) && res.data.length) _backupTables = res.data;
+  } catch (_) {}
+  const box = document.getElementById('backupTableList');
+  if (box && !box.dataset.ready) {
+    box.innerHTML = _backupTables.map(t =>
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">' +
+      '<input type="checkbox" class="cb-backup-table" value="' + escapeHtml(t.key) + '" checked> ' +
+      escapeHtml(t.label) + '</label>'
+    ).join('');
+    box.dataset.ready = '1';
+  }
+  const prog = document.getElementById('backupProgress');
+  if (prog) prog.textContent = '';
+}
+
+function getSelectedBackupTables() {
+  return [...document.querySelectorAll('.cb-backup-table:checked')].map(c => c.value);
+}
+
+async function fetchAllBackupRows(table, onProgress) {
+  const pageSize = 1000;
+  let all = [];
+  let from = 0;
+  for (;;) {
+    const res = await apiCall('backup_export_table', { table, from, page_size: pageSize });
+    if (res.status === 'error') {
+      if (res.missing) return { rows: [], missing: true, error: res.message };
+      throw new Error(res.message || 'Gagal baca ' + table);
+    }
+    const rows = res.data || [];
+    all = all.concat(rows);
+    if (onProgress) onProgress(table, all.length);
+    if (res.done || rows.length < pageSize) break;
+    from += pageSize;
+    await new Promise(r => setTimeout(r, 0));
+  }
+  return { rows: all, missing: false };
+}
+
+function downloadJsonFile(filename, obj) {
+  const text = JSON.stringify(obj, null, 2);
+  const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    try { URL.revokeObjectURL(a.href); } catch (_) {}
+    a.remove();
+  }, 1500);
+}
+
+document.getElementById('btnBackupSelectAll')?.addEventListener('click', () => {
+  document.querySelectorAll('.cb-backup-table').forEach(c => { c.checked = true; });
+});
+document.getElementById('btnBackupSelectNone')?.addEventListener('click', () => {
+  document.querySelectorAll('.cb-backup-table').forEach(c => { c.checked = false; });
+});
+
+document.getElementById('btnBackupCount')?.addEventListener('click', async () => {
+  const out = document.getElementById('backupProgress');
+  const tables = getSelectedBackupTables();
+  if (!tables.length) { toast('Pilih minimal 1 tabel', 'err'); return; }
+  if (out) out.textContent = 'Menghitung…';
+  const lines = [];
+  for (const t of tables) {
+    try {
+      const res = await apiCall('backup_count_table', { table: t });
+      if (res.missing) lines.push(t + ': (tabel tidak ada)');
+      else lines.push(t + ': ' + (res.count ?? 0) + ' baris');
+      if (out) out.textContent = lines.join('\n');
+    } catch (e) {
+      lines.push(t + ': GAGAL — ' + errToText(e));
+      if (out) out.textContent = lines.join('\n');
+    }
+  }
+  if (out) out.textContent = lines.join('\n') + '\n\n✓ Selesai hitung.';
+});
+
+document.getElementById('btnBackupExport')?.addEventListener('click', async () => {
+  const out = document.getElementById('backupProgress');
+  const tables = getSelectedBackupTables();
+  if (!tables.length) { toast('Pilih minimal 1 tabel', 'err'); return; }
+  if (!confirm('Unduh backup ' + tables.length + ' tabel ke file JSON?\n\nFile dapat berisi PIN — simpan dengan aman.')) return;
+  const btn = document.getElementById('btnBackupExport');
+  if (btn) { btn.disabled = true; btn.textContent = 'Mengunduh…'; }
+  const payload = {
+    meta: {
+      app: 'Sistem Informasi Sekolah',
+      version: 'backup-2026-10-31',
+      exported_at: new Date().toISOString(),
+      tables,
+    },
+    data: {},
+  };
+  const summary = [];
+  try {
+    for (const t of tables) {
+      if (out) out.textContent = 'Mengambil: ' + t + ' …';
+      try {
+        const { rows, missing, error } = await fetchAllBackupRows(t, (name, n) => {
+          if (out) out.textContent = 'Mengambil: ' + name + ' … ' + n + ' baris';
+        });
+        if (missing) {
+          payload.data[t] = [];
+          summary.push(t + ': (dilewati, tabel tidak ada)');
+        } else {
+          payload.data[t] = rows;
+          summary.push(t + ': ' + rows.length + ' baris');
+        }
+      } catch (e) {
+        payload.data[t] = { _error: errToText(e) };
+        summary.push(t + ': GAGAL — ' + errToText(e));
+      }
+    }
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const fname = 'backup-sis-' + stamp + '.json';
+    downloadJsonFile(fname, payload);
+    if (out) out.textContent = summary.join('\n') + '\n\n✓ File diunduh: ' + fname;
+    showBigPopup('ok', 'Backup Selesai', 'File: <b>' + escapeHtml(fname) + '</b><br><br>' +
+      summary.slice(0, 10).map(s => escapeHtml(s)).join('<br>') +
+      (summary.length > 10 ? '<br>…' : ''), 4000);
+  } catch (e) {
+    console.error(e);
+    if (out) out.textContent = 'Gagal: ' + errToText(e);
+    toast('Gagal backup: ' + errToText(e), 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬇ Unduh Backup JSON'; }
+  }
+});
+
+document.getElementById('btnBackupPickRestore')?.addEventListener('click', () => {
+  document.getElementById('backupRestoreFile')?.click();
+});
+
+document.getElementById('backupRestoreFile')?.addEventListener('change', async function () {
+  const f = this.files && this.files[0];
+  const info = document.getElementById('backupRestoreInfo');
+  _backupRestorePayload = null;
+  if (!f) return;
+  try {
+    const text = await f.text();
+    const json = JSON.parse(text);
+    if (!json || typeof json !== 'object' || !json.data) {
+      throw new Error('Format tidak dikenali (butuh objek .data)');
+    }
+    _backupRestorePayload = json;
+    const keys = Object.keys(json.data);
+    const lines = ['File: ' + f.name, 'Diekspor: ' + (json.meta && json.meta.exported_at ? json.meta.exported_at : '-'), ''];
+    keys.forEach(k => {
+      const v = json.data[k];
+      if (Array.isArray(v)) lines.push(k + ': ' + v.length + ' baris');
+      else if (v && v._error) lines.push(k + ': (error di file)');
+      else lines.push(k + ': (bukan array)');
+    });
+    if (info) info.textContent = lines.join('\n');
+  } catch (e) {
+    if (info) info.textContent = 'Gagal baca file: ' + errToText(e);
+    _backupRestorePayload = null;
+  }
+  this.value = '';
+});
+
+document.getElementById('btnBackupRestore')?.addEventListener('click', async () => {
+  const info = document.getElementById('backupRestoreInfo');
+  if (!_backupRestorePayload || !_backupRestorePayload.data) {
+    toast('Pilih file backup JSON dulu', 'err');
+    return;
+  }
+  if (!confirm('Pulihkan data dari backup?\n\nBaris dengan id sama akan diperbarui (upsert).\nData yang tidak ada di file TIDAK dihapus.')) return;
+  const btn = document.getElementById('btnBackupRestore');
+  if (btn) { btn.disabled = true; btn.textContent = 'Memulihkan…'; }
+  const report = [];
+  try {
+    const entries = Object.entries(_backupRestorePayload.data);
+    for (const [table, rows] of entries) {
+      if (!Array.isArray(rows) || !rows.length) {
+        report.push(table + ': dilewati (kosong)');
+        if (info) info.textContent = report.join('\n');
+        continue;
+      }
+      let ok = 0, fail = 0;
+      for (let i = 0; i < rows.length; i += 200) {
+        const chunk = rows.slice(i, i + 200);
+        try {
+          const res = await apiCall('backup_restore_table', { table, rows: chunk });
+          ok += res.upserted || chunk.length;
+        } catch (e) {
+          fail += chunk.length;
+          report.push(table + ' batch@' + i + ': ' + errToText(e));
+        }
+        if (info) info.textContent = report.concat([table + ': progress ' + Math.min(i + 200, rows.length) + '/' + rows.length]).join('\n');
+        await new Promise(r => setTimeout(r, 0));
+      }
+      report.push(table + ': OK ' + ok + (fail ? (', gagal ' + fail) : ''));
+      if (info) info.textContent = report.join('\n');
+    }
+    if (info) info.textContent = report.join('\n') + '\n\n✓ Selesai.';
+    try { await refreshStoreFromDb(); } catch (_) {}
+    showBigPopup('ok', 'Pemulihan Selesai', report.slice(0, 12).map(s => escapeHtml(s)).join('<br>'), 5000);
+  } catch (e) {
+    console.error(e);
+    if (info) info.textContent = (report.join('\n') + '\nGagal: ' + errToText(e)).trim();
+    toast('Gagal pulihkan: ' + errToText(e), 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↩ Pulihkan'; }
+  }
+});
 
 /* ===== Init ===== */
 (async function init() {
