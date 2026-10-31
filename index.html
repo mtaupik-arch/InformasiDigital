@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="fix-hari-libur-v2-2026-10-31">
+<meta name="sis-fix" content="fix-hari-libur-v3-2026-10-31">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -5693,12 +5693,7 @@ async function renderDashboard() {
       if (liburHariIni) {
         const ket = liburHariIni.keterangan || 'Hari Libur';
         const tglStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-        chipWrap.innerHTML =
-          '<span class="sesi-chip sesi-chip-off" style="background:linear-gradient(135deg,#fee2e2,#fecaca);color:#b91c1c;border-color:#f87171;display:block;text-align:center;line-height:1.45;padding:10px 14px;white-space:normal;">' +
-          '<b style="font-size:14px;">📅 ' + escapeHtml(ket) + '</b><br>' +
-          '<span style="font-weight:600;font-size:12px;">' + escapeHtml(tglStr) + '</span><br>' +
-          '<span style="font-weight:500;font-size:11px;opacity:.9;">Absensi ditutup · rekap kehadiran tidak dihitung</span>' +
-          '</span>';
+        chipWrap.innerHTML = buildDashLiburChipHtml(liburHariIni || { keterangan: ket });
         hideDashRekap = true;
         hideReason = 'libur';
       } else {
@@ -5760,12 +5755,7 @@ async function renderDashboard() {
       const ket = logRes.libur_keterangan || 'Hari Libur';
       const tglStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
       if (chipWrap) {
-        chipWrap.innerHTML =
-          '<span class="sesi-chip sesi-chip-off" style="background:linear-gradient(135deg,#fee2e2,#fecaca);color:#b91c1c;border-color:#f87171;display:block;text-align:center;line-height:1.45;padding:10px 14px;white-space:normal;">' +
-          '<b style="font-size:14px;">📅 ' + escapeHtml(ket) + '</b><br>' +
-          '<span style="font-weight:600;font-size:12px;">' + escapeHtml(tglStr) + '</span><br>' +
-          '<span style="font-weight:500;font-size:11px;opacity:.9;">Absensi ditutup · rekap kehadiran tidak dihitung</span>' +
-          '</span>';
+        chipWrap.innerHTML = buildDashLiburChipHtml(liburHariIni || { keterangan: ket });
       }
       if (rekapWrap) rekapWrap.style.display = 'none';
       if (cardGuru) cardGuru.style.display = 'none';
@@ -10366,20 +10356,49 @@ function sesiStateKey() {
   const st = getSesiStatusText();
   return (a ? 'on:' + a.id : 'off') + '|' + (st.text || '');
 }
+/** HTML chip Informasi Sesi saat hari libur (prioritas di atas status sesi) */
+function buildDashLiburChipHtml(liburRow) {
+  const ket = (liburRow && liburRow.keterangan) ? String(liburRow.keterangan) : 'Hari Libur';
+  const tglStr = new Date().toLocaleDateString('id-ID', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+  return (
+    '<span class="sesi-chip sesi-chip-off" style="background:linear-gradient(135deg,#fee2e2,#fecaca);color:#b91c1c;border-color:#f87171;display:block;text-align:center;line-height:1.45;padding:10px 14px;white-space:normal;">' +
+    '<b style="font-size:14px;">📅 ' + escapeHtml(ket) + '</b><br>' +
+    '<span style="font-weight:600;font-size:12px;">' + escapeHtml(tglStr) + '</span><br>' +
+    '<span style="font-weight:500;font-size:11px;opacity:.9;">Absensi ditutup · rekap kehadiran tidak dihitung</span>' +
+    '</span>'
+  );
+}
+
 function autoRefreshSesiUI() {
   const key = sesiStateKey();
   const changed = key !== _lastSesiKey;
   _lastSesiKey = key;
-  // Selalu update teks sesi & tombol kamera
+  // Selalu update teks sesi & tombol kamera (halaman scan)
   updateSesiBadges();
+
+  const onDash = document.getElementById('page-dashboard')?.classList.contains('active');
   const chipWrap = document.getElementById('dashSesiChips');
-  if (chipWrap && document.getElementById('page-dashboard')?.classList.contains('active')) {
-    chipWrap.innerHTML = buildDashSesiInfoHtml(getSesiList());
+  const liburHariIni = (typeof isTanggalLibur === 'function') ? isTanggalLibur(todayStr()) : null;
+
+  // Dashboard: prioritas hari libur — jangan ditimpa pesan "sesi selesai"
+  if (chipWrap && onDash) {
+    if (liburHariIni) {
+      chipWrap.innerHTML = buildDashLiburChipHtml(liburHariIni);
+    } else {
+      chipWrap.innerHTML = buildDashSesiInfoHtml(getSesiList());
+    }
   }
+
   // Jika pergantian sesi → refresh rekap & terapkan A/B di server
+  // Lewati apply_ab_status saat hari libur
   if (changed && getSession()?.token) {
-    apiCall('apply_ab_status', {}).catch(() => {});
-    if (document.getElementById('page-dashboard')?.classList.contains('active')) {
+    if (!liburHariIni) {
+      apiCall('apply_ab_status', {}).catch(() => {});
+    }
+    if (onDash) {
+      // Saat libur, cukup jaga chip + hide rekap; renderDashboard aman dipanggil
       renderDashboard();
     }
     if (document.getElementById('page-scan-barcode')?.classList.contains('active')) {
