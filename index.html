@@ -516,9 +516,12 @@
     color:#fff; padding:22px 20px; text-align:center;
   }
   .login-header .logo-circle {
-    width:56px; height:56px; border-radius:50%; background:#fff; color:var(--primary);
-    display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800;
-    margin:0 auto 10px;
+    width:64px; height:64px; border-radius:0; margin:0 auto 10px;
+    background:transparent; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:22px; color:#fff; overflow:visible;
+  }
+  .login-header .logo-circle img {
+    width:100%; height:100%; object-fit:contain; display:block; background:transparent;
   }
   .login-header h2 { font-size:16px; font-weight:700; }
   .login-header p { font-size:12px; opacity:.85; margin-top:4px; }
@@ -2429,35 +2432,42 @@
     overflow-wrap: break-word;
     white-space: normal;
   }
-  /* No: sangat sempit */
+  /* No: se-sempit mungkin (hanya angka) */
+  table.struktur-table col.col-str-no { width: 18px; }
   table.struktur-table th.col-str-no,
   table.struktur-table td.col-str-no,
   table.struktur-table thead th:first-child,
   table.struktur-table tbody td:first-child {
-    width: 22px !important;
-    max-width: 24px !important;
-    min-width: 20px !important;
+    width: 18px !important;
+    max-width: 18px !important;
+    min-width: 16px !important;
     text-align: center !important;
-    padding-left: 2px !important;
-    padding-right: 2px !important;
+    padding: 6px 1px !important;
     box-sizing: border-box;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 11px;
+    letter-spacing: -0.3px;
   }
-  /* Nama: proporsi terbesar */
+  /* Nama */
   table.struktur-table th.col-str-nama,
   table.struktur-table td.col-str-nama,
   table.struktur-table thead th:nth-child(2),
   table.struktur-table tbody td:nth-child(2) {
-    width: 46% !important;
+    width: 42% !important;
     text-align: left !important;
     white-space: normal;
+    padding-left: 6px !important;
   }
-  /* Jabatan struktur */
+  /* Jabatan struktur — lebih lega agar tidak bertumpuk */
   table.struktur-table th.col-str-jab,
   table.struktur-table td.col-str-jab,
   table.struktur-table thead th:nth-child(3),
   table.struktur-table tbody td:nth-child(3) {
-    width: 34% !important;
+    width: 38% !important;
     text-align: left !important;
+    white-space: normal;
+    line-height: 1.35;
   }
   /* Jabatan fungsional (4 kolom) */
   table.struktur-table th.col-str-fung,
@@ -2466,6 +2476,8 @@
   table.struktur-table tbody td:nth-child(4) {
     width: 20% !important;
     text-align: left !important;
+    white-space: normal;
+    line-height: 1.35;
   }
   @media (max-width: 480px) {
     table.struktur-table { font-size: 11px; }
@@ -2473,12 +2485,19 @@
     table.struktur-table td.col-str-no,
     table.struktur-table thead th:first-child,
     table.struktur-table tbody td:first-child {
-      width: 20px !important;
-      max-width: 22px !important;
+      width: 16px !important;
+      max-width: 16px !important;
+      min-width: 14px !important;
+      padding: 5px 0 !important;
+      font-size: 10px;
     }
     table.struktur-table thead th:nth-child(2),
     table.struktur-table tbody td:nth-child(2) {
-      width: 48% !important;
+      width: 40% !important;
+    }
+    table.struktur-table thead th:nth-child(3),
+    table.struktur-table tbody td:nth-child(3) {
+      width: 40% !important;
     }
   }
 
@@ -2657,9 +2676,9 @@
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="login-header">
-      <div class="logo-circle">S</div>
+      <div class="logo-circle" id="loginLogo">S</div>
       <h2>Login Sistem Informasi</h2>
-      <p>SMA Negeri 1 Nusantara</p>
+      <p id="loginSekolahNama">SMA Negeri 1 Nusantara</p>
     </div>
     <div class="login-body">
       <input type="password" id="inputIdentifier" inputmode="numeric" pattern="[0-9]*"
@@ -2727,7 +2746,12 @@
         <div class="dash-public-stat-title">🏛️ Struktur Organisasi</div>
         <div class="table-scroll struktur-scroll" style="max-height:280px;">
           <table class="struktur-table">
-            <thead><tr><th class="col-str-no">No</th><th class="col-str-nama">Nama</th><th class="col-str-jab">Jabatan</th></tr></thead>
+            <colgroup>
+              <col class="col-str-no" style="width:18px" />
+              <col class="col-str-nama" />
+              <col class="col-str-jab" />
+            </colgroup>
+            <thead><tr><th class="col-str-no">#</th><th class="col-str-nama">Nama</th><th class="col-str-jab">Jabatan</th></tr></thead>
             <tbody id="tbodyStrukturOrgPub">
               <tr class="empty-row"><td colspan="3">Memuat…</td></tr>
             </tbody>
@@ -2792,12 +2816,18 @@
     <h3>🏛️ Struktur Organisasi</h3>
     <div class="table-scroll struktur-scroll">
       <table class="struktur-table" id="tableStrukturOrg">
+        <colgroup>
+          <col class="col-str-no" style="width:18px" />
+          <col class="col-str-nama" />
+          <col class="col-str-jab" />
+          <col class="col-str-fung" />
+        </colgroup>
         <thead>
           <tr>
-            <th class="col-str-no">No</th>
+            <th class="col-str-no">#</th>
             <th class="col-str-nama">Nama</th>
-            <th class="col-str-jab">Jabatan Struktur</th>
-            <th class="col-str-fung">Jabatan Fungsional</th>
+            <th class="col-str-jab">Jab. Struktur</th>
+            <th class="col-str-fung">Jab. Fungsional</th>
           </tr>
         </thead>
         <tbody id="tbodyStrukturOrg">
@@ -4960,6 +4990,7 @@ const btnDoLogin = document.getElementById('btnDoLogin');
 function openLogin() {
   loginError.classList.remove('show');
   inputIdentifier.value = '';
+  try { applySekolahToUI(); } catch (_) {}
   loginOverlay.classList.add('active');
   setTimeout(() => inputIdentifier.focus(), 200);
 }
@@ -8659,6 +8690,24 @@ function applySekolahToUI() {
   // Sidebar brand
   const sideNama = document.getElementById('sidebarSekolahNama');
   if (sideNama) sideNama.textContent = nama;
+  // Form login: nama + logo
+  const loginNama = document.getElementById('loginSekolahNama');
+  if (loginNama) loginNama.textContent = nama;
+  const loginLogo = document.getElementById('loginLogo');
+  if (loginLogo) {
+    const logoUrl = s.logo_url || '';
+    if (logoUrl) {
+      loginLogo.innerHTML = '';
+      const im = document.createElement('img');
+      im.alt = 'Logo';
+      im.src = logoUrl;
+      im.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;background:transparent';
+      im.onerror = function(){ loginLogo.textContent = (nama||'S').trim().charAt(0).toUpperCase(); };
+      loginLogo.appendChild(im);
+    } else {
+      loginLogo.textContent = (nama || 'S').trim().charAt(0).toUpperCase();
+    }
+  }
 
   const detail = document.getElementById('schoolDetail');
   if (detail) {
