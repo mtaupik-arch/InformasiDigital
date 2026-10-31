@@ -2130,6 +2130,35 @@
   .exit-btn-cancel { background:#eceff1; color:#37474f; }
   .exit-btn-ok { background:#c62828; color:#fff; }
 
+
+  /* ===== DOWNLOAD ABSENSI ===== */
+  .dl-abs-sheet { font-family: Arial, Helvetica, sans-serif; color: #0f172a; width: fit-content; max-width: none; padding: 12px; }
+  .dl-abs-sheet .dl-title { text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.3px; }
+  .dl-abs-sheet .dl-sub { text-align: center; font-weight: 700; font-size: 11px; margin-bottom: 8px; }
+  .dl-abs-sheet .dl-meta { font-size: 11px; margin-bottom: 6px; }
+  .dl-abs-sheet .dl-meta div { margin: 2px 0; }
+  .dl-abs-sheet table {
+    border-collapse: collapse; font-size: 11px; table-layout: fixed;
+    width: auto !important; max-width: none !important;
+  }
+  .dl-abs-sheet th, .dl-abs-sheet td {
+    border: 0.5pt solid #1e3a8a; padding: 1px 2px; text-align: center; vertical-align: middle;
+    overflow: hidden; white-space: nowrap; box-sizing: border-box; line-height: 1.15;
+  }
+  .dl-abs-sheet th { background: #1d4ed8; color: #fff; font-weight: 700; font-size: 10px; }
+  .dl-abs-sheet td.dl-nama {
+    text-align: left; padding-left: 4px; font-size: 11px; line-height: 1.25;
+    white-space: normal; word-break: break-word;
+  }
+  .dl-abs-sheet td.dl-libur, .dl-abs-sheet th.dl-libur { background: #fecaca !important; color: #7f1d1d !important; }
+  .dl-abs-sheet .dl-ver { text-align: right; font-size: 9px; color: #64748b; margin-bottom: 2px; }
+  @media print {
+    body * { visibility: hidden !important; }
+    #dlAbsPrintArea, #dlAbsPrintArea * { visibility: visible !important; }
+    #dlAbsPrintArea { position: absolute; left: 0; top: 0; width: 100%; padding: 8mm; }
+    .topbar, .sidebar, .footer, .sidebar-overlay { display: none !important; }
+  }
+
 </style>
 </head>
 <body>
@@ -3040,6 +3069,60 @@
     </div>
   </div>
 
+
+
+  <!-- ========== PAGE: DOWNLOAD ABSENSI ========== -->
+  <div class="page" id="page-download-absensi">
+    <div class="page-title">⬇️ Download Absensi</div>
+    <div class="card" style="padding:14px;margin-bottom:12px;">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+        <div style="min-width:140px;flex:1;">
+          <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">Jenis</label>
+          <select id="dlAbsJenis" style="width:100%;padding:8px;border:1.5px solid #d0d7e2;border-radius:8px;font-size:13px;">
+            <option value="guru">Absensi Guru (Format 1)</option>
+            <option value="siswa1">Absensi Siswa V.1 (Harian)</option>
+            <option value="siswa2">Absensi Siswa V.2 (Rekap)</option>
+          </select>
+        </div>
+        <div style="min-width:120px;flex:1;" id="dlAbsKelasWrap">
+          <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">Kelas</label>
+          <select id="dlAbsKelas" style="width:100%;padding:8px;border:1.5px solid #d0d7e2;border-radius:8px;font-size:13px;">
+            <option value="">- Pilih -</option>
+          </select>
+        </div>
+        <div style="min-width:110px;">
+          <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">Bulan</label>
+          <select id="dlAbsBulan" style="width:100%;padding:8px;border:1.5px solid #d0d7e2;border-radius:8px;font-size:13px;">
+            <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+            <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+            <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+            <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+          </select>
+        </div>
+        <div style="min-width:90px;">
+          <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">Tahun</label>
+          <input type="number" id="dlAbsTahun" min="2020" max="2100" style="width:100%;padding:8px;border:1.5px solid #d0d7e2;border-radius:8px;font-size:13px;">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-primary" id="btnDlAbsPreview" style="padding:8px 14px;font-size:13px;">👁 Preview</button>
+          <button type="button" class="btn btn-outline" id="btnDlAbsExcel" disabled style="padding:8px 14px;font-size:13px;">📥 Excel</button>
+          <button type="button" class="btn btn-outline" id="btnDlAbsPrint" disabled style="padding:8px 14px;font-size:13px;">🖨 Cetak</button>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#64748b;margin:10px 0 0;line-height:1.4;">
+        Kolom tanggal hari Minggu &amp; hari libur berwarna <span style="color:#dc2626;font-weight:700;">merah</span>.
+        TW/TL = ✓. Sakit/Izin/Alpa/Bolos = S / I / A / B.
+        Data dari tabel <b>absensi</b> + <b>absensi_historis</b> (sama Rekap Data).
+        <b>V.1</b> = 1 hari 1 status · <b>V.2</b> = hitung per sesi.
+        Siswa: wajib pilih kelas.
+      </p>
+    </div>
+    <div class="card" style="padding:0;overflow:auto;max-height:70vh;" id="dlAbsPreviewCard">
+      <div id="dlAbsPreview" style="padding:16px;min-height:120px;color:#94a3b8;text-align:center;">
+        Pilih filter lalu klik <b>Preview</b> untuk menampilkan daftar hadir.
+      </div>
+    </div>
+  </div>
 
   <!-- ========== PAGE: RESET / UBAH PIN ========== -->
   <div class="page" id="page-reset-pin">
@@ -4221,10 +4304,10 @@ document.querySelectorAll('.menu-group-title').forEach(title => {
 });
 
 /* ===== Role-based menu visibility =====
-   Guest  : hanya DASHBOARD (open)
+   Guest  : hanya DASHBOARD
    Siswa  : DASHBOARD + SISWA/ORANG TUA (open)
    Guru   : DASHBOARD + GURU (open)
-   Admin  : semua menu visible, tetapi tertutup (ringkas) — buka manual per grup
+   Admin  : semua menu (open)
 */
 function applyRoleMenus(role) {
   const groups = document.querySelectorAll('.menu-group');
@@ -4232,21 +4315,17 @@ function applyRoleMenus(role) {
     const r = g.dataset.role;
     g.classList.remove('visible', 'open');
     if (r === 'all') {
-      g.classList.add('visible');
-      // Dashboard open hanya untuk non-admin (admin ringkas: semua tertutup)
-      if (role !== 'admin') g.classList.add('open');
+      g.classList.add('visible', 'open');
     } else if (role === 'admin') {
-      g.classList.add('visible'); // visible, TIDAK open
+      g.classList.add('visible', 'open');
     } else if (role === 'siswa' && r === 'siswa') {
       g.classList.add('visible', 'open');
     } else if (role === 'guru' && r === 'guru') {
       g.classList.add('visible', 'open');
     }
   });
-  // Non-admin: pastikan DASHBOARD open
-  if (role !== 'admin') {
-    document.getElementById('menuDashboard')?.classList.add('open');
-  }
+  // Pastikan DASHBOARD selalu open untuk navigasi cepat
+  document.getElementById('menuDashboard').classList.add('open');
 }
 
 /* ===== Profil & topbar ===== */
@@ -4447,25 +4526,20 @@ async function doLogin() {
     renderUserUI(session);
     closeLogin();
     closeProfileMenu();
-    // Popup sukses segera (jangan ditahan bootstrap/refreshStore)
+    btnDoLogin.textContent = 'Memuat data…';
+    await refreshStoreFromDb();
+    // refresh halaman aktif
+    const active = document.querySelector('.page.active');
+    if (active?.id === 'page-data-siswa') renderSiswa();
+    if (active?.id === 'page-data-guru') renderGuru();
+    if (active?.id === 'page-data-lulusan') renderLulusan();
+    if (active?.id === 'page-periode') renderPeriode();
+    if (active?.id === 'page-sesi-libur') initSesiLiburPage();
+    if (active?.id === 'page-scan-barcode') { initScanPage(); }
+    if (active?.id === 'page-dashboard' || !active) renderDashboard();
     const roleLabel = session.role === 'siswa' ? 'Siswa' : session.role === 'guru' ? 'Guru' : 'Administrator';
     showBigPopup('ok', 'Login Berhasil',
       `Selamat datang, <b>${escapeHtml(session.user?.nama || '')}</b><br>Masuk sebagai ${roleLabel}.`, 2800);
-    btnDoLogin.textContent = 'Memuat data…';
-    // Muat data di background — UI sudah login
-    try {
-      await refreshStoreFromDb();
-      const active = document.querySelector('.page.active');
-      if (active?.id === 'page-data-siswa') renderSiswa();
-      if (active?.id === 'page-data-guru') renderGuru();
-      if (active?.id === 'page-data-lulusan') renderLulusan();
-      if (active?.id === 'page-periode') renderPeriode();
-      if (active?.id === 'page-sesi-libur') initSesiLiburPage();
-      if (active?.id === 'page-scan-barcode') { initScanPage(); }
-      if (active?.id === 'page-dashboard' || !active) renderDashboard();
-    } catch (e) {
-      console.warn('post-login refresh', e);
-    }
   } catch (err) {
     console.error(err);
     showLoginError(err.message || 'Tidak dapat terhubung ke server. Pastikan Edge Function login & api sudah di-deploy.');
@@ -5039,7 +5113,7 @@ let navReady = false;
 let navTrapArmed = false;
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal','download-absensi'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   if (page === 'pengumuman-lulus') target = 'validasi-lulusan';
@@ -5123,6 +5197,7 @@ function navigate(page, opts = {}) {
   if (target === 'sesi-libur') runPage(() => initSesiLiburPage());
   if (target === 'input-daftar-nilai') runPage(() => initNilaiPage());
   if (target === 'rekap-data') runPage(() => initRekapPage());
+  if (target === 'download-absensi') runPage(() => initDownloadAbsensiPage());
   if (target === 'reset-pin') runPage(() => initResetPinPage());
   if (target === 'naik-kelas') runPage(() => initNaikKelasPage());
   if (target === 'syarat-naik') runPage(() => initSyaratNaikPage());
@@ -15820,6 +15895,581 @@ document.getElementById('btnRuSinkron')?.addEventListener('click', () => {
   if (!confirm('Sinkronisasi skor ujian terpilih ke tabel Nilai (nilai fix)?')) return;
   runRuangAction('sinkronisasi');
 });
+
+
+/* ============================================================
+   DOWNLOAD ABSENSI — port dari index.html (SMPN), disesuaikan
+   apiCall + store + absensi/historis via list_absensi_range
+   ============================================================ */
+let _dlAbsLast = null;
+const DL_BULAN_NAMA = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+function dlDaysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+function dlDateStr(y, m, d) {
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+function dlIsSunday(y, m, d) { return new Date(y, m - 1, d).getDay() === 0; }
+
+function dlIsLibur(dateStr) {
+  const list = store.hari_libur || [];
+  return list.some(h => String(h.tanggal || '').slice(0, 10) === dateStr);
+}
+
+function dlNormStatus(st) {
+  const t = String(st || '').trim().toUpperCase();
+  if (t === 'TW' || t === 'TEPAT WAKTU' || t === 'HADIR' || t === 'H') return 'TW';
+  if (t === 'TL' || t === 'TERLAMBAT') return 'TL';
+  if (t === 'S' || t === 'SAKIT') return 'S';
+  if (t === 'I' || t === 'IZIN') return 'I';
+  if (t === 'A' || t === 'ALPA' || t === 'ALPHA') return 'A';
+  if (t === 'B' || t === 'BOLOS') return 'B';
+  return t;
+}
+function dlBestStatus(list) {
+  const rank = { TW: 1, TL: 2, S: 3, I: 4, A: 5, B: 6 };
+  let best = '';
+  let bestR = 99;
+  (list || []).forEach(st => {
+    const n = dlNormStatus(st);
+    const r = rank[n] || 50;
+    if (r < bestR) { bestR = r; best = n; }
+  });
+  return best;
+}
+function dlCellMark(st) {
+  const n = dlNormStatus(st);
+  if (n === 'TW' || n === 'TL') return '✓';
+  if (n === 'S') return 'S';
+  if (n === 'I') return 'I';
+  if (n === 'A') return 'A';
+  if (n === 'B') return 'B';
+  return '';
+}
+
+async function initDownloadAbsensiPage() {
+  const now = new Date();
+  const bl = document.getElementById('dlAbsBulan');
+  const th = document.getElementById('dlAbsTahun');
+  if (bl && !bl.dataset.ready) {
+    bl.value = String(now.getMonth() + 1);
+    bl.dataset.ready = '1';
+  }
+  if (th && !th.value) th.value = String(now.getFullYear());
+
+  const selK = document.getElementById('dlAbsKelas');
+  if (selK) {
+    const set = new Set();
+    (store.kelas || []).forEach(k => { if (k.nama) set.add(String(k.nama)); });
+    (store.siswa || []).forEach(s => { if (s.kelas) set.add(String(s.kelas)); });
+    const arr = [...set].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+    const cur = selK.value;
+    selK.innerHTML = '<option value="">- Pilih -</option>' +
+      arr.map(k => '<option value="' + escapeHtml(k) + '">' + escapeHtml(k) + '</option>').join('');
+    if (cur) selK.value = cur;
+  }
+
+  const jenis = document.getElementById('dlAbsJenis');
+  const wrap = document.getElementById('dlAbsKelasWrap');
+  function syncJenis() {
+    const j = jenis?.value || 'guru';
+    if (wrap) wrap.style.display = (j === 'guru') ? 'none' : '';
+  }
+  if (jenis && !jenis.dataset.dlBound) {
+    jenis.dataset.dlBound = '1';
+    jenis.addEventListener('change', syncJenis);
+  }
+  syncJenis();
+}
+
+async function dlFetchAbsensiMonth(y, m, tipe) {
+  const start = dlDateStr(y, m, 1);
+  const end = dlDateStr(y, m, dlDaysInMonth(y, m));
+  try {
+    const res = await apiCall('list_absensi_range', { dari: start, sampai: end, tipe: tipe || undefined });
+    return res.data || [];
+  } catch (e) {
+    console.warn('list_absensi_range', e);
+    // Fallback: rekap tidak punya detail harian — return kosong + toast
+    toast(errToText(e), 'err');
+    return [];
+  }
+}
+
+function dlLoadPeople(jenis, kelas) {
+  if (jenis === 'guru') {
+    return (store.guru || [])
+      .filter(g => {
+        const st = String(g.status || 'Aktif').toLowerCase();
+        return st === 'aktif' || st === '' || st === 'null';
+      })
+      .map(g => ({
+        id: g.id,
+        nama: g.nama || '',
+        lp: g.jenis_kelamin || g.lp || '',
+        nisn: g.nip || g.pin || '',
+        pangkat: g.pangkat_gol || '',
+        kode: g.pin || g.nip || null,
+        pin: g.pin || null,
+      }));
+  }
+  return (store.siswa || [])
+    .filter(s => {
+      if (kelas && String(s.kelas || '') !== String(kelas)) return false;
+      const st = String(s.status || 'Aktif').toLowerCase();
+      return st === 'aktif' || st === '' || st === 'null';
+    })
+    .map(s => ({
+      id: s.id,
+      nama: s.nama || '',
+      lp: s.jenis_kelamin || s.lp || '',
+      nisn: s.nisn || '',
+      pangkat: '',
+      kode: s.nisn || null,
+      kelas: s.kelas || kelas,
+    }));
+}
+
+function dlBuildDayMap(absRows, people) {
+  const byPerson = {};
+  const byPersonSesi = {};
+  const idByKode = {};
+  const idByNama = {};
+  people.forEach(p => {
+    const id = String(p.id);
+    byPerson[id] = {};
+    byPersonSesi[id] = {};
+    [p.nisn, p.kode, p.pin].forEach(v => {
+      const kode = String(v || '').trim();
+      if (kode) idByKode[kode] = id;
+    });
+    const nm = String(p.nama || '').trim().toLowerCase();
+    if (nm) idByNama[nm] = id;
+  });
+  absRows.forEach(r => {
+    let key = null;
+    if (r.ref_id != null && r.ref_id !== '' && byPerson[String(r.ref_id)]) {
+      key = String(r.ref_id);
+    } else {
+      const kode = String(r.kode || '').trim();
+      if (kode && idByKode[kode]) key = idByKode[kode];
+      else {
+        const nm = String(r.nama || '').trim().toLowerCase();
+        if (nm && idByNama[nm]) key = idByNama[nm];
+      }
+    }
+    if (!key || !byPerson[key]) return;
+    const tgl = String(r.tanggal || '').slice(0, 10);
+    if (!tgl) return;
+    if (!byPerson[key][tgl]) byPerson[key][tgl] = [];
+    byPerson[key][tgl].push(r.status);
+
+    const sesiKey = (r.sesi_id != null && r.sesi_id !== '')
+      ? ('id:' + r.sesi_id)
+      : (r.sesi_nama ? ('n:' + String(r.sesi_nama).trim().toLowerCase()) : 'x');
+    if (!byPersonSesi[key][tgl]) byPersonSesi[key][tgl] = {};
+    const prev = byPersonSesi[key][tgl][sesiKey];
+    const cur = dlNormStatus(r.status);
+    if (!prev) byPersonSesi[key][tgl][sesiKey] = cur;
+    else {
+      const rank = { TW: 1, TL: 2, S: 3, I: 4, A: 5, B: 6 };
+      if ((rank[cur] || 50) < (rank[prev] || 50)) byPersonSesi[key][tgl][sesiKey] = cur;
+    }
+  });
+  return { byPerson, byPersonSesi };
+}
+
+function dlCountStatsHarian(dayStatuses, daysInfo) {
+  const c = { TW: 0, TL: 0, S: 0, I: 0, A: 0, B: 0 };
+  let efektif = 0;
+  daysInfo.forEach(di => {
+    if (di.libur) return;
+    efektif++;
+    const st = dlNormStatus(dayStatuses[di.date] || '');
+    if (st === 'TW') c.TW++;
+    else if (st === 'TL') c.TL++;
+    else if (st === 'S') c.S++;
+    else if (st === 'I') c.I++;
+    else if (st === 'B') c.B++;
+    else c.A++;
+  });
+  const skor = c.TW * 1 + c.TL * 0.8 + c.S * 0.75 + c.I * 0.5;
+  const persen = efektif > 0 ? Math.round((skor / efektif) * 1000) / 10 : 0;
+  return { c, persen, jml: c.TW + c.TL + c.S + c.I + c.A + c.B, efektif };
+}
+
+function dlCountStatsSesi(personSesiMap, daysInfo, sesiList) {
+  const c = { TW: 0, TL: 0, S: 0, I: 0, A: 0, B: 0 };
+  let efektif = 0;
+  const sesiKeys = (sesiList || []).map(s => {
+    if (s && s.id != null) return 'id:' + s.id;
+    if (s && s.nama) return 'n:' + String(s.nama).trim().toLowerCase();
+    return null;
+  }).filter(Boolean);
+
+  daysInfo.forEach(di => {
+    if (di.libur) return;
+    const dayMap = (personSesiMap && personSesiMap[di.date]) || {};
+    if (sesiKeys.length) {
+      sesiKeys.forEach(sk => {
+        efektif++;
+        const st = dayMap[sk] || 'A';
+        if (st === 'TW') c.TW++;
+        else if (st === 'TL') c.TL++;
+        else if (st === 'S') c.S++;
+        else if (st === 'I') c.I++;
+        else if (st === 'B') c.B++;
+        else c.A++;
+      });
+    } else {
+      const keys = Object.keys(dayMap);
+      if (!keys.length) { efektif++; c.A++; }
+      else {
+        keys.forEach(sk => {
+          efektif++;
+          const st = dayMap[sk] || 'A';
+          if (st === 'TW') c.TW++;
+          else if (st === 'TL') c.TL++;
+          else if (st === 'S') c.S++;
+          else if (st === 'I') c.I++;
+          else if (st === 'B') c.B++;
+          else c.A++;
+        });
+      }
+    }
+  });
+  const skor = c.TW * 1 + c.TL * 0.8 + c.S * 0.75 + c.I * 0.5;
+  const persen = efektif > 0 ? Math.round((skor / efektif) * 1000) / 10 : 0;
+  return { c, persen, jml: c.TW + c.TL + c.S + c.I + c.A + c.B, efektif };
+}
+
+async function dlBuildSheet() {
+  const jenis = document.getElementById('dlAbsJenis')?.value || 'guru';
+  const kelas = document.getElementById('dlAbsKelas')?.value || '';
+  const bulan = Number(document.getElementById('dlAbsBulan')?.value) || (new Date().getMonth() + 1);
+  const tahun = Number(document.getElementById('dlAbsTahun')?.value) || new Date().getFullYear();
+  if (jenis !== 'guru' && !kelas) throw new Error('Pilih kelas terlebih dahulu');
+
+  const nDays = dlDaysInMonth(tahun, bulan);
+  const daysInfo = [];
+  for (let d = 1; d <= nDays; d++) {
+    const date = dlDateStr(tahun, bulan, d);
+    const sun = dlIsSunday(tahun, bulan, d);
+    const lib = !!(dlIsLibur(date) || sun);
+    daysInfo.push({ d, date, libur: lib, sunday: sun });
+  }
+
+  const tipeDb = jenis === 'guru' ? 'guru' : 'siswa';
+  const people = dlLoadPeople(jenis === 'guru' ? 'guru' : 'siswa', kelas);
+  const absRows = await dlFetchAbsensiMonth(tahun, bulan, tipeDb);
+
+  const idSet = new Set(people.map(p => String(p.id)));
+  const kodeSet = new Set();
+  people.forEach(p => {
+    [p.nisn, p.kode, p.pin].forEach(v => { const k = String(v || '').trim(); if (k) kodeSet.add(k); });
+  });
+  const namaSet = new Set(people.map(p => String(p.nama || '').trim().toLowerCase()).filter(Boolean));
+  const absFiltered = absRows.filter(r => {
+    if (r.ref_id != null && r.ref_id !== '' && idSet.has(String(r.ref_id))) return true;
+    const kode = String(r.kode || '').trim();
+    if (kode && kodeSet.has(kode)) return true;
+    const nm = String(r.nama || '').trim().toLowerCase();
+    if (nm && namaSet.has(nm)) return true;
+    return false;
+  });
+  const mapped = dlBuildDayMap(absFiltered, people);
+  const byPerson = mapped.byPerson;
+  const byPersonSesi = mapped.byPersonSesi;
+
+  const daily = {};
+  people.forEach(p => {
+    const key = String(p.id);
+    daily[key] = {};
+    daysInfo.forEach(di => {
+      const arr = (byPerson[key] && byPerson[key][di.date]) || [];
+      daily[key][di.date] = dlBestStatus(arr);
+    });
+  });
+
+  const sesiListDl = (store.sesi || []).filter(s => s.aktif !== false)
+    .slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+
+  let minHadir = 80;
+  try {
+    // opsional dari pengaturan jika ada di store
+    if (store.pengaturan_absensi && store.pengaturan_absensi.min_hadir) {
+      minHadir = Number(store.pengaturan_absensi.min_hadir) || 80;
+    }
+  } catch (_) {}
+
+  const aktif = (store.periode || []).find(p => String(p.status || '').toLowerCase() === 'aktif');
+  const ta = aktif ? String(aktif.tahun_ajaran || '').trim() : (tahun + '/' + (tahun + 1));
+  const sm = aktif ? (aktif.semester || 'Ganjil') : 'Ganjil';
+  const periodeLabel = 'SEMESTER ' + String(sm).toUpperCase() + ' TAHUN AJARAN ' + ta;
+  const bulanLabel = DL_BULAN_NAMA[bulan] + ' ' + tahun;
+  const sekolahNama = (store.sekolah && store.sekolah.nama) || document.querySelector('.nama-sekolah')?.textContent || 'Sekolah';
+
+  let html = '';
+  let aoa = [];
+  let filename = 'absensi.xlsx';
+
+  if (jenis === 'guru') {
+    filename = 'Daftar_Hadir_Guru_' + bulanLabel.replace(/\s+/g, '_') + '.xlsx';
+    html += '<div class="dl-abs-sheet" id="dlAbsPrintArea">';
+    html += '<div class="dl-title">DAFTAR HADIR GURU</div>';
+    html += '<div class="dl-sub">' + escapeHtml(sekolahNama) + '</div>';
+    html += '<div class="dl-sub">' + escapeHtml(periodeLabel) + '</div>';
+    html += '<div class="dl-meta"><div>Bulan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ' + escapeHtml(bulanLabel) + '</div></div>';
+    html += '<table><thead><tr>';
+    html += '<th>No</th><th>Nama</th><th>L/P</th><th>Pangkat/Gol</th>';
+    daysInfo.forEach(di => { html += '<th class="' + (di.libur ? 'dl-libur' : '') + '">' + di.d + '</th>'; });
+    html += '<th>S</th><th>I</th><th>A</th><th>B</th><th>%Hadir</th>';
+    html += '</tr></thead><tbody>';
+    const headAoa = ['No', 'Nama', 'L/P', 'Pangkat/Gol'];
+    daysInfo.forEach(di => headAoa.push(di.d));
+    headAoa.push('S', 'I', 'A', 'B', '%Hadir');
+    aoa.push(headAoa);
+    people.forEach((p, i) => {
+      const stats = dlCountStatsHarian(daily[String(p.id)] || {}, daysInfo);
+      const namaCell = escapeHtml(p.nama) + (p.nisn ? '<br><span style="font-size:9px;color:#475569;">NIP ' + escapeHtml(p.nisn) + '</span>' : '');
+      html += '<tr><td>' + (i + 1) + '</td><td class="dl-nama">' + namaCell + '</td>';
+      html += '<td>' + escapeHtml(p.lp || '') + '</td><td style="font-size:9px;">' + escapeHtml(p.pangkat || '') + '</td>';
+      const rowA = [i + 1, p.nama + (p.nisn ? '\nNIP ' + p.nisn : ''), p.lp || '', p.pangkat || ''];
+      daysInfo.forEach(di => {
+        const st = (daily[String(p.id)] || {})[di.date] || '';
+        const mark = di.libur ? '' : dlCellMark(st);
+        html += '<td class="' + (di.libur ? 'dl-libur' : '') + '">' + escapeHtml(mark) + '</td>';
+        rowA.push(mark);
+      });
+      html += '<td>' + (stats.c.S || '') + '</td><td>' + (stats.c.I || '') + '</td>';
+      html += '<td>' + (stats.c.A || '') + '</td><td>' + (stats.c.B || '') + '</td>';
+      html += '<td>' + stats.persen + '</td></tr>';
+      rowA.push(stats.c.S, stats.c.I, stats.c.A, stats.c.B, stats.persen);
+      aoa.push(rowA);
+    });
+    if (!people.length) html += '<tr><td colspan="' + (4 + nDays + 5) + '" style="padding:12px;color:#94a3b8;">Tidak ada data guru</td></tr>';
+    html += '</tbody></table></div>';
+
+  } else if (jenis === 'siswa1') {
+    filename = 'Daftar_Hadir_Siswa_V1_' + kelas + '_' + bulanLabel.replace(/\s+/g, '_') + '.xlsx';
+    html += '<div class="dl-abs-sheet" id="dlAbsPrintArea">';
+    html += '<div class="dl-title">DAFTAR HADIR SISWA</div>';
+    html += '<div class="dl-sub">' + escapeHtml(sekolahNama) + '</div>';
+    html += '<div class="dl-sub">' + escapeHtml(periodeLabel) + '</div>';
+    html += '<div class="dl-meta"><div>Kelas&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ' + escapeHtml(kelas) + '</div>';
+    html += '<div>Bulan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ' + escapeHtml(bulanLabel) + '</div></div>';
+    html += '<div class="dl-ver">V.1 (Harian)</div>';
+    html += '<table><thead><tr><th>No</th><th>NISN</th><th>Nama</th><th>L/P</th>';
+    daysInfo.forEach(di => { html += '<th class="' + (di.libur ? 'dl-libur' : '') + '">' + di.d + '</th>'; });
+    html += '<th>S</th><th>I</th><th>A</th><th>B</th><th>%Hadir</th></tr></thead><tbody>';
+    const headAoa = ['No', 'NISN', 'Nama', 'L/P'];
+    daysInfo.forEach(di => headAoa.push(di.d));
+    headAoa.push('S', 'I', 'A', 'B', '%Hadir');
+    aoa.push(headAoa);
+    people.forEach((p, i) => {
+      const stats = dlCountStatsHarian(daily[String(p.id)] || {}, daysInfo);
+      html += '<tr><td>' + (i + 1) + '</td><td style="font-size:9px;">' + escapeHtml(p.nisn || '') + '</td>';
+      html += '<td class="dl-nama">' + escapeHtml(p.nama) + '</td><td>' + escapeHtml(p.lp || '') + '</td>';
+      const rowA = [i + 1, p.nisn || '', p.nama, p.lp || ''];
+      daysInfo.forEach(di => {
+        const st = (daily[String(p.id)] || {})[di.date] || '';
+        const mark = di.libur ? '' : dlCellMark(st);
+        html += '<td class="' + (di.libur ? 'dl-libur' : '') + '">' + escapeHtml(mark) + '</td>';
+        rowA.push(mark);
+      });
+      html += '<td>' + (stats.c.S || '') + '</td><td>' + (stats.c.I || '') + '</td>';
+      html += '<td>' + (stats.c.A || '') + '</td><td>' + (stats.c.B || '') + '</td>';
+      html += '<td>' + stats.persen + '</td></tr>';
+      rowA.push(stats.c.S, stats.c.I, stats.c.A, stats.c.B, stats.persen);
+      aoa.push(rowA);
+    });
+    if (!people.length) html += '<tr><td colspan="' + (4 + nDays + 5) + '" style="padding:12px;color:#94a3b8;">Tidak ada siswa di kelas ' + escapeHtml(kelas) + '</td></tr>';
+    html += '</tbody></table></div>';
+
+  } else {
+    // siswa2 rekap per sesi
+    filename = 'Daftar_Hadir_Siswa_V2_' + kelas + '_' + bulanLabel.replace(/\s+/g, '_') + '.xlsx';
+    html += '<div class="dl-abs-sheet" id="dlAbsPrintArea">';
+    html += '<div class="dl-title">DAFTAR HADIR SISWA</div>';
+    html += '<div class="dl-sub">' + escapeHtml(sekolahNama) + '</div>';
+    html += '<div class="dl-sub">' + escapeHtml(periodeLabel) + '</div>';
+    html += '<div class="dl-meta"><div>Kelas&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ' + escapeHtml(kelas) + '</div>';
+    html += '<div>Bulan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ' + escapeHtml(bulanLabel) + '</div></div>';
+    html += '<div class="dl-ver">V.2 (Rekap per sesi · min hadir ' + minHadir + '%)</div>';
+    html += '<table><thead><tr><th>No</th><th>NISN</th><th>Nama</th><th>L/P</th>';
+    html += '<th>TW</th><th>TL</th><th>S</th><th>I</th><th>A</th><th>B</th><th>% Hadir</th><th>Naik/Lulus</th>';
+    html += '</tr></thead><tbody>';
+    aoa.push(['No', 'NISN', 'Nama', 'L/P', 'TW', 'TL', 'S', 'I', 'A', 'B', '% Hadir', 'Naik/Lulus']);
+    people.forEach((p, i) => {
+      const stats = dlCountStatsSesi(byPersonSesi[String(p.id)] || {}, daysInfo, sesiListDl);
+      const ok = stats.persen >= minHadir;
+      const label = ok ? 'Memenuhi' : 'Tidak Memenuhi';
+      html += '<tr><td>' + (i + 1) + '</td><td style="font-size:9px;">' + escapeHtml(p.nisn || '') + '</td>';
+      html += '<td class="dl-nama">' + escapeHtml(p.nama) + '</td><td>' + escapeHtml(p.lp || '') + '</td>';
+      html += '<td>' + (stats.c.TW || 0) + '</td><td>' + (stats.c.TL || 0) + '</td>';
+      html += '<td>' + (stats.c.S || 0) + '</td><td>' + (stats.c.I || 0) + '</td>';
+      html += '<td>' + (stats.c.A || 0) + '</td><td>' + (stats.c.B || 0) + '</td>';
+      html += '<td>' + stats.persen + '</td>';
+      html += '<td style="color:' + (ok ? '#166534' : '#b91c1c') + ';font-weight:600;">' + label + '</td></tr>';
+      aoa.push([i + 1, p.nisn || '', p.nama, p.lp || '', stats.c.TW, stats.c.TL, stats.c.S, stats.c.I, stats.c.A, stats.c.B, stats.persen, label]);
+    });
+    if (!people.length) html += '<tr><td colspan="12" style="padding:12px;color:#94a3b8;">Tidak ada siswa di kelas ' + escapeHtml(kelas) + '</td></tr>';
+    html += '</tbody></table></div>';
+  }
+
+  return { html, aoa, filename, jenis, peopleCount: people.length, daysInfo, bulanLabel, periodeLabel, kelas: kelas || '', nDays };
+}
+
+document.getElementById('btnDlAbsPreview')?.addEventListener('click', async () => {
+  const box = document.getElementById('dlAbsPreview');
+  const btnEx = document.getElementById('btnDlAbsExcel');
+  const btnPr = document.getElementById('btnDlAbsPrint');
+  if (!box) return;
+  const jenis = document.getElementById('dlAbsJenis')?.value || 'guru';
+  const kelas = document.getElementById('dlAbsKelas')?.value || '';
+  if (jenis !== 'guru' && !kelas) {
+    toast('Pilih kelas terlebih dahulu', 'err');
+    return;
+  }
+  box.innerHTML = '<div style="padding:24px;color:#94a3b8;">Memuat data absensi + historis…</div>';
+  if (btnEx) btnEx.disabled = true;
+  if (btnPr) btnPr.disabled = true;
+  try {
+    const res = await dlBuildSheet();
+    _dlAbsLast = res;
+    box.innerHTML = res.html;
+    if (btnEx) btnEx.disabled = false;
+    if (btnPr) btnPr.disabled = false;
+  } catch (e) {
+    console.warn(e);
+    box.innerHTML = '<div style="padding:20px;color:#ef4444;">Gagal: ' + escapeHtml(errToText(e)) + '</div>';
+    _dlAbsLast = null;
+  }
+});
+
+function ensureExcelJS() {
+  return new Promise((resolve, reject) => {
+    if (typeof ExcelJS !== 'undefined') { resolve(ExcelJS); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    s.onload = () => {
+      if (typeof ExcelJS !== 'undefined') resolve(ExcelJS);
+      else reject(new Error('ExcelJS gagal dimuat'));
+    };
+    s.onerror = () => reject(new Error('Gagal memuat ExcelJS'));
+    document.head.appendChild(s);
+  });
+}
+
+async function dlExportExcelStyled() {
+  if (!_dlAbsLast || !_dlAbsLast.aoa) { toast('Preview dulu', 'err'); return; }
+  const btn = document.getElementById('btnDlAbsExcel');
+  const prevLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Excel…'; }
+  try {
+    const ExcelJSLib = await ensureExcelJS();
+    const wb = new ExcelJSLib.Workbook();
+    const ws = wb.addWorksheet('Absensi');
+    const aoa = _dlAbsLast.aoa;
+    const daysInfo = _dlAbsLast.daysInfo || [];
+    const jenis = _dlAbsLast.jenis || 'guru';
+
+    // Judul
+    ws.mergeCells(1, 1, 1, Math.max(aoa[0]?.length || 5, 5));
+    ws.getCell(1, 1).value = jenis === 'guru' ? 'DAFTAR HADIR GURU' : 'DAFTAR HADIR SISWA';
+    ws.getCell(1, 1).font = { bold: true, size: 13, name: 'Arial' };
+    ws.getCell(1, 1).alignment = { horizontal: 'center' };
+    ws.mergeCells(2, 1, 2, Math.max(aoa[0]?.length || 5, 5));
+    ws.getCell(2, 1).value = _dlAbsLast.periodeLabel || '';
+    ws.getCell(2, 1).font = { bold: true, size: 11, name: 'Arial' };
+    ws.getCell(2, 1).alignment = { horizontal: 'center' };
+    ws.getCell(3, 1).value = 'Bulan: ' + (_dlAbsLast.bulanLabel || '') +
+      (_dlAbsLast.kelas ? ' · Kelas: ' + _dlAbsLast.kelas : '');
+    ws.getCell(3, 1).font = { size: 11, name: 'Arial' };
+
+    const headerRowIdx = 5;
+    const liburColSet = new Set();
+    let dayStartCol = jenis === 'guru' ? 5 : 5;
+    if (jenis === 'guru') dayStartCol = 5;
+    else if (jenis === 'siswa1') dayStartCol = 5;
+    else dayStartCol = -1;
+    if (dayStartCol > 0) {
+      daysInfo.forEach((di, i) => {
+        if (di.libur) liburColSet.add(dayStartCol + i);
+      });
+    }
+
+    aoa.forEach((row, ri) => {
+      const excelRow = headerRowIdx + ri;
+      const isHeader = ri === 0;
+      row.forEach((val, ci) => {
+        const cell = ws.getCell(excelRow, ci + 1);
+        cell.value = (val === '' || val == null) ? '' : val;
+        cell.font = isHeader
+          ? { bold: true, size: 10, name: 'Arial', color: { argb: 'FFFFFFFF' } }
+          : { size: 10, name: 'Arial' };
+        cell.alignment = { horizontal: (ci <= 1 && !isHeader && jenis !== 'siswa2' && ci === 1 && jenis === 'guru') || (ci === 2 && jenis !== 'guru') ? 'left' : 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF1E3A8A' } },
+          left: { style: 'thin', color: { argb: 'FF1E3A8A' } },
+          bottom: { style: 'thin', color: { argb: 'FF1E3A8A' } },
+          right: { style: 'thin', color: { argb: 'FF1E3A8A' } },
+        };
+        if (isHeader) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D4ED8' } };
+        } else if (liburColSet.has(ci + 1)) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } };
+          cell.font = { size: 10, name: 'Arial', color: { argb: 'FF7F1D1D' } };
+        }
+      });
+    });
+
+    // lebar kolom kasar
+    const cols = aoa[0] || [];
+    cols.forEach((_, i) => {
+      let w = 4;
+      if (jenis === 'guru' && i === 1) w = 28;
+      else if (jenis !== 'guru' && i === 2) w = 28;
+      else if (jenis !== 'guru' && i === 1) w = 14;
+      else if (jenis === 'guru' && i === 3) w = 16;
+      ws.getColumn(i + 1).width = w;
+    });
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = _dlAbsLast.filename || 'absensi.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast('Excel diunduh', 'ok');
+  } catch (e) {
+    console.error(e);
+    // Fallback SheetJS
+    try {
+      if (typeof XLSX === 'undefined') throw e;
+      const ws = XLSX.utils.aoa_to_sheet(_dlAbsLast.aoa);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Absensi');
+      XLSX.writeFile(wb, _dlAbsLast.filename || 'absensi.xlsx');
+      toast('Excel diunduh (mode dasar)', 'ok');
+    } catch (e2) {
+      toast('Gagal unduh Excel: ' + errToText(e), 'err');
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = prevLabel || '📥 Excel'; }
+  }
+}
+
+document.getElementById('btnDlAbsExcel')?.addEventListener('click', () => {
+  dlExportExcelStyled().catch(e => console.error(e));
+});
+document.getElementById('btnDlAbsPrint')?.addEventListener('click', () => {
+  if (!_dlAbsLast) { toast('Preview dulu', 'err'); return; }
+  window.print();
+});
+
 
 /* ===== Init ===== */
 (async function init() {
