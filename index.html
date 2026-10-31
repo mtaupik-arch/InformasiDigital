@@ -11272,21 +11272,114 @@ document.addEventListener('visibilitychange', () => {
 });
 
 document.getElementById('btnUjSelesai')?.addEventListener('click', async () => {
-  if (!_ujState.ruangId || _ujState.readonly) return;
+  if (!_ujState.ruangId) {
+    toast('Sesi ujian tidak aktif — buka ulang paket ujian', 'err');
+    return;
+  }
+  if (_ujState.readonly) {
+    toast('Ujian sudah dikumpulkan sebelumnya', 'err');
+    return;
+  }
   if (!confirm('Kumpulkan ujian sekarang? Jawaban tidak dapat diubah setelah dikumpulkan.')) return;
+
+  const btn = document.getElementById('btnUjSelesai');
+  const btnSimpan = document.getElementById('btnUjSimpan');
   try {
+    if (btn) { btn.disabled = true; btn.textContent = 'Mengumpulkan…'; }
+    if (btnSimpan) btnSimpan.disabled = true;
+
+    // 1) Pastikan jawaban terbaru dari form
     const answers = collectUjAnswers();
-    const res = await apiCall('selesai_ujian', { ruang_id: _ujState.ruangId, answers });
+    const filled = ujCountFilled(answers);
+    const filledAnswers = answers.filter((a) => String(a.jawaban || '').trim() !== '');
+    ujSaveDraftLocal(answers);
+
+    if (filled === 0) {
+      if (!confirm('Belum ada jawaban terisi. Tetap kumpulkan dengan 0 jawaban?')) {
+        return;
+      }
+    }
+
+    // 2) Simpan dulu ke server (sama seperti tombol Simpan yang sudah berhasil)
+    try {
+      await ujSimpanJawabanKeServer({ silent: true });
+    } catch (saveErr) {
+      console.warn('simpan sebelum selesai', saveErr);
+      // Coba kirim langsung payload answers
+      try {
+        await apiCall('simpan_jawaban_ujian', {
+          ruang_id: _ujState.ruangId,
+          bank_soal_id: _ujState.bankId || undefined,
+          answers: filledAnswers.length ? filledAnswers : answers,
+        });
+      } catch (e2) {
+        console.warn('simpan fallback', e2);
+      }
+    }
+
+    // 3) Tandai selesai + kirim answers lagi (beberapa backend hanya baca di aksi ini)
+    const payloadVariants = [
+      {
+        ruang_id: _ujState.ruangId,
+        bank_soal_id: _ujState.bankId || undefined,
+        answers: filledAnswers.length ? filledAnswers : answers,
+        jml_terisi: filled,
+      },
+      {
+        ruang_id: _ujState.ruangId,
+        bank_soal_id: _ujState.bankId || undefined,
+        answers: answers,
+        jml_terisi: filled,
+      },
+    ];
+
+    let res = null;
+    let lastErr = null;
+    for (const body of payloadVariants) {
+      try {
+        res = await apiCall('selesai_ujian', body);
+        const msg = String((res && (res.message || res.msg)) || '');
+        // Jika server bilang 0 objektif padahal siswa mengisi, coba payload berikutnya
+        if (/0\s*jawaban/i.test(msg) && filled > 0 && body.answers === filledAnswers) {
+          lastErr = null; // tetap lanjut coba full answers
+          continue;
+        }
+        lastErr = null;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (!res && lastErr) throw lastErr;
+
     try { ujClearDraftLocal(_ujState.ruangId); } catch (_) {}
-    toast(res.message || 'Ujian dikumpulkan', 'ok');
+
+    const serverMsg = String((res && (res.message || res.msg)) || '');
+    if (filled > 0) {
+      toast('✓ Ujian dikumpulkan — ' + filled + ' jawaban terkirim ke server', 'ok');
+    } else {
+      toast(serverMsg || 'Ujian dikumpulkan (0 jawaban)', 'ok');
+    }
+
     _ujState.readonly = true;
     const foot = document.getElementById('ujLembarFoot');
     if (foot) foot.style.display = 'none';
-    renderUjSoalList(_ujState.soal.map(s => {
-      const a = answers.find(x => String(x.item_id) === String(s.id));
-      return a ? { ...s, jawaban: a.jawaban } : s;
-    }), true);
-  } catch (e) { toast(errToText(e), 'err'); }
+    // Update state + tampilan readonly
+    const map = {};
+    answers.forEach((a) => { map[String(a.item_id)] = a.jawaban; });
+    _ujState.soal = (_ujState.soal || []).map((s) => ({
+      ...s,
+      jawaban: map[String(s.id)] != null ? map[String(s.id)] : s.jawaban,
+    }));
+    renderUjSoalList(_ujState.soal, true);
+  } catch (e) {
+    toast(errToText(e), 'err');
+    // Jangan hapus draft jika gagal kumpulkan
+    try { ujSaveDraftLocal(collectUjAnswers()); } catch (_) {}
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Kumpulkan'; }
+    if (btnSimpan) btnSimpan.disabled = false;
+  }
 });
 
 
@@ -15591,4 +15684,3 @@ document.getElementById('btnRuSinkron')?.addEventListener('click', () => {
 </script>
 </body>
 </html>
-.
