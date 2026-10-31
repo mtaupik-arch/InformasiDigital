@@ -2217,6 +2217,14 @@
     .notif-panel { right: -40px; width: min(96vw, 360px); }
   }
 
+
+  /* Scanner cepat — video full frame */
+  #qr-reader { width:100%; max-width:420px; margin:12px auto 0; border:1px solid #d0d7e2; border-radius:8px; overflow:hidden; background:#000; }
+  #qr-reader video, #qr-reader canvas {
+    width:100% !important; height:auto !important; max-height:min(62vh, 420px);
+    object-fit: contain !important; background:#000;
+  }
+
 </style>
 </head>
 <body>
@@ -6712,18 +6720,21 @@ async function prosesAbsen(kode, metode) {
   const code = String(kode || '').replace(/\D/g, '');
   if (!code) return { ok: false, type: 'err', msg: 'Kode kosong. Scan QR berisi NISN (10 digit) atau PIN (6 digit).' };
 
-  const now = Date.now();
-  if (now - lastScanAt < 2500) {
+  // Debounce kode sama ditangani di onScanSuccessFast (700ms).
+  // Di sini hanya pad ringan agar double-submit API tidak dobel.
+  const t0 = Date.now();
+  if (code === lastProcessedCode && (t0 - lastProcessedAt) < 500) {
     return { ok: false, type: 'cooldown', silent: true, msg: '' };
   }
-  lastScanAt = now;
+  lastProcessedCode = code;
+  lastProcessedAt = t0;
+  lastScanAt = t0;
 
   try {
     const sess = getSession();
     const scannedBy = sess?.user?.nama
       ? (sess.user.nama + (sess.role ? ' (' + sess.role + ')' : ''))
       : 'Petugas';
-    // cek sesi di client dulu
     const st = getSesiStatusText();
     if (!st.ok) {
       return { ok: false, type: 'warn', msg: '<b>Di luar jam sesi</b><br>' + escapeHtml(st.text) };
@@ -6738,11 +6749,11 @@ async function prosesAbsen(kode, metode) {
       client_hm: clientHm,
       target_role: scanTargetRole || 'siswa',
     };
-    // Absen mandiri sidik jari guru → pastikan mode guru
     if (metode === 'fingerprint' && code.length === 6 && (scanTargetRole === 'guru' || sess?.role === 'guru' || sess?.role === 'admin')) {
       absenPayload.target_role = 'guru';
       absenPayload.self_absen = true;
     }
+    // Kirim ke DB segera — jangan tunggu list log
     const res = await apiCall('absen', absenPayload);
     if (res.status === 'reject' || res.status === 'warning') {
       return {
@@ -6751,27 +6762,25 @@ async function prosesAbsen(kode, metode) {
         msg: res.message || 'Scan ditolak',
       };
     }
-    // refresh log dari DB
-    try {
-      const logRes = await apiCall('list_absen_hari_ini', {});
-      if (Array.isArray(logRes.data)) {
-        saveAbsenLog(logRes.data);
-        if (typeof renderScanLogTable === 'function') renderScanLogTable();
-      }
-    } catch (e) {
-      console.warn('list_absen_hari_ini gagal', e);
-    }
+    // Refresh log di background (tidak menunda popup)
+    setTimeout(() => {
+      apiCall('list_absen_hari_ini', {}).then(logRes => {
+        if (Array.isArray(logRes.data)) {
+          saveAbsenLog(logRes.data);
+          if (typeof renderScanLogTable === 'function') renderScanLogTable();
+        }
+      }).catch(() => {});
+    }, 0);
     const d = res.data || {};
     const status = d.status || 'TW';
     const arti = status === 'TW' ? 'Tepat Waktu' : status === 'TL' ? 'Terlambat' : status;
     return {
       ok: true,
       type: 'ok',
-      msg: `<b>Absen berhasil (tersimpan di database)</b><br>
-        <b>${escapeHtml(d.nama || '')}</b><br>
-        Status: <span class="badge-status ${statusClass(status)}">${status}</span> (${arti})<br>
+      msg: `<b>${escapeHtml(d.nama || '')}</b><br>
+        <span class="badge-status ${statusClass(status)}">${status}</span> ${arti}<br>
         ${escapeHtml(d.sesi_nama || '')}<br>
-        <small style="color:#666">Metode: ${escapeHtml(metode || 'qr')} · ${escapeHtml(d.scanned_by || '')}</small>`,
+        <small style="color:#666">${escapeHtml(metode || 'qr')} · ${escapeHtml(d.scanned_by || '')}</small>`,
     };
   } catch (e) {
     return { ok: false, type: 'err', msg: 'Gagal absen ke database:<br>' + escapeHtml(errToText(e)) };
@@ -6788,14 +6797,19 @@ function handleAbsenResult(elId, res) {
     warn: 'Peringatan',
     err: 'Absen Gagal',
   };
-  // Hanya popup — sembunyikan strip di bawah kamera
   const el = document.getElementById(elId);
   if (el) {
     el.className = 'absen-result';
     el.innerHTML = '';
   }
+  // Popup cepat seperti index.html: sukses ~650ms, gagal/reject ~1000–1500ms
+  let ms = 0;
+  if (res.ok) ms = 650;
+  else if (res.type === 'reject') ms = 1200;
+  else if (res.type === 'warn') ms = 1500;
+  else ms = 0; // error: manual close
   if (typeof showBigPopup === 'function') {
-    showBigPopup(type, titles[res.type] || titles[type] || 'Info', res.msg, res.ok ? 2800 : (res.type === 'reject' ? 4000 : 0));
+    showBigPopup(type, titles[res.type] || titles[type] || 'Info', res.msg, ms);
   }
 }
 
@@ -7353,57 +7367,220 @@ document.getElementById('btnFpMain')?.addEventListener('click', fpMainActionSisw
 document.getElementById('btnGuruFpMain')?.addEventListener('click', fpMainActionGuru);
 document.getElementById('fpNisnInput')?.addEventListener('input', () => updateFpMainButton('siswa'));
 
-/* QR Scanner */
+/* QR Scanner — pola cepat seperti index.html (fps 60, BarcodeDetector, kamera tetap hidup) */
+const SCAN_SAME_CODE_MS = 700;
+const SCAN_BUSY_PAD_MS = 100;
+let _scanBusy = false;
+let _cameraBusy = false;
+let lastScanCode = '';
+let lastScanTime = 0;
+let _videoTrack = null;
+
+function buildScanQrConfig() {
+  const cfg = {
+    fps: 60,
+    qrbox: function (viewW, viewH) {
+      const side = Math.floor(Math.min(viewW, viewH) * 0.82);
+      const s = Math.max(200, Math.min(side, 380));
+      return { width: s, height: s };
+    },
+    aspectRatio: 1.0,
+    disableFlip: false
+  };
+  try {
+    cfg.experimentalFeatures = { useBarCodeDetectorIfSupported: true };
+  } catch (_) {}
+  try {
+    if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+      cfg.formatsToSupport = [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8
+      ];
+    }
+  } catch (_) {}
+  return cfg;
+}
+
+function onScanSuccessFast(decodedText) {
+  try {
+    if (!qrRunning || _scanBusy) return;
+    const code = String(decodedText || '').trim();
+    if (!code) return;
+    const now = Date.now();
+    if (code === lastScanCode && (now - lastScanTime) < SCAN_SAME_CODE_MS) return;
+    lastScanCode = code;
+    lastScanTime = now;
+    _scanBusy = true;
+    try { if (navigator.vibrate) navigator.vibrate(25); } catch (_) {}
+    // Kamera tetap berjalan — proses absen async
+    prosesAbsen(code, 'qr')
+      .then((res) => {
+        if (!res || res.silent) return;
+        handleAbsenResult('scanResult', res);
+        // refresh log di latar (jangan blok popup)
+        if (res.ok || res.type === 'reject') {
+          setTimeout(() => { try { renderScanLogTable(); } catch (_) {} }, 80);
+        }
+      })
+      .catch((e) => console.error('prosesAbsen', e))
+      .finally(() => {
+        setTimeout(() => { _scanBusy = false; }, SCAN_BUSY_PAD_MS);
+      });
+  } catch (e) {
+    console.error('onScanSuccessFast', e);
+    _scanBusy = false;
+  }
+}
+
+async function stopScanEngine() {
+  const inst = qrScanner;
+  qrScanner = null;
+  qrRunning = false;
+  _videoTrack = null;
+  if (!inst) {
+    const el = document.getElementById('qr-reader');
+    if (el) el.innerHTML = '';
+    return;
+  }
+  try {
+    const st = (typeof inst.getState === 'function') ? inst.getState() : 2;
+    if (st === 2 || st === 3) await inst.stop();
+  } catch (_) {}
+  try { inst.clear(); } catch (_) {}
+  const el = document.getElementById('qr-reader');
+  if (el) el.innerHTML = '';
+}
+
+async function tryStartFresh(cameraIdOrConfig, cfg) {
+  await stopScanEngine();
+  const readerEl = document.getElementById('qr-reader');
+  if (readerEl) readerEl.innerHTML = '';
+  qrScanner = new Html5Qrcode('qr-reader', { verbose: false });
+  try {
+    await qrScanner.start(cameraIdOrConfig, cfg, onScanSuccessFast, () => {});
+    qrRunning = true;
+    // wire focus helpers
+    setTimeout(() => {
+      try {
+        const v = document.querySelector('#qr-reader video');
+        const stream = v && v.srcObject;
+        const track = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
+        if (track) {
+          _videoTrack = track;
+          try {
+            const caps = track.getCapabilities ? track.getCapabilities() : {};
+            const modes = caps.focusMode ? (Array.isArray(caps.focusMode) ? caps.focusMode : [caps.focusMode]) : [];
+            const advanced = [];
+            if (modes.indexOf('continuous') >= 0) advanced.push({ focusMode: 'continuous' });
+            else if (modes.indexOf('single-shot') >= 0) advanced.push({ focusMode: 'single-shot' });
+            if (caps.pointsOfInterest) advanced.push({ pointsOfInterest: [{ x: 0.5, y: 0.5 }] });
+            if (advanced.length) track.applyConstraints({ advanced }).catch(() => {});
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }, 300);
+    return true;
+  } catch (e) {
+    try {
+      const st = (typeof qrScanner.getState === 'function') ? qrScanner.getState() : 0;
+      if (st === 2 || st === 3) await qrScanner.stop();
+    } catch (_) {}
+    try { qrScanner.clear(); } catch (_) {}
+    qrScanner = null;
+    qrRunning = false;
+    if (readerEl) readerEl.innerHTML = '';
+    await new Promise(r => setTimeout(r, 100));
+    throw e;
+  }
+}
+
+async function startScanEngine() {
+  if (typeof Html5Qrcode === 'undefined') throw new Error('Library Html5Qrcode belum termuat');
+  const config = buildScanQrConfig();
+  const lightConfig = {
+    fps: 30,
+    qrbox: config.qrbox,
+    aspectRatio: 1.333,
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+  };
+  const configHiFps = Object.assign({}, config, { fps: 60 });
+  const attempts = [
+    async () => tryStartFresh({ facingMode: 'environment' }, configHiFps),
+    async () => tryStartFresh({ facingMode: 'environment' }, config),
+    async () => tryStartFresh({ facingMode: 'environment' }, lightConfig),
+    async () => {
+      const cams = await Html5Qrcode.getCameras();
+      if (!cams || !cams.length) throw new Error('Tidak ada kamera terdeteksi');
+      const back = cams.find(c => /back|rear|environment|belakang/i.test(c.label || '')) || cams[cams.length - 1];
+      return tryStartFresh(back.id, configHiFps);
+    },
+    async () => tryStartFresh({ facingMode: 'user' }, lightConfig)
+  ];
+  let lastErr = null;
+  for (const attempt of attempts) {
+    try {
+      await attempt();
+      return;
+    } catch (e) {
+      lastErr = e;
+      console.warn('startScan attempt failed:', e && (e.message || e));
+    }
+  }
+  throw lastErr || new Error('Gagal membuka kamera');
+}
+
 async function startQrScanner() {
-  // Jika kamera sudah jalan → tutup (toggle)
-  if (typeof qrRunning !== 'undefined' && qrRunning) {
+  // Toggle: jika sudah jalan → tutup
+  if (qrRunning) {
     await stopQrScanner();
     return;
   }
-  const st = updateScanCameraLock();
-  if (!st.ok) {
-    showBigPopup('warn', 'Di Luar Jam Sesi', st.text, 0);
-    return;
-  }
-  if (typeof Html5Qrcode === 'undefined') {
-    showAbsenResult('scanResult', 'err', 'Library kamera belum termuat. Refresh halaman.');
-    return;
-  }
-  const box = document.getElementById('qr-reader');
-  if (!box) return;
-  qrScanner = new Html5Qrcode('qr-reader');
+  if (_cameraBusy) return;
+  _cameraBusy = true;
   try {
-    await qrScanner.start(
-      { facingMode: 'environment' },
-      { fps: 8, qrbox: { width: 220, height: 220 } },
-      async (decoded) => {
-        const codeNow = String(decoded || '').replace(/\D/g, '');
-        if (codeNow && codeNow === lastProcessedCode && (Date.now() - lastProcessedAt) < 8000) return;
-        const res = await prosesAbsen(decoded, 'qr');
-        if (!res.silent) {
-          lastProcessedCode = codeNow;
-          lastProcessedAt = Date.now();
-        }
-        handleAbsenResult('scanResult', res);
-        if (res.ok || res.type === 'reject') renderScanLogTable();
-      },
-      () => {}
-    );
-    qrRunning = true;
+    const st = updateScanCameraLock();
+    if (!st.ok) {
+      showBigPopup('warn', 'Di Luar Jam Sesi', st.text, 0);
+      return;
+    }
+    if (typeof Html5Qrcode === 'undefined') {
+      showAbsenResult('scanResult', 'err', 'Library kamera belum termuat. Refresh halaman.');
+      return;
+    }
+    _scanBusy = false;
+    lastScanCode = '';
+    lastScanTime = 0;
+    lastProcessedCode = '';
+    lastProcessedAt = 0;
+    await startScanEngine();
     updateScanCameraLock();
   } catch (e) {
-    showAbsenResult('scanResult', 'err', 'Kamera gagal: ' + (e.message || e));
+    const msg = String((e && e.message) || e || '');
+    let extra = '';
+    if (/already under transition|Cannot transition/i.test(msg)) {
+      extra = '<br><small>Scanner masih sibuk. Tutup kamera, tunggu 1–2 detik, lalu buka lagi.</small>';
+    }
+    showAbsenResult('scanResult', 'err', 'Kamera gagal: ' + escapeHtml(msg) + extra);
+    try { await stopScanEngine(); } catch (_) {}
+  } finally {
+    _cameraBusy = false;
   }
 }
+
 async function stopQrScanner() {
-  if (!qrScanner || !qrRunning) return;
-  try { await qrScanner.stop(); qrScanner.clear(); } catch (_) {}
-  qrRunning = false;
-  qrScanner = null;
+  try { await stopScanEngine(); } catch (_) {}
   updateScanCameraLock();
 }
-document.getElementById('btnCamToggle')?.addEventListener('click', startQrScanner);
-document.getElementById('btnCamStop')?.addEventListener('click', stopQrScanner);
+
+document.getElementById('btnCamToggle')?.addEventListener('click', () => {
+  startQrScanner().catch(e => console.error(e));
+});
+document.getElementById('btnCamStop')?.addEventListener('click', () => {
+  stopQrScanner().catch(() => {});
+});
 
 document.getElementById('btnScanMode')?.addEventListener('click', () => {
   const sess = getSession();
