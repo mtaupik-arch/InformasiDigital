@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="fix-profil-compress-2026-10-31">
+<meta name="sis-fix" content="fix-foto-self-gallery-2026-10-31">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -3342,9 +3342,10 @@
       <div class="form-group full" style="margin-bottom:12px">
         <label style="font-size:12px;font-weight:600;color:#475569">Foto profil</label>
         <p style="font-size:11px;color:#94a3b8;margin:4px 0 8px;line-height:1.4">
-          Foto dikompres otomatis di HP (max ±256px, target &lt; 45 KB) lalu disimpan ke Storage.
+          Pilih dari <b>galeri</b> atau kamera. Foto dikompres otomatis di HP
+          (max ±256px, target &lt; 45 KB) lalu disimpan ke Storage.
         </p>
-        <input type="file" id="psFileInput" accept="image/*" capture="user" style="font-size:13px;width:100%" />
+        <input type="file" id="psFileInput" accept="image/*" style="font-size:13px;width:100%" />
         <div id="psCompressInfo" style="font-size:11px;color:#64748b;margin-top:6px;min-height:16px"></div>
       </div>
 
@@ -9335,8 +9336,17 @@ let _psPendingDataUrl = null;
 function psRefKeyForSession(sess) {
   if (!sess) return null;
   if (sess.role === 'admin') return 'admin';
-  if (sess.role === 'guru') return String(sess.user?.pin || sess.user?.nip || '').replace(/\D/g, '') || String(sess.user?.id || '');
-  if (sess.role === 'siswa') return String(sess.user?.nisn || '').replace(/\D/g, '');
+  const u = sess.user || {};
+  if (sess.role === 'guru') {
+    const raw = u.pin || u.nip || u.kode || u.identifier || '';
+    const dig = String(raw).replace(/\D/g, '');
+    return dig || String(raw) || String(u.id || '');
+  }
+  if (sess.role === 'siswa') {
+    const raw = u.nisn || u.kode || u.identifier || '';
+    const dig = String(raw).replace(/\D/g, '');
+    return dig || String(raw) || '';
+  }
   return null;
 }
 
