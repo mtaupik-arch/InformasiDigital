@@ -411,7 +411,7 @@
 
   .table-scroll { overflow-x:auto; }
   .table-scroll table { min-width:0; width:100%; }
-  @media(max-width:767px){ .table-scroll:not(.rekap-scroll) table { min-width:520px; } }
+  @media(max-width:767px){ .table-scroll:not(.rekap-scroll):not(.struktur-scroll) table { min-width:520px; } .struktur-scroll table { min-width:0 !important; width:100% !important; } }
   .hadir { color:#2e7d32; font-weight:700; } .alpa { color:#c62828; font-weight:700; }
   .izin { color:#ef6c00; font-weight:700; } .sakit { color:#1565c0; font-weight:700; }
 
@@ -529,7 +529,7 @@
     font-size:16px; letter-spacing:2px; text-align:center; outline:none; transition:.2s;
   }
   .login-body input:focus { border-color:var(--biru); box-shadow:0 0 0 3px rgba(33,150,243,.15); }
-  .login-hint { font-size:11px; color:#888; margin-top:8px; text-align:center; line-height:1.4; }
+  .login-hint { display:none !important; }
   .login-error {
     display:none; margin-top:10px; padding:8px 12px; background:#fdecea; color:#c62828;
     border-radius:8px; font-size:12px; text-align:center;
@@ -2408,6 +2408,73 @@
     border-radius: 50% !important;
   }
 
+
+  /* Struktur Organisasi — muat HP tanpa scroll horizontal */
+  .struktur-scroll {
+    overflow-x: hidden !important;
+    max-width: 100%;
+  }
+  table.struktur-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed;
+    font-size: 11px;
+    border-collapse: collapse;
+  }
+  table.struktur-table th,
+  table.struktur-table td {
+    padding: 6px 4px;
+    vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+  table.struktur-table .col-str-no,
+  table.struktur-table th.col-str-no,
+  table.struktur-table td:first-child {
+    width: 28px;
+    max-width: 32px;
+    text-align: center;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  table.struktur-table .col-str-nama,
+  table.struktur-table th.col-str-nama {
+    width: 32%;
+  }
+  table.struktur-table .col-str-jab,
+  table.struktur-table th.col-str-jab {
+    width: 28%;
+  }
+  table.struktur-table .col-str-fung,
+  table.struktur-table th.col-str-fung {
+    width: 28%;
+  }
+  @media (max-width: 480px) {
+    table.struktur-table { font-size: 10.5px; }
+    table.struktur-table .col-str-nama { width: 30%; }
+    table.struktur-table th.col-str-jab,
+    table.struktur-table th.col-str-fung {
+      font-size: 9.5px;
+      line-height: 1.2;
+    }
+  }
+
+  /* Informasi Sesi — center */
+  .sesi-span,
+  #dashSesiChips {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center !important;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+  }
+  .sesi-chip {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
 </style>
 </head>
 <body>
@@ -2572,13 +2639,8 @@
       <p>SMA Negeri 1 Nusantara</p>
     </div>
     <div class="login-body">
-      <label for="inputIdentifier">NISN / PIN</label>
-      <input type="text" id="inputIdentifier" inputmode="numeric" pattern="[0-9]*"
-             maxlength="10" placeholder="Masukkan angka saja" autocomplete="off" />
-      <div class="login-hint">
-        Siswa: <b>NISN 10 digit</b><br>
-        Guru &amp; Admin: <b>PIN 6 digit</b>
-      </div>
+      <input type="password" id="inputIdentifier" inputmode="numeric" pattern="[0-9]*"
+             maxlength="10" placeholder="NISN / PIN" autocomplete="current-password" />
       <div class="login-error" id="loginError"></div>
       <button class="login-btn" id="btnDoLogin">Masuk</button>
     </div>
@@ -2640,9 +2702,9 @@
       </div>
       <div class="dash-public-card dash-public-card-struktur">
         <div class="dash-public-stat-title">🏛️ Struktur Organisasi</div>
-        <div class="table-scroll" style="max-height:280px;">
-          <table>
-            <thead><tr><th>No</th><th>Nama</th><th>Jabatan</th></tr></thead>
+        <div class="table-scroll struktur-scroll" style="max-height:280px;">
+          <table class="struktur-table">
+            <thead><tr><th class="col-str-no">No</th><th class="col-str-nama">Nama</th><th class="col-str-jab">Jabatan</th></tr></thead>
             <tbody id="tbodyStrukturOrgPub">
               <tr class="empty-row"><td colspan="3">Memuat…</td></tr>
             </tbody>
@@ -2705,10 +2767,15 @@
   <!-- STRUKTUR ORGANISASI -->
   <div class="card" id="cardStrukturOrg">
     <h3>🏛️ Struktur Organisasi</h3>
-    <div class="table-scroll">
-      <table>
+    <div class="table-scroll struktur-scroll">
+      <table class="struktur-table" id="tableStrukturOrg">
         <thead>
-          <tr><th>No</th><th>Nama</th><th>Jabatan Struktur</th><th>Jabatan Fungsional</th></tr>
+          <tr>
+            <th class="col-str-no">No</th>
+            <th class="col-str-nama">Nama</th>
+            <th class="col-str-jab">Jabatan Struktur</th>
+            <th class="col-str-fung">Jabatan Fungsional</th>
+          </tr>
         </thead>
         <tbody id="tbodyStrukturOrg">
           <tr class="empty-row"><td colspan="4">Memuat data…</td></tr>
@@ -4896,11 +4963,11 @@ async function doLogin() {
   loginError.classList.remove('show');
 
   if (!id) {
-    showLoginError('Masukkan NISN atau PIN');
+    showLoginError('Masukkan kode login');
     return;
   }
   if (id.length !== 10 && id.length !== 6) {
-    showLoginError('Siswa: NISN 10 digit. Guru/Admin: PIN 6 digit.');
+    showLoginError('Kode login tidak valid');
     return;
   }
 
