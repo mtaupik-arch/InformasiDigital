@@ -1662,6 +1662,10 @@
     min-width:38px; padding:6px 5px;
   }
   table.rekap-abs-table tbody tr:hover { background:#f5f9ff; }
+  table.rekap-abs-table td.rk-pct { font-weight:800; font-variant-numeric:tabular-nums; }
+  table.rekap-abs-table td.rk-pct.nilai-merah { color:#c62828 !important; }
+  table.rekap-abs-table td.rk-pct.nilai-hijau { color:#2e7d32 !important; }
+  table.rekap-abs-table td.rk-pct.nilai-biru { color:#1565c0 !important; }
   .rekap-edit-toolbar {
     display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px;
   }
@@ -4665,31 +4669,11 @@ function statusBadge(s) {
 }
 
 function toast(msg, type) {
-  const t = type || 'ok';
-  const isErr = t === 'err' || t === 'danger' || t === 'error';
-  const isWarn = t === 'warn' || t === 'warning';
-  // Toast kecil (opsional) + popup jelas
-  try {
-    const el = document.getElementById('toast');
-    if (el) {
-      el.textContent = String(msg || '').replace(/<[^>]+>/g, ' ');
-      el.className = 'toast show ' + (isErr ? 'err' : 'ok');
-      clearTimeout(toast._t);
-      toast._t = setTimeout(() => { el.className = 'toast'; }, 2800);
-    }
-  } catch (_) {}
-  if (typeof showBigPopup === 'function') {
-    const titles = {
-      ok: 'Berhasil', success: 'Berhasil',
-      err: 'Gagal', danger: 'Gagal', error: 'Gagal',
-      warn: 'Peringatan', warning: 'Peringatan',
-      info: 'Informasi',
-    };
-    const title = titles[t] || 'Informasi';
-    const popupType = isErr ? 'err' : (isWarn ? 'warn' : (t === 'info' ? 'info' : 'ok'));
-    const auto = isErr ? 0 : (isWarn ? 3500 : 2500);
-    showBigPopup(popupType, title, String(msg || ''), auto);
-  }
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (type === 'err' ? 'err' : 'ok');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.className = 'toast'; }, 2800);
 }
 
 
@@ -8797,6 +8781,15 @@ function rekapStatCell(val, kind) {
   return `<td class="col-stat"><span class="rk-num rk-${kind}${n ? '' : ' rk-zero'}">${n}</span></td>`;
 }
 
+function rekapPersenClass(p) {
+  const n = Number(p);
+  if (!Number.isFinite(n)) return 'nilai-merah';
+  // <80 merah · 80–<91 hijau · ≥91 biru
+  if (n < 80) return 'nilai-merah';
+  if (n < 91) return 'nilai-hijau';
+  return 'nilai-biru';
+}
+
 function renderRekapTable(rows, tipe) {
   const tb = document.getElementById('tbodyRekapAbsensi');
   if (!tb) return;
@@ -8817,7 +8810,15 @@ function renderRekapTable(rows, tipe) {
     tb.innerHTML = `<tr><td colspan="${showNisn ? 13 : 12}" style="padding:20px;color:#888">Tidak ada data.</td></tr>`;
     return;
   }
-  tb.innerHTML = rows.map((r, i) => {
+  // Urut kelas → nama (teratur saat tanpa filter kelas)
+  const sorted = rows.slice().sort((a, b) => {
+    if (showNisn) {
+      const ck = String(a.kelas || '').localeCompare(String(b.kelas || ''), 'id', { numeric: true, sensitivity: 'base' });
+      if (ck !== 0) return ck;
+    }
+    return String(a.nama || '').localeCompare(String(b.nama || ''), 'id');
+  });
+  tb.innerHTML = sorted.map((r, i) => {
     const stats =
       rekapStatCell(r.tw, 'tw') +
       rekapStatCell(r.tl, 'tl') +
@@ -8825,6 +8826,9 @@ function renderRekapTable(rows, tipe) {
       rekapStatCell(r.sakit, 'sakit') +
       rekapStatCell(r.alpa, 'alpa') +
       rekapStatCell(r.bolos, 'bolos');
+    const pct = r.persen != null ? r.persen : 0;
+    const pctCls = rekapPersenClass(pct);
+    const pctCell = `<td class="col-stat rk-pct ${pctCls}"><b>${pct}</b></td>`;
     if (showNisn) {
       return `<tr>
         <td class="col-no">${i + 1}</td>
@@ -8834,7 +8838,7 @@ function renderRekapTable(rows, tipe) {
         ${stats}
         <td class="col-stat"><b>${r.jml_sesi || 0}</b></td>
         <td class="col-stat"><b>${r.nilai_hadir || 0}</b></td>
-        <td class="col-stat"><b>${r.persen != null ? r.persen : 0}</b></td>
+        ${pctCell}
       </tr>`;
     }
     return `<tr>
@@ -8844,7 +8848,7 @@ function renderRekapTable(rows, tipe) {
       ${stats}
       <td class="col-stat"><b>${r.jml_sesi || 0}</b></td>
       <td class="col-stat"><b>${r.nilai_hadir || 0}</b></td>
-      <td class="col-stat"><b>${r.persen != null ? r.persen : 0}</b></td>
+      ${pctCell}
     </tr>`;
   }).join('');
 }
