@@ -247,18 +247,25 @@
     box-shadow:none !important; display:block;
   }
   .dash-avatar.logo-only,
-  #schoolAvatar {
+  #schoolAvatar,
+  #dashPublicLogo {
     background:transparent !important;
     background-color:transparent !important;
-    border-radius:50% !important;
-    overflow:hidden !important;
+    border-radius:0 !important;
+    overflow:visible !important;
+    box-shadow:none !important;
+    border:none !important;
   }
   .dash-avatar.logo-only img,
-  #schoolAvatar img {
+  #schoolAvatar img,
+  #dashPublicLogo img {
     background:transparent !important;
     mix-blend-mode: normal !important;
-    border-radius:50% !important;
-    object-fit:cover !important;
+    border-radius:0 !important;
+    object-fit:contain !important;
+    width:100% !important;
+    height:100% !important;
+    display:block;
   }
   /* Foto profil user: selalu tampil (lingkaran) */
   .dash-avatar.user,
@@ -2261,15 +2268,46 @@
   /* ===== Dashboard publik (tamu) ===== */
   #dashPublicView { display:none; margin-bottom:12px; width:100%; }
   body:not(.dash-logged-in) #dashPublicView { display:block; }
-  body:not(.dash-logged-in) #panelRekapGuru .dash-left,
-  body:not(.dash-logged-in) #panelRekapSiswa .dash-left { display:none; }
+  /* Sembunyikan panel ganda untuk tamu (pakai dashPublicView saja) */
+  body:not(.dash-logged-in) #panelRekapGuru,
+  body:not(.dash-logged-in) #panelRekapSiswa,
+  body:not(.dash-logged-in) #cardStrukturOrg { display:none !important; }
   body.dash-logged-in #dashPublicView { display:none !important; }
-  .dash-public-grid { display:grid; gap:12px; grid-template-columns:1fr; }
+  .dash-public-grid {
+    display:grid; gap:12px;
+    grid-template-columns:1fr;
+  }
+  /* Kartu statistik guru | siswa sejajar horizontal */
+  .dash-public-stats-row {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  @media (max-width:420px) {
+    .dash-public-stats-row { grid-template-columns:1fr; }
+  }
   @media (min-width:900px) {
     body:not(.dash-logged-in) .dash-public-grid {
-      grid-template-columns: minmax(260px,1.1fr) minmax(260px,1.1fr) minmax(300px,1.3fr);
+      grid-template-columns: minmax(240px,1fr) minmax(320px,1.2fr);
       gap:16px;
     }
+    body:not(.dash-logged-in) .dash-public-stats-row {
+      grid-column: 1 / -1;
+    }
+    body:not(.dash-logged-in) .dash-public-card-struktur {
+      grid-column: 1 / -1;
+    }
+  }
+  #dashStatsGuruPub.dash-stats,
+  #dashStatsSiswaPub.dash-stats {
+    width:100% !important; max-width:100% !important; min-width:0 !important;
+    display:grid !important;
+    grid-template-columns:repeat(3, 1fr);
+    gap:6px;
+  }
+  #dashStatsGuruPub .stat-box,
+  #dashStatsSiswaPub .stat-box {
+    min-height:48px;
   }
   .dash-public-card {
     background:#fff; border-radius:14px; padding:16px 18px;
@@ -2312,11 +2350,19 @@
   .logo-sekolah img,
   .dash-public-logo img,
   #schoolAvatar img,
-  #dashPublicLogo img {
+  #dashPublicLogo img,
+  .dash-avatar.logo-only img {
     object-fit: contain !important;
     border-radius: 0 !important;
     background: transparent !important;
     mix-blend-mode: normal !important;
+  }
+  #schoolAvatar,
+  #dashPublicLogo,
+  .dash-avatar.logo-only {
+    border-radius: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
   }
   /* Avatar user tetap lingkaran */
   .avatar, .dash-avatar.user, #userPhoto {
@@ -2542,19 +2588,23 @@
         </div>
         <div class="dash-public-hint">Dari menu <b>Data Sekolah</b></div>
       </div>
-      <div class="dash-public-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div class="dash-public-stat-title">Statistik Guru</div>
-          <div class="dash-public-stat-num" id="dashTotalGuruPub">0</div>
+      <div class="dash-public-stats-row">
+        <div class="dash-public-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="dash-public-stat-title">Rekap Guru</div>
+            <div class="dash-public-stat-num" id="dashTotalGuruPub">0</div>
+          </div>
+          <div id="dashStatsGuruPub" class="dash-stats"></div>
         </div>
-        <div id="dashStatsGuruPub" class="dash-stats" style="width:100%;max-width:100%;min-width:0;"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px;">
-          <div class="dash-public-stat-title">Statistik Siswa</div>
-          <div class="dash-public-stat-num" id="dashTotalSiswaPub">0</div>
+        <div class="dash-public-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="dash-public-stat-title">Rekap Siswa</div>
+            <div class="dash-public-stat-num" id="dashTotalSiswaPub">0</div>
+          </div>
+          <div id="dashStatsSiswaPub" class="dash-stats"></div>
         </div>
-        <div id="dashStatsSiswaPub" class="dash-stats" style="width:100%;max-width:100%;min-width:0;"></div>
       </div>
-      <div class="dash-public-card">
+      <div class="dash-public-card dash-public-card-struktur">
         <div class="dash-public-stat-title">🏛️ Struktur Organisasi</div>
         <div class="table-scroll" style="max-height:280px;">
           <table>
@@ -2607,7 +2657,7 @@
   </div>
 
   <!-- STRUKTUR ORGANISASI -->
-  <div class="card">
+  <div class="card" id="cardStrukturOrg">
     <h3>🏛️ Struktur Organisasi</h3>
     <div class="table-scroll">
       <table>
