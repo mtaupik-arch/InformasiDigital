@@ -2409,7 +2409,7 @@
   }
 
 
-  /* Struktur Organisasi — muat HP tanpa scroll horizontal */
+  /* Struktur Organisasi — kolom No sempit, Nama lebih lebar */
   .struktur-scroll {
     overflow-x: hidden !important;
     max-width: 100%;
@@ -2417,45 +2417,68 @@
   table.struktur-table {
     width: 100% !important;
     min-width: 0 !important;
-    table-layout: fixed;
-    font-size: 11px;
+    table-layout: fixed !important;
+    font-size: 12px;
     border-collapse: collapse;
   }
   table.struktur-table th,
   table.struktur-table td {
-    padding: 6px 4px;
-    vertical-align: top;
+    padding: 7px 6px;
+    vertical-align: middle;
     word-wrap: break-word;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
-  table.struktur-table .col-str-no,
+  /* No: sangat sempit */
   table.struktur-table th.col-str-no,
-  table.struktur-table td:first-child {
-    width: 28px;
-    max-width: 32px;
-    text-align: center;
-    padding-left: 2px;
-    padding-right: 2px;
+  table.struktur-table td.col-str-no,
+  table.struktur-table thead th:first-child,
+  table.struktur-table tbody td:first-child {
+    width: 22px !important;
+    max-width: 24px !important;
+    min-width: 20px !important;
+    text-align: center !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+    box-sizing: border-box;
   }
-  table.struktur-table .col-str-nama,
-  table.struktur-table th.col-str-nama {
-    width: 32%;
+  /* Nama: proporsi terbesar */
+  table.struktur-table th.col-str-nama,
+  table.struktur-table td.col-str-nama,
+  table.struktur-table thead th:nth-child(2),
+  table.struktur-table tbody td:nth-child(2) {
+    width: 46% !important;
+    text-align: left !important;
+    white-space: normal;
   }
-  table.struktur-table .col-str-jab,
-  table.struktur-table th.col-str-jab {
-    width: 28%;
+  /* Jabatan struktur */
+  table.struktur-table th.col-str-jab,
+  table.struktur-table td.col-str-jab,
+  table.struktur-table thead th:nth-child(3),
+  table.struktur-table tbody td:nth-child(3) {
+    width: 34% !important;
+    text-align: left !important;
   }
-  table.struktur-table .col-str-fung,
-  table.struktur-table th.col-str-fung {
-    width: 28%;
+  /* Jabatan fungsional (4 kolom) */
+  table.struktur-table th.col-str-fung,
+  table.struktur-table td.col-str-fung,
+  table.struktur-table thead th:nth-child(4),
+  table.struktur-table tbody td:nth-child(4) {
+    width: 20% !important;
+    text-align: left !important;
   }
   @media (max-width: 480px) {
-    table.struktur-table { font-size: 10.5px; }
-    table.struktur-table .col-str-nama { width: 30%; }
-    table.struktur-table th.col-str-jab,
-    table.struktur-table th.col-str-fung {
-      font-size: 9.5px;
-      line-height: 1.2;
+    table.struktur-table { font-size: 11px; }
+    table.struktur-table th.col-str-no,
+    table.struktur-table td.col-str-no,
+    table.struktur-table thead th:first-child,
+    table.struktur-table tbody td:first-child {
+      width: 20px !important;
+      max-width: 22px !important;
+    }
+    table.struktur-table thead th:nth-child(2),
+    table.struktur-table tbody td:nth-child(2) {
+      width: 48% !important;
     }
   }
 
@@ -5333,10 +5356,10 @@ function renderStrukturOrganisasi() {
   } else {
     tb.innerHTML = rows.map((g, i) => `
     <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(g.nama || '-')}</td>
-      <td>${escapeHtml(g.jabatan_struktur || '-')}</td>
-      <td>${escapeHtml(g.jabatan_fungsional || '-')}</td>
+      <td class="col-str-no">${i + 1}</td>
+      <td class="col-str-nama">${escapeHtml(g.nama || '-')}</td>
+      <td class="col-str-jab">${escapeHtml(g.jabatan_struktur || '-')}</td>
+      <td class="col-str-fung">${escapeHtml(g.jabatan_fungsional || '-')}</td>
     </tr>`).join('');
   }
   // Selalu sinkron ke panel publik
@@ -5380,8 +5403,8 @@ function syncStrukturToPublic() {
       return;
     }
     tbodyPub.innerHTML = rows.map((g, i) =>
-      '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(g.nama || '-') +
-      '</td><td>' + escapeHtml(g.jabatan_struktur || '-') + '</td></tr>'
+      '<tr><td class="col-str-no">' + (i + 1) + '</td><td class="col-str-nama">' + escapeHtml(g.nama || '-') +
+      '</td><td class="col-str-jab">' + escapeHtml(g.jabatan_struktur || '-') + '</td></tr>'
     ).join('');
   } catch (e) { console.warn('syncStrukturToPublic', e); }
 }
