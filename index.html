@@ -5651,23 +5651,10 @@ async function renderDashboard() {
   if (gPub) gPub.textContent = String((store.guru || []).length);
   if (sPub) sPub.textContent = String((store.siswa || []).length);
 
-  // sesi list
-  let sesiList = getSesiList();
-  const showRekap = shouldShowRekapHariIni();
+  let sesiList = [];
+  try { sesiList = getSesiList(); } catch (_) { sesiList = []; }
 
-  // info sesi: selalu tampil (aktif / berikutnya / selesai)
-  const chipWrap = document.getElementById('dashSesiChips') || document.querySelector('#page-dashboard .sesi-span');
-  if (chipWrap) {
-    chipWrap.innerHTML = buildDashSesiInfoHtml(sesiList);
-  }
-
-  // Struktur Organisasi tetap tampil
-  renderStrukturOrganisasi();
-
-  const cardGuru = document.getElementById('cardRekapGuru');
-  const cardSiswa = document.getElementById('cardRekapSiswa');
-
-  // Banner hari libur
+  // Banner hari libur (pastikan elemen ada)
   let banner = document.getElementById('dashLiburBanner');
   if (!banner) {
     banner = document.createElement('div');
@@ -5676,109 +5663,141 @@ async function renderDashboard() {
     const pageDash = document.getElementById('page-dashboard');
     if (pageDash) {
       const firstPanel = pageDash.querySelector('.dash-panel, .dash-public-grid, .card');
-      if (firstPanel) pageDash.insertBefore(banner, firstPanel);
-      else pageDash.prepend(banner);
+      if (firstPanel && firstPanel.parentNode === pageDash) pageDash.insertBefore(banner, firstPanel);
+      else pageDash.insertBefore(banner, pageDash.firstChild);
     }
   }
 
-  // Cek hari libur dari store + response API
-  let liburInfo = getHariLiburInfo(todayStr());
-  let absenRows = [];
-  let apiSaidLibur = false;
+  const cardGuru = document.getElementById('cardRekapGuru');
+  const cardSiswa = document.getElementById('cardRekapSiswa');
+  const chipWrap = document.getElementById('dashSesiChips') || document.querySelector('#page-dashboard .sesi-span');
 
-  if (!showRekap && !liburInfo.libur) {
-    // Setelah 00:00 s/d sebelum sesi 1: statistik kosong, rekap disembunyikan
-    banner.style.display = 'none';
-    banner.innerHTML = '';
-    if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
-    if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
-    if (cardGuru) cardGuru.style.display = 'none';
-    if (cardSiswa) cardSiswa.style.display = 'none';
+  // Hapus "Memuat data…" segera agar UI tidak stuck
+  const clearMemuat = (msg) => {
     const tg = document.getElementById('tbodyRekapGuru');
     const ts = document.getElementById('tbodyRekapSiswa');
-    if (tg) tg.innerHTML = '<tr class="empty-row"><td colspan="8">Di luar jam sesi</td></tr>';
-    if (ts) ts.innerHTML = '<tr class="empty-row"><td colspan="8">Di luar jam sesi</td></tr>';
-    syncDashboardPublicPanels();
-    return;
-  }
+    if (tg && /Memuat/i.test(tg.textContent || '')) {
+      tg.innerHTML = '<tr class="empty-row"><td colspan="8">' + (msg || '—') + '</td></tr>';
+    }
+    if (ts && /Memuat/i.test(ts.textContent || '')) {
+      ts.innerHTML = '<tr class="empty-row"><td colspan="8">' + (msg || '—') + '</td></tr>';
+    }
+  };
+  clearMemuat('Menyiapkan…');
 
-  // Publik: ambil absensi hari ini dari DB (tanpa login)
   try {
-    const logRes = await apiCall('list_absen_hari_ini', {});
-    if (logRes && logRes.libur === true) {
-      apiSaidLibur = true;
-      liburInfo = {
-        libur: true,
-        keterangan: logRes.libur_keterangan || liburInfo.keterangan,
-        tanggal: logRes.tanggal || todayStr(),
-      };
-      absenRows = [];
-    } else if (Array.isArray(logRes.data)) {
-      absenRows = logRes.data;
-      saveAbsenLog(absenRows);
-    }
-  } catch (_) {
-    absenRows = loadAbsenLog().filter(r =>
-      !r.tanggal || String(r.tanggal).slice(0, 10) === todayStr()
-    );
-  }
-
-  // ===== HARI LIBUR: legend = "-", tabel rekap tersembunyi, pesan jelas =====
-  if (liburInfo.libur || apiSaidLibur) {
-    const ket = liburInfo.keterangan
-      ? escapeHtml(liburInfo.keterangan)
-      : 'Hari libur resmi';
-    const tglLabel = escapeHtml(liburInfo.tanggal || todayStr());
-    banner.style.display = '';
-    banner.innerHTML =
-      '<div style="background:linear-gradient(135deg,#ffebee,#ffcdd2);border:1.5px solid #e57373;color:#b71c1c;' +
-      'border-radius:10px;padding:12px 14px;margin-bottom:12px;text-align:center;font-weight:700;font-size:13.5px;line-height:1.4;">' +
-      '📅 <b>HARI LIBUR</b> · ' + tglLabel + '<br>' +
-      '<span style="font-weight:600;font-size:12.5px;">' + ket + '</span><br>' +
-      '<span style="font-weight:500;font-size:11.5px;opacity:.9;">Absensi tidak dihitung. Rekap kehadiran dikosongkan.</span>' +
-      '</div>';
-
-    if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
-    if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
-    if (cardGuru) cardGuru.style.display = 'none';
-    if (cardSiswa) cardSiswa.style.display = 'none';
-    const tg = document.getElementById('tbodyRekapGuru');
-    const ts = document.getElementById('tbodyRekapSiswa');
-    if (tg) tg.innerHTML = '<tr class="empty-row"><td colspan="8">Hari libur — absensi tidak dihitung</td></tr>';
-    if (ts) ts.innerHTML = '<tr class="empty-row"><td colspan="8">Hari libur — absensi tidak dihitung</td></tr>';
-
-    // Chip sesi: tampilkan info libur
+    // info sesi
     if (chipWrap) {
-      chipWrap.innerHTML =
-        '<span class="sesi-chip sesi-chip-off">📅 Hari libur' +
-        (liburInfo.keterangan ? ': ' + escapeHtml(liburInfo.keterangan) : '') +
-        ' — absensi ditutup</span>';
+      try { chipWrap.innerHTML = buildDashSesiInfoHtml(sesiList); }
+      catch (_) { chipWrap.innerHTML = '<span class="sesi-chip">Sesi</span>'; }
     }
 
-    syncDashboardPublicPanels();
+    // Struktur Organisasi tetap tampil
+    try { renderStrukturOrganisasi(); } catch (e) { console.warn('struktur', e); }
+
+    let liburInfo = { libur: false, keterangan: null, tanggal: todayStr() };
+    try {
+      if (typeof getHariLiburInfo === 'function') liburInfo = getHariLiburInfo(todayStr());
+    } catch (_) {}
+
+    const showRekap = (typeof shouldShowRekapHariIni === 'function') ? shouldShowRekapHariIni() : true;
+
+    // Di luar jam sesi & bukan libur
+    if (!showRekap && !liburInfo.libur) {
+      if (banner) { banner.style.display = 'none'; banner.innerHTML = ''; }
+      if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
+      if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
+      if (cardGuru) cardGuru.style.display = 'none';
+      if (cardSiswa) cardSiswa.style.display = 'none';
+      const tg = document.getElementById('tbodyRekapGuru');
+      const ts = document.getElementById('tbodyRekapSiswa');
+      if (tg) tg.innerHTML = '<tr class="empty-row"><td colspan="8">Di luar jam sesi</td></tr>';
+      if (ts) ts.innerHTML = '<tr class="empty-row"><td colspan="8">Di luar jam sesi</td></tr>';
+      try { syncDashboardPublicPanels(); } catch (_) {}
+      return;
+    }
+
+    // Ambil absensi hari ini (jangan biarkan menunggu tanpa batas)
+    let absenRows = [];
+    let apiSaidLibur = false;
+    try {
+      const logRes = await apiCall('list_absen_hari_ini', {});
+      if (logRes && logRes.libur === true) {
+        apiSaidLibur = true;
+        liburInfo = {
+          libur: true,
+          keterangan: logRes.libur_keterangan || liburInfo.keterangan,
+          tanggal: logRes.tanggal || todayStr(),
+        };
+        absenRows = [];
+      } else if (Array.isArray(logRes && logRes.data)) {
+        absenRows = logRes.data;
+        try { saveAbsenLog(absenRows); } catch (_) {}
+      }
+    } catch (e) {
+      console.warn('list_absen_hari_ini', e);
+      try {
+        absenRows = loadAbsenLog().filter(r =>
+          !r.tanggal || String(r.tanggal).slice(0, 10) === todayStr()
+        );
+      } catch (_) { absenRows = []; }
+    }
+
+    // ===== HARI LIBUR =====
+    if (liburInfo.libur || apiSaidLibur) {
+      const ket = liburInfo.keterangan
+        ? escapeHtml(String(liburInfo.keterangan))
+        : 'Hari libur resmi';
+      const tglLabel = escapeHtml(String(liburInfo.tanggal || todayStr()));
+      if (banner) {
+        banner.style.display = '';
+        banner.innerHTML =
+          '<div style="background:linear-gradient(135deg,#ffebee,#ffcdd2);border:1.5px solid #e57373;color:#b71c1c;' +
+          'border-radius:10px;padding:12px 14px;margin-bottom:12px;text-align:center;font-weight:700;font-size:13.5px;line-height:1.4;">' +
+          '📅 <b>HARI LIBUR</b> · ' + tglLabel + '<br>' +
+          '<span style="font-weight:600;font-size:12.5px;">' + ket + '</span><br>' +
+          '<span style="font-weight:500;font-size:11.5px;opacity:.9;">Absensi tidak dihitung. Rekap kehadiran dikosongkan.</span>' +
+          '</div>';
+      }
+      if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
+      if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
+      if (cardGuru) cardGuru.style.display = 'none';
+      if (cardSiswa) cardSiswa.style.display = 'none';
+      const tg = document.getElementById('tbodyRekapGuru');
+      const ts = document.getElementById('tbodyRekapSiswa');
+      if (tg) tg.innerHTML = '<tr class="empty-row"><td colspan="8">Hari libur — absensi tidak dihitung</td></tr>';
+      if (ts) ts.innerHTML = '<tr class="empty-row"><td colspan="8">Hari libur — absensi tidak dihitung</td></tr>';
+      if (chipWrap) {
+        chipWrap.innerHTML =
+          '<span class="sesi-chip sesi-chip-off">📅 Hari libur' +
+          (liburInfo.keterangan ? ': ' + escapeHtml(String(liburInfo.keterangan)) : '') +
+          ' — absensi ditutup</span>';
+      }
+      try { syncDashboardPublicPanels(); } catch (_) {}
+      try { renderUserUI(getSession()); } catch (_) {}
+      try { applySekolahToUI(); } catch (_) {}
+      return;
+    }
+
+    // Bukan libur
+    if (banner) { banner.style.display = 'none'; banner.innerHTML = ''; }
+    if (cardGuru) cardGuru.style.display = '';
+    if (cardSiswa) cardSiswa.style.display = '';
+
+    if (statsGuru) statsGuru.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'guru');
+    if (statsSiswa) statsSiswa.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'siswa');
+    try { renderRekapKehadiran('guru', sesiList, absenRows); } catch (e) { console.warn(e); clearMemuat('Gagal rekap guru'); }
+    try { renderRekapKehadiran('siswa', sesiList, absenRows); } catch (e) { console.warn(e); clearMemuat('Gagal rekap siswa'); }
+    try { syncDashboardPublicPanels(); } catch (_) {}
     try { renderUserUI(getSession()); } catch (_) {}
     try { applySekolahToUI(); } catch (_) {}
-    return;
+  } catch (err) {
+    console.error('renderDashboard fatal', err);
+    clearMemuat('Gagal memuat rekap');
+    if (statsGuru) try { statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList); } catch (_) {}
+    if (statsSiswa) try { statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList); } catch (_) {}
+    try { syncDashboardPublicPanels(); } catch (_) {}
   }
-
-  // Bukan libur → sembunyikan banner
-  banner.style.display = 'none';
-  banner.innerHTML = '';
-
-  if (cardGuru) cardGuru.style.display = '';
-  if (cardSiswa) cardSiswa.style.display = '';
-
-  if (statsGuru) statsGuru.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'guru');
-  if (statsSiswa) statsSiswa.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'siswa');
-
-  // Rekap kehadiran guru & siswa (nama dari DB, status dari absensi hari ini)
-  renderRekapKehadiran('guru', sesiList, absenRows);
-  renderRekapKehadiran('siswa', sesiList, absenRows);
-  // Sinkron panel publik (legend + struktur) — wajib untuk tampilan tamu
-  syncDashboardPublicPanels();
-  // Pastikan foto user / logo tetap tampil setelah re-render stats
-  try { renderUserUI(getSession()); } catch (_) {}
-  try { applySekolahToUI(); } catch (_) {}
 }
 
 /* ----- Navigation ----- */
