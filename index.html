@@ -12992,8 +12992,13 @@ async function initBankSoalPage() {
   }
   switchBsTab(_bsTab || 'bank');
   await loadBankSoalAmpu();
-  if (_bsTab === 'ruang') await loadRuangUjianList();
-  else await loadBankSoalList();
+  if (_bsTab === 'ruang') {
+    await loadRuangUjianList();
+    try { startRuangUjianLive(); } catch (_) {}
+  } else {
+    await loadBankSoalList();
+    try { stopRuangUjianLive(); } catch (_) {}
+  }
 }
 
 function switchBsTab(tab) {
@@ -13451,7 +13456,20 @@ function renderRuangUjianTable() {
   }
   if (tb) {
     tb.innerHTML = rows.map((r, i) => {
-      const skor = r.skor != null && r.skor !== '' ? r.skor : '—';
+      let skorLabel = '—';
+      if (r.skor != null && r.skor !== '') {
+        const got = Number(r.skor);
+        const max = r.max_skor != null && r.max_skor !== '' ? Number(r.max_skor) : null;
+        const gotStr = Number.isFinite(got)
+          ? (Math.round(got * 100) / 100).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+          : String(r.skor);
+        if (max != null && Number.isFinite(max) && max > 0) {
+          const maxStr = (Math.round(max * 100) / 100).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+          skorLabel = gotStr + '/' + maxStr;
+        } else {
+          skorLabel = gotStr;
+        }
+      }
       const waktu = r.sisa_detik != null ? bsFmtWaktu(r.sisa_detik) : (r.waktu_label || '—');
       return `<tr>
         <td style="text-align:center"><input type="checkbox" class="bs-ru-check" value="${escapeHtml(String(r.id))}" /></td>
@@ -13461,7 +13479,7 @@ function renderRuangUjianTable() {
         <td>${escapeHtml(r.kelas || '—')}</td>
         <td>${bsRuStatusPill(r.status)}</td>
         <td style="font-variant-numeric:tabular-nums;font-weight:600">${escapeHtml(String(waktu))}</td>
-        <td style="text-align:center;font-weight:800">${escapeHtml(String(skor))}</td>
+        <td style="text-align:center;font-weight:800;white-space:nowrap" title="Skor perolehan / skor maksimum">${escapeHtml(String(skorLabel))}</td>
       </tr>`;
     }).join('');
   }
@@ -13470,6 +13488,98 @@ function renderRuangUjianTable() {
 document.getElementById('btnBsRuReload')?.addEventListener('click', () => loadRuangUjianList());
 document.getElementById('bsRuQ')?.addEventListener('input', () => renderRuangUjianTable());
 document.getElementById('bsRuFilterStatus')?.addEventListener('change', () => renderRuangUjianTable());
+
+/* ===== Ruang Ujian: auto-refresh status saat siswa Kumpulkan (polling + realtime) ===== */
+let _bsRuPollTimer = null;
+let _bsRuRealtimeCh = null;
+
+function stopRuangUjianLive() {
+  if (_bsRuPollTimer) { clearInterval(_bsRuPollTimer); _bsRuPollTimer = null; }
+  if (_bsRuRealtimeCh) {
+    try {
+      if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+        supabaseClient.removeChannel(_bsRuRealtimeCh);
+      }
+    } catch (_) {}
+    _bsRuRealtimeCh = null;
+  }
+}
+
+function startRuangUjianLive() {
+  stopRuangUjianLive();
+  // Poll ringan setiap 4 detik selama tab Ruang Ujian aktif
+  _bsRuPollTimer = setInterval(() => {
+    try {
+      const pr = document.getElementById('bsPanelRuang');
+      if (!pr || pr.style.display === 'none') return;
+      if (_bsTab !== 'ruang') return;
+      loadRuangUjianList();
+    } catch (_) {}
+  }, 4000);
+
+  // Supabase Realtime (jika tabel ruang_ujian di-enable replication)
+  try {
+    if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+      _bsRuRealtimeCh = supabaseClient
+        .channel('ruang-ujian-live')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'ruang_ujian' },
+          (payload) => {
+            try {
+              if (_bsTab !== 'ruang') return;
+              const row = payload.new || payload.old;
+              if (!row || !row.id) {
+                loadRuangUjianList();
+                return;
+              }
+              const id = String(row.id);
+              const idx = (_bsRuRows || []).findIndex((r) => String(r.id) === id);
+              if (payload.eventType === 'DELETE') {
+                if (idx >= 0) _bsRuRows.splice(idx, 1);
+              } else if (idx >= 0) {
+                const prev = _bsRuRows[idx];
+                _bsRuRows[idx] = {
+                  ...prev,
+                  status: row.status != null ? row.status : prev.status,
+                  skor: row.skor !== undefined ? row.skor : prev.skor,
+                  sisa_detik: row.sisa_detik !== undefined ? row.sisa_detik : prev.sisa_detik,
+                  selesai_at: row.selesai_at !== undefined ? row.selesai_at : prev.selesai_at,
+                  mulai_at: row.mulai_at !== undefined ? row.mulai_at : prev.mulai_at,
+                  max_skor: prev.max_skor, // max dari item, tidak di payload
+                };
+              } else {
+                // baris baru — reload agar dapat max_skor
+                loadRuangUjianList();
+                return;
+              }
+              renderRuangUjianTable();
+            } catch (_) {
+              loadRuangUjianList();
+            }
+          },
+        )
+        .subscribe();
+    }
+  } catch (e) {
+    console.warn('ruang ujian realtime', e);
+  }
+}
+
+// Hook tab switch: start/stop live
+(function hookBsRuLive() {
+  const tabs = document.getElementById('bsTabs');
+  if (!tabs || tabs._bsRuLiveHooked) return;
+  tabs._bsRuLiveHooked = true;
+  tabs.addEventListener('click', (e) => {
+    const btn = e.target.closest('.bs-tab');
+    if (!btn) return;
+    const tab = btn.getAttribute('data-bs-tab');
+    if (tab === 'ruang') startRuangUjianLive();
+    else stopRuangUjianLive();
+  });
+})();
+
 
 
 
