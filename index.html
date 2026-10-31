@@ -943,6 +943,30 @@
     box-sizing:border-box;
   }
   .uj-soal-card .us-isian-preview:empty { display:none; }
+  #ujSoalList.uj-readonly {
+    position: relative;
+  }
+  #ujSoalList.uj-readonly::before {
+    content: 'Mode lihat — jawaban terkunci. Hubungi guru jika perlu Buka Kembali.';
+    display: block;
+    background: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffcc80;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  #ujSoalList.uj-readonly input,
+  #ujSoalList.uj-readonly textarea,
+  #ujSoalList.uj-readonly button.btn-uj-math {
+    pointer-events: none !important;
+    opacity: 0.85;
+  }
+  #ujSoalList.uj-readonly label {
+    pointer-events: none !important;
+  }
   .uj-soal-card .us-isian-preview .uj-prev-label {
     display:block; font-size:11px; font-weight:700; color:#546e7a;
     margin-bottom:6px; letter-spacing:.2px;
@@ -10383,14 +10407,16 @@ function renderUjPaketList(rows) {
     if (r.status_siswa === 'Selesai') badge = `<span class="up-badge done">Selesai${r.skor != null ? ' · skor ' + r.skor : ''}</span>`;
     else if (r.status_siswa === 'Mengerjakan') badge = `<span class="up-badge">Sedang dikerjakan</span>`;
     else if (!r.jadwal_ok) badge = `<span class="up-badge warn">${escapeHtml(r.jadwal_msg || 'Tutup')}</span>`;
-    const btnLabel = r.status_siswa === 'Mengerjakan' ? 'Lanjutkan' : (r.status_siswa === 'Selesai' ? 'Lihat' : 'Kerjakan');
-    const can = r.can_start || r.status_siswa === 'Selesai' || r.status_siswa === 'Mengerjakan';
-    return `<div class="uj-paket-card" data-bank-id="${escapeHtml(String(r.id))}">
+    const stSiswa = String(r.status_siswa || '');
+    const btnLabel = stSiswa === 'Mengerjakan' ? 'Lanjutkan' : (stSiswa === 'Selesai' ? 'Lihat' : 'Kerjakan');
+    const can = r.can_start || stSiswa === 'Selesai' || stSiswa === 'Mengerjakan';
+    const isLihat = stSiswa === 'Selesai';
+    return `<div class="uj-paket-card" data-bank-id="${escapeHtml(String(r.id))}" data-status-siswa="${escapeHtml(stSiswa)}">
       <div style="flex:1;min-width:160px">
         <div class="up-title">${escapeHtml(r.mapel_nama || 'Mapel')} · ${escapeHtml(r.jenis || '')} Ke-${r.penilaian_ke != null ? r.penilaian_ke : 1}${badge}</div>
         <div class="up-meta">Kelas ${escapeHtml(r.kelas_nama || '—')} · ${r.jml_soal || 0} soal · Attempt ${r.attempt || 1}<br>${escapeHtml(ujFmtJadwal(r.waktu_mulai, r.waktu_selesai))}</div>
       </div>
-      <button type="button" class="btn btn-primary btn-sm" data-uj-start="${escapeHtml(String(r.id))}" ${can ? '' : 'disabled'}>${btnLabel}</button>
+      <button type="button" class="btn ${isLihat ? 'btn-outline' : 'btn-primary'} btn-sm" data-uj-start="${escapeHtml(String(r.id))}" data-uj-status="${escapeHtml(stSiswa)}" data-uj-readonly="${isLihat ? '1' : '0'}" ${can ? '' : 'disabled'}>${btnLabel}</button>
     </div>`;
   }).join('');
 }
@@ -10398,6 +10424,8 @@ function renderUjPaketList(rows) {
 function renderUjSoalList(soal, readonly) {
   const box = document.getElementById('ujSoalList');
   if (!box) return;
+  if (readonly) box.classList.add('uj-readonly');
+  else box.classList.remove('uj-readonly');
   if (!soal?.length) {
     box.innerHTML = '<div class="bs-empty">Belum ada soal di paket ini.</div>';
     return;
@@ -10978,12 +11006,12 @@ async function ujSimpanJawabanKeServer(opts) {
     bank_soal_id: _ujState.bankId || undefined,
   };
 
+  // Hanya kirim array (backend membaca body.answers sebagai array)
+  const rowsFilled = rowify(filledAnswers);
+  const rowsAll = rowify(answers);
   const payloads = [
-    { ...base, answers: rowify(filledAnswers) },
-    { ...base, answers: rowify(answers) },
-    { ...base, jawaban: rowify(filledAnswers) },
-    { ...base, data: rowify(filledAnswers) },
-    { ...base, answers: mapObj, jawaban: mapObj },
+    { ...base, answers: rowsFilled },
+    { ...base, answers: rowsAll },
   ];
 
   let res = null;
@@ -11057,83 +11085,104 @@ async function ujSimpanJawabanKeServer(opts) {
 }
 
 
-async function ujOpenLembar(bankId) {
+async function ujOpenLembar(bankId, opts = {}) {
   try {
-    toast('Menyiapkan lembar ujian…', 'ok');
+    const forceReadonly = !!(opts && (opts.readonly || opts.status_siswa === 'Selesai'));
+    toast(forceReadonly ? 'Membuka lembar (hanya lihat)…' : 'Menyiapkan lembar ujian…', 'ok');
     const sess = getSession();
     const nisn = String(
       _ujState.siswa?.nisn || sess?.user?.nisn || sess?.user?.kode || sess?.user?.identifier || ''
     ).replace(/\D/g, '');
+
+    // Jika hanya lihat (sudah Selesai), minta mode lihat agar backend tidak membuka lagi
     const start = await apiCall('mulai_ujian', {
       bank_soal_id: bankId,
       nisn: nisn || undefined,
       siswa_id: sess?.user?.id || undefined,
+      mode: forceReadonly ? 'lihat' : 'kerjakan',
+      readonly: forceReadonly ? true : false,
+      hanya_lihat: forceReadonly ? true : false,
     });
-    const ruang = start.data;
-    if (!ruang?.id) throw new Error('Gagal membuat sesi ujian');
-    const lembar = await apiCall('get_lembar_ujian', { bank_soal_id: bankId, ruang_id: ruang.id });
+    const ruang = start.data || {};
+    if (!ruang?.id) throw new Error('Gagal membuat/membuka sesi ujian');
+
+    const lembar = await apiCall('get_lembar_ujian', {
+      bank_soal_id: bankId,
+      ruang_id: ruang.id,
+      mode: forceReadonly ? 'lihat' : undefined,
+    });
     const d = lembar.data || {};
+    const statusRuang = String(ruang.status || d.status || d.ruang?.status || opts.status_siswa || '');
+    const readonly = forceReadonly
+      || statusRuang === 'Selesai'
+      || statusRuang === 'Timeout'
+      || statusRuang === 'Selesai ';
+
     _ujState = {
       ruangId: ruang.id,
       bankId,
       soal: d.soal || [],
       siswa: d.siswa || _ujState.siswa,
-      readonly: String(ruang.status) === 'Selesai' || String(ruang.status) === 'Timeout',
+      readonly: !!readonly,
+      status: statusRuang,
     };
     if (d.siswa) ujSetSiswaHeader(d.siswa);
     const title = document.getElementById('ujLembarTitle');
     if (title) {
       const b = d.bank || {};
-      title.textContent = `${b.mapel_nama || ''} · ${b.jenis || ''} Ke-${b.penilaian_ke != null ? b.penilaian_ke : 1} · ${b.kelas_nama || ''}`;
+      title.textContent = `${b.mapel_nama || ''} · ${b.jenis || ''} Ke-${b.penilaian_ke != null ? b.penilaian_ke : 1} · ${b.kelas_nama || ''}`
+        + (readonly ? ' · (Hanya lihat)' : '');
     }
     document.getElementById('ujListWrap').style.display = 'none';
     document.getElementById('ujLembarWrap').style.display = '';
     const foot = document.getElementById('ujLembarFoot');
-    if (foot) foot.style.display = _ujState.readonly ? 'none' : 'flex';
-    // Gabungkan jawaban server + draft lokal (jika siswa tidak sengaja keluar)
-    try {
-      const draft = ujLoadDraftLocal(_ujState.ruangId);
-      if (draft && Array.isArray(draft.answers) && !_ujState.readonly) {
-        const dmap = {};
-        draft.answers.forEach((a) => {
-          if (a && a.item_id != null && String(a.jawaban || '').trim() !== '') {
-            dmap[String(a.item_id)] = a.jawaban;
-          }
-        });
-        _ujState.soal = (_ujState.soal || []).map((s) => {
-          const sid = String(s.id);
-          const serverJ = s.jawaban != null ? String(s.jawaban) : '';
-          if (serverJ.trim()) return s;
-          if (dmap[sid] != null) return { ...s, jawaban: dmap[sid] };
-          return s;
-        });
-      }
-    } catch (_) {}
-    renderUjSoalList(_ujState.soal, _ujState.readonly);
-    // Pasang autosave saat siswa mengisi
-    try { ujBindAutosave(); } catch (_) {}
+    if (foot) foot.style.display = readonly ? 'none' : 'flex';
+
+    // Gabungkan draft hanya jika masih boleh mengerjakan
+    if (!readonly) {
+      try {
+        const draft = ujLoadDraftLocal(_ujState.ruangId);
+        if (draft && Array.isArray(draft.answers)) {
+          const dmap = {};
+          draft.answers.forEach((a) => {
+            if (a && a.item_id != null && String(a.jawaban || '').trim() !== '') {
+              dmap[String(a.item_id)] = a.jawaban;
+            }
+          });
+          _ujState.soal = (_ujState.soal || []).map((s) => {
+            const serverJ = s.jawaban != null ? String(s.jawaban) : '';
+            if (serverJ.trim()) return s;
+            if (dmap[String(s.id)] != null) return { ...s, jawaban: dmap[String(s.id)] };
+            return s;
+          });
+        }
+      } catch (_) {}
+    }
+
+    renderUjSoalList(_ujState.soal, readonly);
+    // Kunci ekstra di DOM
+    if (readonly) {
+      try {
+        const box = document.getElementById('ujSoalList');
+        if (box) {
+          box.querySelectorAll('input, textarea, button.btn-uj-math').forEach((el) => {
+            el.disabled = true;
+            el.setAttribute('readonly', 'readonly');
+          });
+          box.querySelectorAll('label').forEach((lb) => {
+            lb.style.pointerEvents = 'none';
+            lb.style.opacity = '0.95';
+          });
+        }
+      } catch (_) {}
+    } else {
+      try { ujBindAutosave(); } catch (_) {}
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
     toast(errToText(e), 'err');
   }
 }
-
-function ujBindAutosave() {
-  const box = document.getElementById('ujSoalList');
-  if (!box || box.dataset.ujAutosaveBound === '1') return;
-  box.dataset.ujAutosaveBound = '1';
-  const sync = () => {
-    try { collectUjAnswers(); } catch (_) {}
-    ujScheduleDraftSave();
-  };
-  box.addEventListener('input', (e) => {
-    if (e.target && (e.target.matches('textarea.us-isian') || e.target.matches('input'))) sync();
-  });
-  box.addEventListener('change', (e) => {
-    if (e.target && e.target.matches('input[type="radio"], input[type="checkbox"]')) sync();
-  });
-}
-
 
 async function initTugasUjianPage() {
   updatePeriodeBadges();
@@ -11220,7 +11269,10 @@ document.getElementById('ujPaketList')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-uj-start]');
   if (!btn || btn.disabled) return;
   const id = btn.getAttribute('data-uj-start');
-  if (id) ujOpenLembar(id);
+  if (!id) return;
+  const st = btn.getAttribute('data-uj-status') || '';
+  const ro = btn.getAttribute('data-uj-readonly') === '1' || st === 'Selesai';
+  ujOpenLembar(id, { readonly: ro, status_siswa: st });
 });
 
 // Tombol ∑ rumus di isian jawaban siswa
@@ -11261,14 +11313,15 @@ document.getElementById('btnUjSimpan')?.addEventListener('click', async () => {
   try {
     if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan…'; }
     const { res, filled, total } = await ujSimpanJawabanKeServer({ silent: false });
+    const serverSaved = res && res.saved != null ? Number(res.saved) : filled;
     const serverMsg = String((res && (res.message || res.msg)) || '');
-    // Utamakan hitungan klien — pesan server "0 jawaban" sering menyesatkan
-    if (filled > 0) {
-      toast('✓ ' + filled + ' jawaban tersimpan (' + filled + '/' + total + ' soal). Aman jika keluar.', 'ok');
-    } else if (serverMsg) {
-      toast(serverMsg, 'ok');
+    if (serverSaved > 0 || filled > 0) {
+      toast('✓ ' + (serverSaved || filled) + ' jawaban tersimpan di server (' + filled + '/' + total + ' soal). Aman jika keluar.', 'ok');
     } else {
-      toast('Jawaban disimpan', 'ok');
+      toast(serverMsg || 'Tidak ada jawaban yang tersimpan — coba lagi', 'err');
+    }
+    if (res && res.errors && res.errors.length) {
+      console.warn('simpan errors', res.errors);
     }
   } catch (e) {
     toast(errToText(e), 'err');
