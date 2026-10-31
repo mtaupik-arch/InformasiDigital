@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="fix-login-mask-instant-2026-10-31">
+<meta name="sis-fix" content="fix-fp-libur-info-2026-10-31">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -7219,8 +7219,24 @@ function formatSesiJam(s) {
   return [w1, w2, w3].filter(Boolean).join(' - ');
 }
 
-/** Info teks untuk UI: sesi aktif atau jadwal berikutnya */
+/** Info teks untuk UI: sesi aktif atau jadwal berikutnya.
+ *  Prioritas: hari libur (tabel hari_libur) → absensi nonaktif. */
 function getSesiStatusText() {
+  // Hari libur: tampil di sidik jari / scan / dashboard — bukan info sesi
+  try {
+    const lib = (typeof isTanggalLibur === 'function') ? isTanggalLibur(todayStr()) : null;
+    if (lib) {
+      const ket = lib.keterangan || 'Hari Libur';
+      return {
+        ok: false,
+        libur: true,
+        text: '📅 Hari Libur — ' + ket + ' (absensi nonaktif)',
+        sesi: null,
+        keterangan: ket,
+      };
+    }
+  } catch (_) {}
+
   const aktif = getSesiAktif();
   if (aktif) {
     return {
@@ -7298,15 +7314,27 @@ function formatSesiLineText() {
 
 function updateScanCameraLock() {
   const st = getSesiStatusText();
-  const lineInfo = formatSesiLineText();
+  const lineInfo = st.libur
+    ? { ok: false, text: st.text }
+    : formatSesiLineText();
   const line = document.getElementById('scanSesiLine');
   const box = document.getElementById('scanSesiAktif');
   const btn = document.getElementById('btnCamToggle');
   const camLabel = document.getElementById('btnCamLabel');
 
   if (line) {
-    line.textContent = lineInfo.text;
-    line.classList.toggle('off', !lineInfo.ok);
+    if (st.libur) {
+      const ket = st.keterangan || 'Hari Libur';
+      line.textContent = '📅 ' + ket + ' — absensi nonaktif';
+      line.classList.add('off');
+      line.style.color = '#b91c1c';
+      line.style.fontWeight = '700';
+    } else {
+      line.textContent = lineInfo.text;
+      line.classList.toggle('off', !lineInfo.ok);
+      line.style.color = '';
+      line.style.fontWeight = '';
+    }
   }
   if (box) {
     box.textContent = st.text;
@@ -7396,9 +7424,21 @@ function updateSesiBadges() {
   const st = getSesiStatusText();
   const fp = document.getElementById('fpSesiAktif');
   if (fp) {
-    fp.textContent = st.text;
-    fp.style.background = st.ok ? '#e3f2fd' : '#ffebee';
-    fp.style.color = st.ok ? '#0d47a1' : '#b71c1c';
+    if (st.libur) {
+      const ket = st.keterangan || 'Hari Libur';
+      const tglStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      fp.innerHTML = '<b>📅 ' + escapeHtml(ket) + '</b><br><span style="font-size:11px;font-weight:600">' + escapeHtml(tglStr) + '</span><br><span style="font-size:11px">Absensi sidik jari nonaktif</span>';
+      fp.style.background = '#fee2e2';
+      fp.style.color = '#b91c1c';
+      fp.style.lineHeight = '1.4';
+      fp.style.textAlign = 'center';
+    } else {
+      fp.textContent = st.text;
+      fp.style.background = st.ok ? '#e3f2fd' : '#ffebee';
+      fp.style.color = st.ok ? '#0d47a1' : '#b71c1c';
+      fp.style.lineHeight = '';
+      fp.style.textAlign = '';
+    }
   }
   const label = 'Periode: ' + periodeLabel();
   ['badgePeriodeFp','badgePeriodeScan'].forEach(id => {
