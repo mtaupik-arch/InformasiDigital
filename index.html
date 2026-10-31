@@ -4221,10 +4221,10 @@ document.querySelectorAll('.menu-group-title').forEach(title => {
 });
 
 /* ===== Role-based menu visibility =====
-   Guest  : hanya DASHBOARD
+   Guest  : hanya DASHBOARD (open)
    Siswa  : DASHBOARD + SISWA/ORANG TUA (open)
    Guru   : DASHBOARD + GURU (open)
-   Admin  : semua menu (open)
+   Admin  : semua menu visible, tetapi tertutup (ringkas) — buka manual per grup
 */
 function applyRoleMenus(role) {
   const groups = document.querySelectorAll('.menu-group');
@@ -4232,17 +4232,21 @@ function applyRoleMenus(role) {
     const r = g.dataset.role;
     g.classList.remove('visible', 'open');
     if (r === 'all') {
-      g.classList.add('visible', 'open');
+      g.classList.add('visible');
+      // Dashboard open hanya untuk non-admin (admin ringkas: semua tertutup)
+      if (role !== 'admin') g.classList.add('open');
     } else if (role === 'admin') {
-      g.classList.add('visible', 'open');
+      g.classList.add('visible'); // visible, TIDAK open
     } else if (role === 'siswa' && r === 'siswa') {
       g.classList.add('visible', 'open');
     } else if (role === 'guru' && r === 'guru') {
       g.classList.add('visible', 'open');
     }
   });
-  // Pastikan DASHBOARD selalu open untuk navigasi cepat
-  document.getElementById('menuDashboard').classList.add('open');
+  // Non-admin: pastikan DASHBOARD open
+  if (role !== 'admin') {
+    document.getElementById('menuDashboard')?.classList.add('open');
+  }
 }
 
 /* ===== Profil & topbar ===== */
@@ -4443,20 +4447,25 @@ async function doLogin() {
     renderUserUI(session);
     closeLogin();
     closeProfileMenu();
-    btnDoLogin.textContent = 'Memuat data…';
-    await refreshStoreFromDb();
-    // refresh halaman aktif
-    const active = document.querySelector('.page.active');
-    if (active?.id === 'page-data-siswa') renderSiswa();
-    if (active?.id === 'page-data-guru') renderGuru();
-    if (active?.id === 'page-data-lulusan') renderLulusan();
-    if (active?.id === 'page-periode') renderPeriode();
-    if (active?.id === 'page-sesi-libur') initSesiLiburPage();
-    if (active?.id === 'page-scan-barcode') { initScanPage(); }
-    if (active?.id === 'page-dashboard' || !active) renderDashboard();
+    // Popup sukses segera (jangan ditahan bootstrap/refreshStore)
     const roleLabel = session.role === 'siswa' ? 'Siswa' : session.role === 'guru' ? 'Guru' : 'Administrator';
     showBigPopup('ok', 'Login Berhasil',
       `Selamat datang, <b>${escapeHtml(session.user?.nama || '')}</b><br>Masuk sebagai ${roleLabel}.`, 2800);
+    btnDoLogin.textContent = 'Memuat data…';
+    // Muat data di background — UI sudah login
+    try {
+      await refreshStoreFromDb();
+      const active = document.querySelector('.page.active');
+      if (active?.id === 'page-data-siswa') renderSiswa();
+      if (active?.id === 'page-data-guru') renderGuru();
+      if (active?.id === 'page-data-lulusan') renderLulusan();
+      if (active?.id === 'page-periode') renderPeriode();
+      if (active?.id === 'page-sesi-libur') initSesiLiburPage();
+      if (active?.id === 'page-scan-barcode') { initScanPage(); }
+      if (active?.id === 'page-dashboard' || !active) renderDashboard();
+    } catch (e) {
+      console.warn('post-login refresh', e);
+    }
   } catch (err) {
     console.error(err);
     showLoginError(err.message || 'Tidak dapat terhubung ke server. Pastikan Edge Function login & api sudah di-deploy.');
