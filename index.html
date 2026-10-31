@@ -4424,7 +4424,12 @@ function applyRoleMenus(role) {
   if (role !== 'admin') {
     document.getElementById('menuDashboard')?.classList.add('open');
   }
-  try { if (role === 'admin') setTimeout(() => refreshNotifBadge(), 400); else setNotifBadge(0); } catch (_) {}
+  try {
+    const wrap = document.getElementById('notifWrap');
+    if (wrap) wrap.style.display = (role === 'admin') ? '' : 'none';
+    if (role === 'admin') setTimeout(() => refreshNotifBadge(), 400);
+    else setNotifBadge(0);
+  } catch (_) {}
 }
 
 /* ===== Profil & topbar ===== */
@@ -4628,18 +4633,20 @@ async function doLogin() {
     const roleLabel = session.role === 'siswa' ? 'Siswa' : session.role === 'guru' ? 'Guru' : 'Administrator';
     showBigPopup('ok', 'Login Berhasil',
       `Selamat datang, <b>${escapeHtml(session.user?.nama || '')}</b><br>Masuk sebagai ${roleLabel}.`, 2800);
-    // Catat log login (jangan blok UI)
+    // Catat log login hanya untuk guru/siswa (bukan admin)
     try {
-      const kode = session.role === 'siswa'
-        ? String(session.user?.nisn || id || '')
-        : String(session.user?.pin || id || '');
-      apiCall('login_log_create', {
-        nama: session.user?.nama || '',
-        role: session.role,
-        kode,
-        user_agent: (typeof navigator !== 'undefined' ? navigator.userAgent : '').slice(0, 400),
-        keterangan: 'Login berhasil sebagai ' + roleLabel,
-      }).then(() => { try { refreshNotifBadge(); } catch (_) {} }).catch(() => {});
+      if (session.role !== 'admin') {
+        const kode = session.role === 'siswa'
+          ? String(session.user?.nisn || id || '')
+          : String(session.user?.pin || id || '');
+        apiCall('login_log_create', {
+          nama: session.user?.nama || '',
+          role: session.role,
+          kode,
+          user_agent: (typeof navigator !== 'undefined' ? navigator.userAgent : '').slice(0, 400),
+          keterangan: 'Login berhasil sebagai ' + roleLabel,
+        }).catch(() => {});
+      }
     } catch (_) {}
     btnDoLogin.textContent = 'Memuat data…';
     try {
@@ -5266,9 +5273,12 @@ function closeTopOverlay() {
 let navSuppressPopUntil = 0;
 function armBackTrap() {
   try {
-    navSuppressPopUntil = Date.now() + 200;
-    history.pushState({ sisTrap: true, page: navCurrent, t: Date.now() }, '', '#' + (navCurrent || 'dashboard'));
+    // Trap ringan: jangan spam history setiap navigasi (pushState sudah di navigate).
+    // Hanya arm flag agar Back di dashboard bisa tampilkan konfirmasi keluar.
+    navSuppressPopUntil = Date.now() + 120;
     navTrapArmed = true;
+    // Pastikan state punya page saat ini
+    history.replaceState({ sis: true, page: navCurrent || 'dashboard' }, '', '#' + (navCurrent || 'dashboard'));
   } catch (_) {}
 }
 
@@ -5333,18 +5343,29 @@ function navigate(page, opts = {}) {
 
   try {
     sessionStorage.setItem('sis_last_page', target);
-    // Stack navigasi (maju = push, back = dari handleAppBack)
-    if (!opts.fromBack) {
+    // Stack navigasi
+    if (!opts.fromBack && !opts.fromPop) {
       if (opts.init || opts.fromHash) {
-        if (target === 'dashboard') navStack = ['dashboard'];
-        else navStack = ['dashboard', target];
+        // restore / first load: jangan gandakan stack
+        if (!navStack.length || opts.init) {
+          if (target === 'dashboard') navStack = ['dashboard'];
+          else if (navStack[navStack.length - 1] !== target) {
+            if (navStack[0] !== 'dashboard') navStack = ['dashboard', target];
+            else if (navStack[navStack.length - 1] !== target) navStack = navStack.concat([target]).filter((v, i, a) => a.indexOf(v) === i);
+          }
+        }
       } else if (navStack[navStack.length - 1] !== target) {
         navStack.push(target);
       }
       try { sessionStorage.setItem('sis_nav_stack', JSON.stringify(navStack)); } catch (_) {}
-      // Ganti URL tanpa menambah history browser berlebih; trap terpisah
-      history.replaceState({ sis: true, page: target }, '', '#' + target);
+      if (opts.init || opts.fromHash) {
+        history.replaceState({ sis: true, page: target }, '', '#' + target);
+      } else {
+        // Navigasi user: push history agar Back/Forward browser beruntun
+        history.pushState({ sis: true, page: target }, '', '#' + target);
+      }
     } else {
+      // dari tombol back / popstate
       try { sessionStorage.setItem('sis_nav_stack', JSON.stringify(navStack)); } catch (_) {}
       history.replaceState({ sis: true, page: target }, '', '#' + target);
     }
@@ -5430,8 +5451,24 @@ document.getElementById('exitOverlay')?.addEventListener('click', (e) => {
 window.addEventListener('popstate', function onSisPopState(e) {
   if (!navReady) return;
   if (Date.now() < navSuppressPopUntil) {
-    // popstate semu → pasang trap lagi, jangan tampilkan dialog keluar
     try { armBackTrap(); } catch (_) {}
+    return;
+  }
+  // Ikuti state history jika ada halaman tersimpan
+  const st = e && e.state;
+  if (st && st.sis && st.page) {
+    const page = String(st.page);
+    // sinkronkan stack: potong sampai page atau push
+    const idx = navStack.lastIndexOf(page);
+    if (idx >= 0) navStack = navStack.slice(0, idx + 1);
+    else navStack.push(page);
+    try { navigate(page, { fromPop: true, fromBack: true, noScroll: true }); } catch (_) {}
+    return;
+  }
+  // Hash fallback
+  const hashPage = (location.hash || '').replace(/^#/, '');
+  if (hashPage && hashPage !== navCurrent) {
+    try { navigate(hashPage, { fromPop: true, fromBack: true, noScroll: true }); } catch (_) {}
     return;
   }
   handleAppBack();
@@ -16818,29 +16855,7 @@ const _renderUserUI_orig = typeof renderUserUI === 'function' ? renderUserUI : n
   try { if (typeof refreshKelulusanMenuMode === 'function') refreshKelulusanMenuMode(); } catch (_) {}
     try { updatePeriodeBadges(); } catch (e) { console.warn(e); }
 
-    // 2) Tampilkan dashboard dari cache segera
-    try {
-      navStack = ['dashboard'];
-      navigate('dashboard', { fromHash: true, init: true, noScroll: true });
-    } catch (e) { console.warn('navigate early', e); }
-
-    // 3) Bootstrap DB (timeout 20 dtk di apiCall)
-    try {
-      await refreshStoreFromDb();
-      try { applySekolahToUI(); } catch (_) {}
-      try { renderUserUI(getSession()); } catch (_) {}
-      try { renderDashboard(); } catch (_) {}
-    } catch (e) {
-      console.warn('init bootstrap', e);
-    }
-
-    if (session?.token) {
-      try { await apiCall('apply_ab_status', {}); } catch (_) {}
-    }
-
-    try { _lastSesiKey = sesiStateKey(); } catch (_) {}
-
-    // 4) Halaman terakhir (jika bukan dashboard)
+    // 2) Tentukan halaman awal dari hash / session (refresh tetap di halaman sama)
     const fromHash = (location.hash || '').replace(/^#/, '');
     const fromStore = sessionStorage.getItem('sis_last_page') || '';
     let startPage = fromHash || fromStore || 'dashboard';
@@ -16852,12 +16867,33 @@ const _renderUserUI_orig = typeof renderUserUI === 'function' ? renderUserUI : n
       }
     } catch (_) {}
     if (!navStack.length) navStack = ['dashboard'];
-    if (startPage && startPage !== 'dashboard' && startPage !== navCurrent) {
-      if (navStack[navStack.length - 1] !== startPage) {
-        navStack = startPage === 'dashboard' ? ['dashboard'] : ['dashboard', startPage];
-      }
-      try { navigate(startPage, { fromHash: true, init: true, noScroll: true }); } catch (e) { console.warn(e); }
+    if (navStack[navStack.length - 1] !== startPage) {
+      if (startPage === 'dashboard') navStack = ['dashboard'];
+      else if (!navStack.includes(startPage)) navStack = ['dashboard', startPage];
     }
+    try {
+      navigate(startPage, { fromHash: true, init: true, noScroll: true });
+    } catch (e) { console.warn('navigate early', e); }
+
+    // 3) Bootstrap DB
+    try {
+      await refreshStoreFromDb();
+      try { applySekolahToUI(); } catch (_) {}
+      try { renderUserUI(getSession()); } catch (_) {}
+      // Render ulang halaman aktif (bukan selalu dashboard)
+      try {
+        if (navCurrent === 'dashboard' || startPage === 'dashboard') renderDashboard();
+        else navigate(startPage || navCurrent, { fromHash: true, init: true, noScroll: true });
+      } catch (_) {}
+    } catch (e) {
+      console.warn('init bootstrap', e);
+    }
+
+    if (session?.token) {
+      try { await apiCall('apply_ab_status', {}); } catch (_) {}
+    }
+
+    try { _lastSesiKey = sesiStateKey(); } catch (_) {}
 
     // 5) Arm back trap setelah UI siap
     try { armBackTrap(); } catch (_) {}
