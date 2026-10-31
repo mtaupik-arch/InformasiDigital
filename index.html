@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="fix-foto-self-gallery-2026-10-31">
+<meta name="sis-fix" content="fix-foto-display-2026-10-31">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -4993,10 +4993,10 @@ function renderUserUI(session) {
   const sideUser = document.getElementById('sidebarUserLine');
   if (sideUser) sideUser.textContent = nama + ' · ' + roleLabel;
 
-  // Foto profil dari storage jika ada
-  const fotoKey = role === 'siswa' ? String(user.nisn || '') : role === 'guru' ? String(user.pin || '') : 'admin';
-  const fotoRec = (store.user_foto || []).find(f => f.role === (role === 'admin' ? 'admin' : role) && String(f.ref_key) === fotoKey);
-  const fotoUrl = fotoRec?.foto_url || user.foto_url || '';
+  // Foto profil dari storage (cek beberapa ref_key: nisn/pin/kode/id)
+  const fotoUrl = (typeof findUserFotoUrl === 'function')
+    ? findUserFotoUrl(role, user)
+    : (user.foto_url || '');
   // Selalu tampilkan kotak foto user (lingkaran) di panel rekap siswa
   if (userPhoto) {
     userPhoto.classList.add('user');
@@ -8928,9 +8928,8 @@ function buildUserFotoList() {
     foto_url: (store.user_foto || []).find(f => f.role === 'admin' && f.ref_key === 'admin')?.foto_url || '',
   });
   (store.guru || []).forEach(g => {
-    const key = String(g.pin || g.id);
-    const foto = (store.user_foto || []).find(f => f.role === 'guru' && String(f.ref_key) === key)?.foto_url
-      || g.foto_url || '';
+    const key = String(g.pin || g.nip || g.id || '');
+    const foto = findUserFotoUrl('guru', g) || g.foto_url || '';
     list.push({
       role: 'guru',
       ref_key: key,
@@ -8941,9 +8940,8 @@ function buildUserFotoList() {
     });
   });
   (store.siswa || []).forEach(s => {
-    const key = String(s.nisn || s.id);
-    const foto = (store.user_foto || []).find(f => f.role === 'siswa' && String(f.ref_key) === key)?.foto_url
-      || s.foto_url || '';
+    const key = String(s.nisn || s.id || '');
+    const foto = findUserFotoUrl('siswa', s) || s.foto_url || '';
     list.push({
       role: 'siswa',
       ref_key: key,
@@ -9049,13 +9047,23 @@ document.getElementById('upFileInput')?.addEventListener('change', async (e) => 
     const compressed = await compressImageProfile(file, { maxSide: 256, targetBytes: 45 * 1024 });
     const dataUrl = compressed.dataUrl;
     toast('Dikompres: ' + formatBytes(compressed.originalBytes) + ' → ' + formatBytes(compressed.bytes), 'ok');
-    await apiCall('upload_user_foto', { role, ref_key, data_url: dataUrl });
+    const resUp = await apiCall('upload_user_foto', { role, ref_key, data_url: dataUrl });
     await loadUserFotoStore();
     renderUserFotoCards();
     // update avatar di topbar jika user yang login
     const sess = getSession();
-    if (sess && ((sess.role === role && (String(sess.user?.pin) === ref_key || String(sess.user?.nisn) === ref_key || role === 'admin')))) {
-      renderUserUI(sess);
+    if (sess) {
+      const savedUrl = resUp?.data?.foto_url || '';
+      const sameUser =
+        sess.role === role && (
+          role === 'admin' ||
+          userFotoKeyCandidates(role, sess.user).some(k => String(k) === String(ref_key) || String(k).replace(/\D/g, '') === String(ref_key).replace(/\D/g, ''))
+        );
+      if (sameUser) {
+        if (sess.user && savedUrl) sess.user.foto_url = savedUrl;
+        try { saveSession(sess); } catch (_) {}
+        renderUserUI(sess);
+      }
     }
     toast('Foto tersimpan', 'ok');
   } catch (err) {
@@ -9333,6 +9341,53 @@ function formatBytes(n) {
 
 let _psPendingDataUrl = null;
 
+
+/** Kandidat ref_key untuk lookup user_foto (harus selaras dengan server) */
+function userFotoKeyCandidates(role, user) {
+  const u = user || {};
+  const keys = [];
+  const add = (v) => {
+    if (v == null || v === '') return;
+    const s = String(v).trim();
+    if (!s) return;
+    if (!keys.includes(s)) keys.push(s);
+    const d = s.replace(/\D/g, '');
+    if (d && !keys.includes(d)) keys.push(d);
+  };
+  if (role === 'admin') {
+    add('admin');
+    return keys;
+  }
+  if (role === 'siswa') {
+    add(u.nisn); add(u.kode); add(u.identifier); add(u.login); add(u.ref_id); add(u.siswa_id); add(u.id);
+  } else if (role === 'guru') {
+    add(u.pin); add(u.nip); add(u.kode); add(u.identifier); add(u.id);
+  }
+  return keys;
+}
+
+/** Cari URL foto dari store.user_foto dengan beberapa kemungkinan ref_key */
+function findUserFotoUrl(role, user) {
+  const list = store.user_foto || [];
+  const r = role === 'admin' ? 'admin' : role;
+  const keys = userFotoKeyCandidates(r, user);
+  for (const k of keys) {
+    const hit = list.find(f => f && f.role === r && String(f.ref_key) === String(k));
+    if (hit && hit.foto_url) return hit.foto_url;
+  }
+  // fallback: cocokkan digit-only
+  for (const f of list) {
+    if (!f || f.role !== r || !f.foto_url) continue;
+    const fk = String(f.ref_key || '').replace(/\D/g, '');
+    if (!fk) continue;
+    for (const k of keys) {
+      const kd = String(k).replace(/\D/g, '');
+      if (kd && kd === fk) return f.foto_url;
+    }
+  }
+  return user?.foto_url || '';
+}
+
 function psRefKeyForSession(sess) {
   if (!sess) return null;
   if (sess.role === 'admin') return 'admin';
@@ -9352,10 +9407,7 @@ function psRefKeyForSession(sess) {
 
 function psCurrentFotoUrl(sess) {
   if (!sess) return '';
-  const role = sess.role;
-  const key = psRefKeyForSession(sess);
-  const rec = (store.user_foto || []).find(f => f.role === role && String(f.ref_key) === String(key));
-  return rec?.foto_url || sess.user?.foto_url || '';
+  return findUserFotoUrl(sess.role, sess.user) || sess.user?.foto_url || '';
 }
 
 function psSetPreview(url, initial) {
@@ -9459,19 +9511,34 @@ document.getElementById('btnPsSimpanFoto')?.addEventListener('click', async () =
   if (btn) btn.disabled = true;
   if (st) st.textContent = 'Menyimpan…';
   try {
-    await apiCall('upload_user_foto', {
+    const res = await apiCall('upload_user_foto', {
       role,
       ref_key,
       data_url: _psPendingDataUrl,
       self: true,
     });
     await loadUserFotoStore();
+    // Samakan session + preview dengan ref_key yang dipakai server
+    const savedUrl = res?.data?.foto_url || res?.foto_url || '';
+    const savedKey = res?.ref_key || res?.data?.ref_key || ref_key;
+    if (sess.user) {
+      sess.user.foto_url = savedUrl || sess.user.foto_url;
+      // pastikan field kunci ada agar lookup berikutnya konsisten
+      if (sess.role === 'siswa' && savedKey) sess.user.nisn = sess.user.nisn || savedKey;
+      if (sess.role === 'guru' && savedKey) {
+        if (!sess.user.pin) sess.user.pin = savedKey;
+      }
+    }
+    try { saveSession(sess); } catch (_) {}
     renderUserUI(sess);
+    if (savedUrl) psSetPreview(savedUrl, sess.user?.nama || '?');
+    else psSetPreview(psCurrentFotoUrl(sess), sess.user?.nama || '?');
     _psPendingDataUrl = null;
     if (st) st.textContent = 'Foto berhasil disimpan.';
     toast('Foto profil disimpan', 'ok');
     const info = document.getElementById('psCompressInfo');
     if (info) info.textContent = '';
+    if (btn) btn.disabled = true;
   } catch (err) {
     if (st) st.textContent = errToText(err);
     toast(errToText(err), 'err');
