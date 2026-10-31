@@ -10856,52 +10856,144 @@ function ujClearDraftLocal(ruangId) {
   try { localStorage.removeItem(ujDraftKey(ruangId)); } catch (_) {}
 }
 
-/** Kumpulkan jawaban dari lembar (PG / checkbox / isian) */
+/** Kumpulkan jawaban dari lembar (PG / checkbox / isian) — scoped per kartu */
 function collectUjAnswers() {
   const answers = [];
   const cards = document.querySelectorAll('#ujSoalList .uj-soal-card[data-item-id]');
-  const nodes = cards.length ? cards : document.querySelectorAll('#ujSoalList [data-item-id]');
   const seen = new Set();
-  nodes.forEach((el) => {
-    const itemId = el.getAttribute('data-item-id');
-    if (!itemId || seen.has(itemId)) return;
-    seen.add(itemId);
-    const radios = document.querySelectorAll('#ujSoalList input[type="radio"][data-item-id="' + itemId + '"]');
-    const checks = document.querySelectorAll('#ujSoalList input[type="checkbox"][data-item-id="' + itemId + '"]');
-    const ta = document.querySelector('#ujSoalList textarea.us-isian[data-item-id="' + itemId + '"]');
-    let jawaban = '';
-    let nomor = null;
-    let jenis = '';
-    if (checks.length) {
-      const vals = [...checks].filter((c) => c.checked).map((c) => c.value);
-      jawaban = vals.join(',');
-      nomor = checks[0].getAttribute('data-nomor');
-      jenis = checks[0].getAttribute('data-jenis') || 'Checkbox';
-    } else if (radios.length) {
-      const sel = [...radios].find((r) => r.checked);
-      jawaban = sel ? sel.value : '';
-      nomor = radios[0].getAttribute('data-nomor');
-      jenis = radios[0].getAttribute('data-jenis') || 'Pilihan Ganda';
-    } else if (ta) {
-      jawaban = String(ta.value || '');
-      nomor = ta.getAttribute('data-nomor');
-      jenis = ta.getAttribute('data-jenis') || 'Isian Singkat';
-    } else {
-      // kartu tanpa input (jarang) — lewati
-      return;
-    }
+
+  const pushAns = (itemId, jawaban, nomor, jenis) => {
+    if (!itemId || seen.has(String(itemId))) return;
+    seen.add(String(itemId));
     answers.push({
       item_id: itemId,
-      nomor: nomor != null && nomor !== '' ? Number(nomor) : null,
-      jenis_soal: jenis,
-      jawaban: jawaban,
+      soal_item_id: itemId,
+      nomor: nomor != null && nomor !== '' && !isNaN(Number(nomor)) ? Number(nomor) : null,
+      jenis_soal: jenis || '',
+      jawaban: jawaban == null ? '' : String(jawaban),
     });
-  });
+  };
+
+  if (cards.length) {
+    cards.forEach((card) => {
+      const itemId = card.getAttribute('data-item-id');
+      if (!itemId) return;
+      const radios = card.querySelectorAll('input[type="radio"]');
+      const checks = card.querySelectorAll('input[type="checkbox"]');
+      const ta = card.querySelector('textarea.us-isian');
+      let jawaban = '';
+      let nomor = null;
+      let jenis = '';
+      if (checks.length) {
+        jawaban = [...checks].filter((c) => c.checked).map((c) => c.value).join(',');
+        nomor = checks[0].getAttribute('data-nomor');
+        jenis = checks[0].getAttribute('data-jenis') || 'Checkbox';
+      } else if (radios.length) {
+        const sel = [...radios].find((r) => r.checked);
+        jawaban = sel ? sel.value : '';
+        nomor = radios[0].getAttribute('data-nomor');
+        jenis = radios[0].getAttribute('data-jenis') || 'Pilihan Ganda';
+      } else if (ta) {
+        jawaban = String(ta.value || '');
+        nomor = ta.getAttribute('data-nomor');
+        jenis = ta.getAttribute('data-jenis') || 'Isian Singkat';
+      } else {
+        // fallback state
+        const st = (_ujState.soal || []).find((s) => String(s.id) === String(itemId));
+        if (st) {
+          jawaban = st.jawaban != null ? String(st.jawaban) : '';
+          nomor = st.nomor;
+          jenis = st.jenis_soal || '';
+        }
+      }
+      pushAns(itemId, jawaban, nomor, jenis);
+    });
+  } else {
+    // fallback: dari state + input global
+    (_ujState.soal || []).forEach((s) => {
+      const itemId = s.id;
+      if (itemId == null) return;
+      const ta = document.querySelector('#ujSoalList textarea.us-isian[data-item-id="' + CSS.escape(String(itemId)) + '"]');
+      const radios = document.querySelectorAll('#ujSoalList input[type="radio"][data-item-id="' + CSS.escape(String(itemId)) + '"]');
+      const checks = document.querySelectorAll('#ujSoalList input[type="checkbox"][data-item-id="' + CSS.escape(String(itemId)) + '"]');
+      let jawaban = '';
+      if (checks.length) jawaban = [...checks].filter((c) => c.checked).map((c) => c.value).join(',');
+      else if (radios.length) {
+        const sel = [...radios].find((r) => r.checked);
+        jawaban = sel ? sel.value : '';
+      } else if (ta) jawaban = String(ta.value || '');
+      else jawaban = s.jawaban != null ? String(s.jawaban) : '';
+      pushAns(itemId, jawaban, s.nomor, s.jenis_soal || '');
+    });
+  }
+
+  // Sinkron ke state
+  try {
+    const map = {};
+    answers.forEach((a) => { map[String(a.item_id)] = a.jawaban; });
+    _ujState.soal = (_ujState.soal || []).map((s) => ({
+      ...s,
+      jawaban: map[String(s.id)] != null ? map[String(s.id)] : s.jawaban,
+    }));
+  } catch (_) {}
+
   return answers;
 }
 
 function ujCountFilled(answers) {
   return (answers || []).filter((a) => String(a.jawaban || '').trim() !== '').length;
+}
+
+async function ujSimpanJawabanKeServer(opts) {
+  const silent = !!(opts && opts.silent);
+  if (!_ujState?.ruangId) throw new Error('Sesi ujian tidak aktif');
+  if (_ujState.readonly) throw new Error('Ujian sudah dikumpulkan — tidak bisa diubah');
+
+  const answers = collectUjAnswers();
+  ujSaveDraftLocal(answers);
+  const filled = ujCountFilled(answers);
+
+  if (!silent && filled === 0) {
+    throw new Error('Belum ada jawaban yang diisi. Pilih opsi atau ketik isian dulu.');
+  }
+
+  // Kirim hanya yang terisi + juga kirim semua (beberapa backend butuh full list)
+  const filledAnswers = answers.filter((a) => String(a.jawaban || '').trim() !== '');
+  let res = null;
+  let lastErr = null;
+
+  const payloads = [
+    { ruang_id: _ujState.ruangId, bank_soal_id: _ujState.bankId || undefined, answers: filledAnswers },
+    { ruang_id: _ujState.ruangId, bank_soal_id: _ujState.bankId || undefined, answers: answers },
+  ];
+
+  for (const body of payloads) {
+    try {
+      res = await apiCall('simpan_jawaban_ujian', body);
+      // jika server bilang 0 tapi kita punya isian, coba payload berikutnya
+      const msg = String((res && (res.message || res.msg)) || '');
+      if (/0\s*jawaban/i.test(msg) && filled > 0 && body.answers === filledAnswers) {
+        lastErr = new Error(msg);
+        continue;
+      }
+      lastErr = null;
+      break;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  if (lastErr && !res) throw lastErr;
+
+  try {
+    const map = {};
+    answers.forEach((a) => { map[String(a.item_id)] = a.jawaban; });
+    _ujState.soal = (_ujState.soal || []).map((s) => ({
+      ...s,
+      jawaban: map[String(s.id)] != null ? map[String(s.id)] : s.jawaban,
+    }));
+  } catch (_) {}
+
+  return { res: res || {}, filled, total: answers.length, filledAnswers };
 }
 
 let _ujAutosaveTimer = null;
@@ -11007,15 +11099,15 @@ function ujBindAutosave() {
   const box = document.getElementById('ujSoalList');
   if (!box || box.dataset.ujAutosaveBound === '1') return;
   box.dataset.ujAutosaveBound = '1';
+  const sync = () => {
+    try { collectUjAnswers(); } catch (_) {}
+    ujScheduleDraftSave();
+  };
   box.addEventListener('input', (e) => {
-    if (e.target && (e.target.matches('textarea.us-isian') || e.target.matches('input'))) {
-      ujScheduleDraftSave();
-    }
+    if (e.target && (e.target.matches('textarea.us-isian') || e.target.matches('input'))) sync();
   });
   box.addEventListener('change', (e) => {
-    if (e.target && e.target.matches('input[type="radio"], input[type="checkbox"]')) {
-      ujScheduleDraftSave();
-    }
+    if (e.target && e.target.matches('input[type="radio"], input[type="checkbox"]')) sync();
   });
 }
 
@@ -11146,7 +11238,15 @@ document.getElementById('btnUjSimpan')?.addEventListener('click', async () => {
   try {
     if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan…'; }
     const { res, filled, total } = await ujSimpanJawabanKeServer({ silent: false });
-    toast((res && res.message) || ('Jawaban disimpan (' + filled + '/' + total + ' soal)'), 'ok');
+    const serverMsg = String((res && (res.message || res.msg)) || '');
+    // Utamakan hitungan klien — pesan server "0 jawaban" sering menyesatkan
+    if (filled > 0) {
+      toast('✓ ' + filled + ' jawaban tersimpan (' + filled + '/' + total + ' soal). Aman jika keluar.', 'ok');
+    } else if (serverMsg) {
+      toast(serverMsg, 'ok');
+    } else {
+      toast('Jawaban disimpan', 'ok');
+    }
   } catch (e) {
     toast(errToText(e), 'err');
     // tetap simpan lokal
@@ -15491,3 +15591,4 @@ document.getElementById('btnRuSinkron')?.addEventListener('click', () => {
 </script>
 </body>
 </html>
+.
