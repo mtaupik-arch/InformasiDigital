@@ -2159,6 +2159,64 @@
     .topbar, .sidebar, .footer, .sidebar-overlay { display: none !important; }
   }
 
+
+  /* ===== LOG LOGIN / NOTIF PANEL ===== */
+  .notif-wrap { position: relative; }
+  .notif-panel {
+    display: none; position: absolute; top: 44px; right: 0;
+    width: min(420px, 92vw); max-height: min(70vh, 520px);
+    background: #fff; color: #333; border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(0,0,0,.22); z-index: 1102;
+    overflow: hidden; flex-direction: column;
+  }
+  .notif-panel.open { display: flex; }
+  .notif-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: #fff; font-size: 13px;
+  }
+  .notif-close {
+    border: none; background: rgba(255,255,255,.2); color: #fff;
+    width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 14px;
+  }
+  .notif-filters {
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px;
+    border-bottom: 1px solid #eef2f7; background: #f8fafc;
+  }
+  .notif-filters input[type="date"],
+  .notif-filters input[type="search"] {
+    border: 1px solid #d0d7e2; border-radius: 6px; padding: 5px 8px; font-size: 12px;
+  }
+  .notif-filters input[type="search"] { flex: 1; min-width: 100px; }
+  .notif-actions {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 6px 10px; border-bottom: 1px solid #eef2f7;
+  }
+  .notif-table-wrap { overflow: auto; flex: 1; max-height: 340px; }
+  .notif-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .notif-table th {
+    position: sticky; top: 0; background: #eef3fa; color: var(--primary);
+    padding: 6px 6px; text-align: left; font-size: 10px; text-transform: uppercase;
+  }
+  .notif-table td { padding: 6px; border-bottom: 1px solid #f0f3f7; vertical-align: top; }
+  .notif-table tr:hover { background: #f7fafd; }
+  .notif-table .ll-nama { font-weight: 600; color: #1a237e; }
+  .notif-table .ll-time { font-size: 10.5px; color: #546e7a; white-space: nowrap; }
+  .notif-table .ll-role {
+    display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700;
+    background: #e3f2fd; color: #1565c0;
+  }
+  .notif-table .ll-role.guru { background: #e8f5e9; color: #2e7d32; }
+  .notif-table .ll-role.admin { background: #ede7f6; color: #6a1b9a; }
+  .notif-hint { font-size: 10px; color: #90a4ae; padding: 6px 10px 8px; margin: 0; line-height: 1.35; }
+  .btn-sm { font-size: 12px; padding: 5px 10px; }
+  .btn-danger, .btn.btn-danger {
+    background: #c62828; color: #fff; border: none; border-radius: 8px; cursor: pointer;
+  }
+  @media (max-width: 480px) {
+    .notif-panel { right: -40px; width: min(96vw, 360px); }
+  }
+
 </style>
 </head>
 <body>
@@ -2179,9 +2237,47 @@
   </div>
 
   <div class="topbar-right">
-    <button class="icon-btn" title="Notifikasi" id="btnNotif">
-      🔔<span class="badge" id="notifBadge" style="display:none">0</span>
-    </button>
+    <div class="notif-wrap" id="notifWrap">
+      <button type="button" class="icon-btn" title="Log Login" id="btnNotif">
+        🔔<span class="badge" id="notifBadge" style="display:none">0</span>
+      </button>
+      <div class="notif-panel" id="notifPanel" aria-hidden="true">
+        <div class="notif-head">
+          <b>📋 Log Login</b>
+          <button type="button" class="notif-close" id="btnNotifClose" title="Tutup">✕</button>
+        </div>
+        <div class="notif-filters">
+          <input type="date" id="llDari" title="Dari tanggal" />
+          <input type="date" id="llSampai" title="Sampai tanggal" />
+          <input type="search" id="llQ" placeholder="Cari nama / kode…" autocomplete="off" />
+          <button type="button" class="btn btn-primary btn-sm" id="btnLlCari" style="padding:6px 10px;font-size:12px;">🔍</button>
+        </div>
+        <div class="notif-actions">
+          <button type="button" class="btn btn-outline btn-sm" id="btnLlRefresh" style="padding:5px 8px;font-size:11px;">↻</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnLlAdd" style="padding:5px 8px;font-size:11px;">+ Tambah</button>
+          <button type="button" class="btn btn-danger btn-sm" id="btnLlHapus" style="padding:5px 8px;font-size:11px;">🗑 Hapus terpilih</button>
+          <span id="llMeta" style="font-size:11px;color:#666;margin-left:auto;"></span>
+        </div>
+        <div class="notif-table-wrap">
+          <table class="notif-table">
+            <thead>
+              <tr>
+                <th style="width:28px"><input type="checkbox" id="llCheckAll" title="Pilih semua" /></th>
+                <th>Waktu</th>
+                <th>Nama</th>
+                <th>Role</th>
+                <th>Kode</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbodyLoginLog">
+              <tr><td colspan="6" style="padding:16px;color:#888;text-align:center">Buka panel untuk memuat log…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="notif-hint">Default: kemarin &amp; hari ini. Admin dapat menambah, mengubah, dan menghapus log.</p>
+      </div>
+    </div>
     <div class="profile-wrap">
       <div class="avatar" id="avatarInitial">T</div>
       <div class="profile-menu" id="profileMenu">
@@ -4304,10 +4400,10 @@ document.querySelectorAll('.menu-group-title').forEach(title => {
 });
 
 /* ===== Role-based menu visibility =====
-   Guest  : hanya DASHBOARD
+   Guest  : hanya DASHBOARD (open)
    Siswa  : DASHBOARD + SISWA/ORANG TUA (open)
    Guru   : DASHBOARD + GURU (open)
-   Admin  : semua menu (open)
+   Admin  : semua menu visible, SEMUA tertutup (ringkas)
 */
 function applyRoleMenus(role) {
   const groups = document.querySelectorAll('.menu-group');
@@ -4315,17 +4411,20 @@ function applyRoleMenus(role) {
     const r = g.dataset.role;
     g.classList.remove('visible', 'open');
     if (r === 'all') {
-      g.classList.add('visible', 'open');
+      g.classList.add('visible');
+      if (role !== 'admin') g.classList.add('open');
     } else if (role === 'admin') {
-      g.classList.add('visible', 'open');
+      g.classList.add('visible'); // visible, TIDAK open
     } else if (role === 'siswa' && r === 'siswa') {
       g.classList.add('visible', 'open');
     } else if (role === 'guru' && r === 'guru') {
       g.classList.add('visible', 'open');
     }
   });
-  // Pastikan DASHBOARD selalu open untuk navigasi cepat
-  document.getElementById('menuDashboard').classList.add('open');
+  if (role !== 'admin') {
+    document.getElementById('menuDashboard')?.classList.add('open');
+  }
+  try { if (role === 'admin') setTimeout(() => refreshNotifBadge(), 400); else setNotifBadge(0); } catch (_) {}
 }
 
 /* ===== Profil & topbar ===== */
@@ -4526,20 +4625,34 @@ async function doLogin() {
     renderUserUI(session);
     closeLogin();
     closeProfileMenu();
-    btnDoLogin.textContent = 'Memuat data…';
-    await refreshStoreFromDb();
-    // refresh halaman aktif
-    const active = document.querySelector('.page.active');
-    if (active?.id === 'page-data-siswa') renderSiswa();
-    if (active?.id === 'page-data-guru') renderGuru();
-    if (active?.id === 'page-data-lulusan') renderLulusan();
-    if (active?.id === 'page-periode') renderPeriode();
-    if (active?.id === 'page-sesi-libur') initSesiLiburPage();
-    if (active?.id === 'page-scan-barcode') { initScanPage(); }
-    if (active?.id === 'page-dashboard' || !active) renderDashboard();
     const roleLabel = session.role === 'siswa' ? 'Siswa' : session.role === 'guru' ? 'Guru' : 'Administrator';
     showBigPopup('ok', 'Login Berhasil',
       `Selamat datang, <b>${escapeHtml(session.user?.nama || '')}</b><br>Masuk sebagai ${roleLabel}.`, 2800);
+    // Catat log login (jangan blok UI)
+    try {
+      const kode = session.role === 'siswa'
+        ? String(session.user?.nisn || id || '')
+        : String(session.user?.pin || id || '');
+      apiCall('login_log_create', {
+        nama: session.user?.nama || '',
+        role: session.role,
+        kode,
+        user_agent: (typeof navigator !== 'undefined' ? navigator.userAgent : '').slice(0, 400),
+        keterangan: 'Login berhasil sebagai ' + roleLabel,
+      }).then(() => { try { refreshNotifBadge(); } catch (_) {} }).catch(() => {});
+    } catch (_) {}
+    btnDoLogin.textContent = 'Memuat data…';
+    try {
+      await refreshStoreFromDb();
+      const active = document.querySelector('.page.active');
+      if (active?.id === 'page-data-siswa') renderSiswa();
+      if (active?.id === 'page-data-guru') renderGuru();
+      if (active?.id === 'page-data-lulusan') renderLulusan();
+      if (active?.id === 'page-periode') renderPeriode();
+      if (active?.id === 'page-sesi-libur') initSesiLiburPage();
+      if (active?.id === 'page-scan-barcode') { initScanPage(); }
+      if (active?.id === 'page-dashboard' || !active) renderDashboard();
+    } catch (e) { console.warn('post-login refresh', e); }
   } catch (err) {
     console.error(err);
     showLoginError(err.message || 'Tidak dapat terhubung ke server. Pastikan Edge Function login & api sudah di-deploy.');
@@ -16470,6 +16583,230 @@ document.getElementById('btnDlAbsPrint')?.addEventListener('click', () => {
   window.print();
 });
 
+
+
+/* ============================================================
+   LOG LOGIN (ikon bel topbar) — CRUD admin
+   Default: kemarin + hari ini
+   ============================================================ */
+function llTodayYMD() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function llYesterdayYMD() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function llFormatWaktu(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso).slice(0, 19);
+    const pad = n => String(n).padStart(2, '0');
+    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  } catch (_) { return String(iso); }
+}
+
+function openNotifPanel() {
+  const panel = document.getElementById('notifPanel');
+  if (!panel) return;
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  // default range kemarin–hari ini jika kosong
+  const dari = document.getElementById('llDari');
+  const sampai = document.getElementById('llSampai');
+  if (dari && !dari.value) dari.value = llYesterdayYMD();
+  if (sampai && !sampai.value) sampai.value = llTodayYMD();
+  loadLoginLogList();
+}
+function closeNotifPanel() {
+  const panel = document.getElementById('notifPanel');
+  if (!panel) return;
+  panel.classList.remove('open');
+  panel.setAttribute('aria-hidden', 'true');
+}
+function toggleNotifPanel() {
+  const panel = document.getElementById('notifPanel');
+  if (!panel) return;
+  if (panel.classList.contains('open')) closeNotifPanel();
+  else openNotifPanel();
+}
+
+document.getElementById('btnNotif')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const sess = getSession();
+  if (!sess || sess.role !== 'admin') {
+    toast('Log login hanya untuk Admin', 'err');
+    return;
+  }
+  toggleNotifPanel();
+});
+document.getElementById('btnNotifClose')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  closeNotifPanel();
+});
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('notifWrap');
+  const panel = document.getElementById('notifPanel');
+  if (!wrap || !panel || !panel.classList.contains('open')) return;
+  if (!wrap.contains(e.target)) closeNotifPanel();
+});
+
+let _llSearchTimer = null;
+document.getElementById('llQ')?.addEventListener('input', () => {
+  clearTimeout(_llSearchTimer);
+  _llSearchTimer = setTimeout(() => loadLoginLogList(), 280);
+});
+document.getElementById('btnLlCari')?.addEventListener('click', () => loadLoginLogList());
+document.getElementById('btnLlRefresh')?.addEventListener('click', () => loadLoginLogList());
+document.getElementById('llDari')?.addEventListener('change', () => loadLoginLogList());
+document.getElementById('llSampai')?.addEventListener('change', () => loadLoginLogList());
+
+document.getElementById('llCheckAll')?.addEventListener('change', (e) => {
+  document.querySelectorAll('.ll-check').forEach(c => { c.checked = !!e.target.checked; });
+});
+
+async function loadLoginLogList() {
+  const tb = document.getElementById('tbodyLoginLog');
+  const meta = document.getElementById('llMeta');
+  if (!tb) return;
+  const sess = getSession();
+  if (!sess || sess.role !== 'admin') {
+    tb.innerHTML = '<tr><td colspan="6" style="padding:16px;color:#888;text-align:center">Hanya Admin</td></tr>';
+    return;
+  }
+  const dari = document.getElementById('llDari')?.value || llYesterdayYMD();
+  const sampai = document.getElementById('llSampai')?.value || llTodayYMD();
+  const q = document.getElementById('llQ')?.value || '';
+  tb.innerHTML = '<tr><td colspan="6" style="padding:16px;color:#888;text-align:center">Memuat…</td></tr>';
+  try {
+    const res = await apiCall('login_log_list', { dari, sampai, q });
+    const rows = res.data || [];
+    if (meta) meta.textContent = rows.length + ' log';
+    // badge = jumlah hari ini
+    const today = llTodayYMD();
+    const todayCount = rows.filter(r => String(r.created_at || '').slice(0, 10) === today).length;
+    setNotifBadge(todayCount);
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="6" style="padding:16px;color:#888;text-align:center">Tidak ada log pada rentang ini</td></tr>';
+      return;
+    }
+    tb.innerHTML = rows.map(r => {
+      const role = String(r.role || '').toLowerCase();
+      const roleCls = role === 'admin' ? 'admin' : role === 'guru' ? 'guru' : '';
+      return `<tr data-id="${escapeHtml(String(r.id))}">
+        <td><input type="checkbox" class="ll-check" value="${escapeHtml(String(r.id))}" /></td>
+        <td class="ll-time">${escapeHtml(llFormatWaktu(r.created_at))}</td>
+        <td class="ll-nama">${escapeHtml(r.nama || '—')}</td>
+        <td><span class="ll-role ${roleCls}">${escapeHtml(r.role || '—')}</span></td>
+        <td style="font-family:monospace;font-size:11px">${escapeHtml(r.kode || '—')}</td>
+        <td style="white-space:nowrap">
+          <button type="button" class="btn btn-outline btn-sm ll-edit" data-id="${escapeHtml(String(r.id))}" style="padding:2px 6px;font-size:10px">✏️</button>
+          <button type="button" class="btn btn-outline btn-sm ll-del" data-id="${escapeHtml(String(r.id))}" style="padding:2px 6px;font-size:10px">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+    tb.querySelectorAll('.ll-edit').forEach(btn => {
+      btn.addEventListener('click', () => llEditOne(btn.getAttribute('data-id'), rows));
+    });
+    tb.querySelectorAll('.ll-del').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!id || !confirm('Hapus log ini?')) return;
+        try {
+          await apiCall('login_log_delete', { ids: [id] });
+          toast('Log dihapus', 'ok');
+          loadLoginLogList();
+        } catch (e) { toast(errToText(e), 'err'); }
+      });
+    });
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="6" style="padding:16px;color:#c62828;text-align:center">${escapeHtml(errToText(e))}<br><small>Pastikan tabel login_log sudah dibuat &amp; API di-deploy.</small></td></tr>`;
+    if (meta) meta.textContent = '';
+  }
+}
+
+function setNotifBadge(n) {
+  const b = document.getElementById('notifBadge');
+  if (!b) return;
+  if (n > 0) {
+    b.style.display = '';
+    b.textContent = n > 99 ? '99+' : String(n);
+  } else {
+    b.style.display = 'none';
+    b.textContent = '0';
+  }
+}
+
+async function refreshNotifBadge() {
+  const sess = getSession();
+  if (!sess || sess.role !== 'admin') { setNotifBadge(0); return; }
+  try {
+    const res = await apiCall('login_log_list', { dari: llTodayYMD(), sampai: llTodayYMD() });
+    setNotifBadge((res.data || []).length);
+  } catch (_) { /* tabel belum ada */ }
+}
+
+async function llEditOne(id, rows) {
+  const r = (rows || []).find(x => String(x.id) === String(id));
+  if (!r) return;
+  const nama = prompt('Nama:', r.nama || '');
+  if (nama == null) return;
+  const role = prompt('Role (admin/guru/siswa):', r.role || '');
+  if (role == null) return;
+  const kode = prompt('Kode (NISN/PIN):', r.kode || '');
+  if (kode == null) return;
+  const ket = prompt('Keterangan:', r.keterangan || '');
+  if (ket == null) return;
+  try {
+    await apiCall('login_log_update', { id, nama, role, kode, keterangan: ket });
+    toast('Log diperbarui', 'ok');
+    loadLoginLogList();
+  } catch (e) { toast(errToText(e), 'err'); }
+}
+
+document.getElementById('btnLlAdd')?.addEventListener('click', async () => {
+  const nama = prompt('Nama pengguna:', '');
+  if (nama == null || !String(nama).trim()) return;
+  const role = prompt('Role (admin/guru/siswa):', 'siswa');
+  if (role == null) return;
+  const kode = prompt('Kode (NISN/PIN):', '');
+  if (kode == null) return;
+  const ket = prompt('Keterangan:', 'Catatan manual admin');
+  if (ket == null) return;
+  try {
+    await apiCall('login_log_create', {
+      nama: String(nama).trim(),
+      role: String(role).trim().toLowerCase(),
+      kode: String(kode).replace(/\D/g, ''),
+      keterangan: String(ket).trim(),
+      user_agent: 'manual-admin',
+    });
+    toast('Log ditambahkan', 'ok');
+    loadLoginLogList();
+  } catch (e) { toast(errToText(e), 'err'); }
+});
+
+document.getElementById('btnLlHapus')?.addEventListener('click', async () => {
+  const ids = [...document.querySelectorAll('.ll-check:checked')].map(c => c.value).filter(Boolean);
+  if (!ids.length) { toast('Pilih minimal 1 log', 'err'); return; }
+  if (!confirm('Hapus ' + ids.length + ' log terpilih?')) return;
+  try {
+    await apiCall('login_log_delete', { ids });
+    toast(ids.length + ' log dihapus', 'ok');
+    loadLoginLogList();
+  } catch (e) { toast(errToText(e), 'err'); }
+});
+
+// Badge saat admin sudah login
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => { try { refreshNotifBadge(); } catch (_) {} }, 1500);
+});
+// juga setelah renderUserUI admin
+const _renderUserUI_orig = typeof renderUserUI === 'function' ? renderUserUI : null;
 
 /* ===== Init ===== */
 (async function init() {
