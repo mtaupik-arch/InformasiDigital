@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="fix-back-nav-2026-10-31">
+<meta name="sis-fix" content="fix-profil-compress-2026-10-31">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -3328,6 +3328,49 @@
   </div>
 
   <!-- ========== PAGE: EDIT PROFIL USER ========== -->
+
+  <!-- ========== PAGE: PROFIL SAYA (self-service) ========== -->
+  <div class="page" id="page-profil-saya">
+    <div class="page-title">👤 Profil Saya</div>
+    <div class="data-card" style="padding:16px;max-width:480px;margin:0 auto">
+      <div style="text-align:center;margin-bottom:16px">
+        <div id="psPhotoPreview" class="up-photo" style="width:112px;height:112px;margin:0 auto 10px;border-radius:50%;overflow:hidden;background:#e8eaf6;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:700;color:#3949ab;border:3px solid #c5cae9">?</div>
+        <div id="psNama" style="font-weight:700;font-size:15px;color:#1a237e">—</div>
+        <div id="psMeta" style="font-size:12px;color:#64748b;margin-top:2px">—</div>
+      </div>
+
+      <div class="form-group full" style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:600;color:#475569">Foto profil</label>
+        <p style="font-size:11px;color:#94a3b8;margin:4px 0 8px;line-height:1.4">
+          Foto dikompres otomatis di HP (max ±256px, target &lt; 45 KB) lalu disimpan ke Storage.
+        </p>
+        <input type="file" id="psFileInput" accept="image/*" capture="user" style="font-size:13px;width:100%" />
+        <div id="psCompressInfo" style="font-size:11px;color:#64748b;margin-top:6px;min-height:16px"></div>
+      </div>
+
+      <div id="psPinSection" style="display:none;margin-top:8px;padding-top:12px;border-top:1px solid #e2e8f0">
+        <div style="font-size:12px;font-weight:700;color:#1a237e;margin-bottom:8px">🔑 Ubah PIN (Guru)</div>
+        <div class="form-group" style="margin-bottom:8px">
+          <label style="font-size:11px;font-weight:600">PIN baru (6 digit)</label>
+          <input type="password" id="psPinBaru" inputmode="numeric" maxlength="6" placeholder="6 digit" autocomplete="new-password"
+                 style="width:100%;padding:10px;border:1.5px solid #d0d7e2;border-radius:8px;letter-spacing:4px;text-align:center" />
+        </div>
+        <div class="form-group" style="margin-bottom:8px">
+          <label style="font-size:11px;font-weight:600">Ulangi PIN baru</label>
+          <input type="password" id="psPinUlang" inputmode="numeric" maxlength="6" placeholder="Ulangi 6 digit" autocomplete="new-password"
+                 style="width:100%;padding:10px;border:1.5px solid #d0d7e2;border-radius:8px;letter-spacing:4px;text-align:center" />
+        </div>
+        <button type="button" class="btn btn-outline" id="btnPsSimpanPin" style="width:100%;margin-top:4px">Simpan PIN</button>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button type="button" class="btn btn-primary" id="btnPsSimpanFoto" style="flex:1;min-width:140px" disabled>💾 Simpan Foto</button>
+        <button type="button" class="btn btn-outline" id="btnPsHapusFoto" style="flex:1;min-width:120px">🗑️ Hapus Foto</button>
+      </div>
+      <p id="psStatus" style="font-size:12px;color:#64748b;margin-top:10px;text-align:center;min-height:18px"></p>
+    </div>
+  </div>
+
   <div class="page" id="page-edit-profil-user">
     <div class="page-title">👤 Edit Profil User</div>
     <div class="up-filters">
@@ -5301,7 +5344,8 @@ document.getElementById('btnEditProfil')?.addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation();
   closeProfileMenu();
-  navigate('edit-profil-user');
+  // Semua role: edit profil sendiri (foto ± PIN guru)
+  navigate('profil-saya');
   try { armBackTrap(); } catch (_) {}
 });
 
@@ -5938,7 +5982,7 @@ let navReady = false;
 let navTrapArmed = false;
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal','download-absensi','backup-data'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','profil-saya','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal','download-absensi','backup-data'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   if (page === 'pengumuman-lulus') target = 'validasi-lulusan';
@@ -6022,6 +6066,7 @@ function navigate(page, opts = {}) {
   if (target === 'dashboard') runPage(() => renderDashboard());
   if (target === 'mapel-kelas') runPage(() => initMapelKelasPage());
   if (target === 'data-sekolah') runPage(() => initDataSekolahPage());
+  if (target === 'profil-saya') runPage(() => initProfilSayaPage());
   if (target === 'edit-profil-user') runPage(() => initEditProfilUserPage());
   if (target === 'data-siswa') runPage(() => renderSiswa());
   if (target === 'data-guru') runPage(() => renderGuru());
@@ -9000,7 +9045,9 @@ document.getElementById('upFileInput')?.addEventListener('change', async (e) => 
   if (!file || !upSelectedKey) return;
   const [role, ref_key] = upSelectedKey.split('|');
   try {
-    const dataUrl = await fileToDataUrl(file, 400);
+    const compressed = await compressImageProfile(file, { maxSide: 256, targetBytes: 45 * 1024 });
+    const dataUrl = compressed.dataUrl;
+    toast('Dikompres: ' + formatBytes(compressed.originalBytes) + ' → ' + formatBytes(compressed.bytes), 'ok');
     await apiCall('upload_user_foto', { role, ref_key, data_url: dataUrl });
     await loadUserFotoStore();
     renderUserFotoCards();
@@ -9193,6 +9240,288 @@ function applySekolahToUI() {
     el.textContent = nama;
   });
 }
+
+
+/** Kompres foto profil di client: maxSide, JPEG, iterasi quality → targetBytes */
+function compressImageProfile(file, opts = {}) {
+  const maxSide = opts.maxSide || 256;
+  const targetBytes = opts.targetBytes || 45 * 1024; // ~45 KB
+  const minQuality = opts.minQuality || 0.45;
+  const startQuality = opts.quality || 0.82;
+  return new Promise((resolve, reject) => {
+    if (!file) return reject(new Error('File kosong'));
+    if (!String(file.type || '').startsWith('image/')) {
+      return reject(new Error('File harus berupa gambar'));
+    }
+    // batasi file mentah agar tidak hang di HP
+    if (file.size > 8 * 1024 * 1024) {
+      return reject(new Error('Ukuran file terlalu besar (max 8 MB). Pilih foto lain.'));
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Gagal membaca file'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Gambar tidak valid'));
+      img.onload = () => {
+        try {
+          const scale = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1));
+          const w = Math.max(1, Math.round((img.width || 1) * scale));
+          const h = Math.max(1, Math.round((img.height || 1) * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          // latar putih agar JPEG stabil
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+
+          let quality = startQuality;
+          let dataUrl = canvas.toDataURL('image/jpeg', quality);
+          // perkiraan byte dari data URL
+          const bytesOf = (du) => Math.ceil((du.length - (du.indexOf(',') + 1)) * 0.75);
+          let guard = 0;
+          while (bytesOf(dataUrl) > targetBytes && quality > minQuality && guard < 10) {
+            quality = Math.max(minQuality, quality - 0.08);
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+            guard++;
+          }
+          // jika masih besar, turunkan resolusi sekali lagi
+          if (bytesOf(dataUrl) > targetBytes * 1.35 && maxSide > 160) {
+            const s2 = Math.min(1, 160 / Math.max(w, h));
+            const w2 = Math.max(1, Math.round(w * s2));
+            const h2 = Math.max(1, Math.round(h * s2));
+            const c2 = document.createElement('canvas');
+            c2.width = w2; c2.height = h2;
+            const x2 = c2.getContext('2d');
+            x2.fillStyle = '#ffffff';
+            x2.fillRect(0, 0, w2, h2);
+            x2.drawImage(canvas, 0, 0, w2, h2);
+            quality = Math.min(quality, 0.72);
+            dataUrl = c2.toDataURL('image/jpeg', quality);
+            while (bytesOf(dataUrl) > targetBytes && quality > minQuality && guard < 16) {
+              quality = Math.max(minQuality, quality - 0.08);
+              dataUrl = c2.toDataURL('image/jpeg', quality);
+              guard++;
+            }
+          }
+          resolve({
+            dataUrl,
+            width: w,
+            height: h,
+            quality: Math.round(quality * 100) / 100,
+            bytes: bytesOf(dataUrl),
+            originalBytes: file.size,
+          });
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatBytes(n) {
+  if (n == null || isNaN(n)) return '—';
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (Math.round(n / 102.4) / 10) + ' KB';
+  return (Math.round(n / (1024 * 102.4)) / 10) + ' MB';
+}
+
+let _psPendingDataUrl = null;
+
+function psRefKeyForSession(sess) {
+  if (!sess) return null;
+  if (sess.role === 'admin') return 'admin';
+  if (sess.role === 'guru') return String(sess.user?.pin || sess.user?.nip || '').replace(/\D/g, '') || String(sess.user?.id || '');
+  if (sess.role === 'siswa') return String(sess.user?.nisn || '').replace(/\D/g, '');
+  return null;
+}
+
+function psCurrentFotoUrl(sess) {
+  if (!sess) return '';
+  const role = sess.role;
+  const key = psRefKeyForSession(sess);
+  const rec = (store.user_foto || []).find(f => f.role === role && String(f.ref_key) === String(key));
+  return rec?.foto_url || sess.user?.foto_url || '';
+}
+
+function psSetPreview(url, initial) {
+  const el = document.getElementById('psPhotoPreview');
+  if (!el) return;
+  if (url) {
+    el.innerHTML = '<img src="' + url + '" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.remove()" />';
+  } else {
+    el.textContent = (initial || '?').toString().charAt(0).toUpperCase();
+  }
+}
+
+async function initProfilSayaPage() {
+  const sess = getSession();
+  const st = document.getElementById('psStatus');
+  const pinSec = document.getElementById('psPinSection');
+  const btnSave = document.getElementById('btnPsSimpanFoto');
+  const info = document.getElementById('psCompressInfo');
+  _psPendingDataUrl = null;
+  if (btnSave) btnSave.disabled = true;
+  if (info) info.textContent = '';
+  if (st) st.textContent = '';
+
+  if (!sess || !sess.token) {
+    if (st) st.textContent = 'Silakan login terlebih dahulu.';
+    document.getElementById('psNama').textContent = 'Belum login';
+    document.getElementById('psMeta').textContent = '—';
+    psSetPreview('', '?');
+    if (pinSec) pinSec.style.display = 'none';
+    return;
+  }
+
+  try { await loadUserFotoStore(); } catch (_) {}
+
+  const nama = sess.user?.nama || sess.role || 'User';
+  const roleLabel = sess.role === 'siswa' ? 'Siswa' : sess.role === 'guru' ? 'Guru' : 'Admin';
+  const metaParts = [roleLabel];
+  if (sess.role === 'siswa' && sess.user?.nisn) metaParts.push('NISN ' + sess.user.nisn);
+  if (sess.role === 'siswa' && (sess.user?.kelas || sess.user?.kelas_nama)) metaParts.push(sess.user.kelas || sess.user.kelas_nama);
+  if (sess.role === 'guru' && sess.user?.nip) metaParts.push('NIP ' + sess.user.nip);
+  document.getElementById('psNama').textContent = nama;
+  document.getElementById('psMeta').textContent = metaParts.join(' · ');
+  psSetPreview(psCurrentFotoUrl(sess), nama);
+
+  // PIN hanya guru
+  if (pinSec) {
+    pinSec.style.display = (sess.role === 'guru') ? '' : 'none';
+    const p1 = document.getElementById('psPinBaru');
+    const p2 = document.getElementById('psPinUlang');
+    if (p1) p1.value = '';
+    if (p2) p2.value = '';
+  }
+}
+
+document.getElementById('psFileInput')?.addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  const info = document.getElementById('psCompressInfo');
+  const st = document.getElementById('psStatus');
+  const btnSave = document.getElementById('btnPsSimpanFoto');
+  _psPendingDataUrl = null;
+  if (btnSave) btnSave.disabled = true;
+  if (!file) return;
+  if (info) info.textContent = 'Mengompres foto…';
+  if (st) st.textContent = '';
+  try {
+    const result = await compressImageProfile(file, { maxSide: 256, targetBytes: 45 * 1024 });
+    _psPendingDataUrl = result.dataUrl;
+    psSetPreview(result.dataUrl, '?');
+    if (info) {
+      info.innerHTML = 'Asli ' + formatBytes(result.originalBytes) +
+        ' → <b>' + formatBytes(result.bytes) + '</b> · ' +
+        result.width + '×' + result.height + ' · JPEG q' + result.quality;
+    }
+    if (btnSave) btnSave.disabled = false;
+  } catch (err) {
+    if (info) info.textContent = '';
+    if (st) st.textContent = errToText(err);
+    toast(errToText(err), 'err');
+  }
+});
+
+document.getElementById('btnPsSimpanFoto')?.addEventListener('click', async () => {
+  const sess = getSession();
+  const st = document.getElementById('psStatus');
+  if (!sess || !sess.token) {
+    toast('Silakan login', 'err');
+    return;
+  }
+  if (!_psPendingDataUrl) {
+    toast('Pilih foto terlebih dahulu', 'err');
+    return;
+  }
+  const role = sess.role;
+  const ref_key = psRefKeyForSession(sess);
+  if (!ref_key) {
+    toast('Identitas user tidak valid', 'err');
+    return;
+  }
+  const btn = document.getElementById('btnPsSimpanFoto');
+  if (btn) btn.disabled = true;
+  if (st) st.textContent = 'Menyimpan…';
+  try {
+    await apiCall('upload_user_foto', {
+      role,
+      ref_key,
+      data_url: _psPendingDataUrl,
+      self: true,
+    });
+    await loadUserFotoStore();
+    renderUserUI(sess);
+    _psPendingDataUrl = null;
+    if (st) st.textContent = 'Foto berhasil disimpan.';
+    toast('Foto profil disimpan', 'ok');
+    const info = document.getElementById('psCompressInfo');
+    if (info) info.textContent = '';
+  } catch (err) {
+    if (st) st.textContent = errToText(err);
+    toast(errToText(err), 'err');
+    if (btn) btn.disabled = false;
+  }
+});
+
+document.getElementById('btnPsHapusFoto')?.addEventListener('click', async () => {
+  const sess = getSession();
+  if (!sess || !sess.token) return;
+  if (!confirm('Hapus foto profil Anda?')) return;
+  const st = document.getElementById('psStatus');
+  try {
+    await apiCall('delete_user_foto', {
+      role: sess.role,
+      ref_key: psRefKeyForSession(sess),
+      self: true,
+    });
+    await loadUserFotoStore();
+    renderUserUI(sess);
+    psSetPreview('', sess.user?.nama || '?');
+    _psPendingDataUrl = null;
+    if (st) st.textContent = 'Foto dihapus.';
+    toast('Foto dihapus', 'ok');
+  } catch (err) {
+    toast(errToText(err), 'err');
+  }
+});
+
+document.getElementById('btnPsSimpanPin')?.addEventListener('click', async () => {
+  const sess = getSession();
+  if (!sess || sess.role !== 'guru') {
+    toast('Hanya guru yang dapat mengubah PIN di sini', 'err');
+    return;
+  }
+  const p1 = (document.getElementById('psPinBaru')?.value || '').replace(/\D/g, '');
+  const p2 = (document.getElementById('psPinUlang')?.value || '').replace(/\D/g, '');
+  if (p1.length !== 6) {
+    toast('PIN harus 6 digit angka', 'err');
+    return;
+  }
+  if (p1 !== p2) {
+    toast('PIN tidak cocok', 'err');
+    return;
+  }
+  const st = document.getElementById('psStatus');
+  try {
+    await apiCall('update_own_pin', { pin: p1 });
+    // update session lokal
+    if (sess.user) sess.user.pin = p1;
+    saveSession(sess);
+    if (document.getElementById('psPinBaru')) document.getElementById('psPinBaru').value = '';
+    if (document.getElementById('psPinUlang')) document.getElementById('psPinUlang').value = '';
+    if (st) st.textContent = 'PIN berhasil diubah.';
+    toast('PIN disimpan', 'ok');
+  } catch (err) {
+    toast(errToText(err), 'err');
+  }
+});
+
 
 function fileToDataUrl(file, maxSide = 320, opts = {}) {
   return new Promise((resolve, reject) => {
