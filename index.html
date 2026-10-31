@@ -10952,27 +10952,48 @@ async function ujSimpanJawabanKeServer(opts) {
   const answers = collectUjAnswers();
   ujSaveDraftLocal(answers);
   const filled = ujCountFilled(answers);
-
   if (!silent && filled === 0) {
     throw new Error('Belum ada jawaban yang diisi. Pilih opsi atau ketik isian dulu.');
   }
 
-  // Kirim hanya yang terisi + juga kirim semua (beberapa backend butuh full list)
   const filledAnswers = answers.filter((a) => String(a.jawaban || '').trim() !== '');
-  let res = null;
-  let lastErr = null;
+  // Format baris yang sering dipakai backend
+  const rowify = (list) => (list || []).map((a) => ({
+    item_id: a.item_id,
+    soal_item_id: a.item_id,
+    bank_soal_item_id: a.item_id,
+    id_item: a.item_id,
+    nomor: a.nomor,
+    jenis_soal: a.jenis_soal,
+    jawaban: a.jawaban,
+    answer: a.jawaban,
+    isi: a.jawaban,
+  }));
+
+  const mapObj = {};
+  filledAnswers.forEach((a) => { mapObj[String(a.item_id)] = a.jawaban; });
+
+  const base = {
+    ruang_id: _ujState.ruangId,
+    bank_soal_id: _ujState.bankId || undefined,
+  };
 
   const payloads = [
-    { ruang_id: _ujState.ruangId, bank_soal_id: _ujState.bankId || undefined, answers: filledAnswers },
-    { ruang_id: _ujState.ruangId, bank_soal_id: _ujState.bankId || undefined, answers: answers },
+    { ...base, answers: rowify(filledAnswers) },
+    { ...base, answers: rowify(answers) },
+    { ...base, jawaban: rowify(filledAnswers) },
+    { ...base, data: rowify(filledAnswers) },
+    { ...base, answers: mapObj, jawaban: mapObj },
   ];
 
+  let res = null;
+  let lastErr = null;
   for (const body of payloads) {
     try {
       res = await apiCall('simpan_jawaban_ujian', body);
-      // jika server bilang 0 tapi kita punya isian, coba payload berikutnya
-      const msg = String((res && (res.message || res.msg)) || '');
-      if (/0\s*jawaban/i.test(msg) && filled > 0 && body.answers === filledAnswers) {
+      const msg = String((res && (res.message || res.msg || '')) || '');
+      // lanjut coba jika server bilang 0 padahal ada isian
+      if (/0\s*jawaban/i.test(msg) && filled > 0) {
         lastErr = new Error(msg);
         continue;
       }
@@ -10982,8 +11003,9 @@ async function ujSimpanJawabanKeServer(opts) {
       lastErr = e;
     }
   }
-  if (lastErr && !res) throw lastErr;
+  if (!res && lastErr) throw lastErr;
 
+  // Update state
   try {
     const map = {};
     answers.forEach((a) => { map[String(a.item_id)] = a.jawaban; });
@@ -10993,8 +11015,9 @@ async function ujSimpanJawabanKeServer(opts) {
     }));
   } catch (_) {}
 
-  return { res: res || {}, filled, total: answers.length, filledAnswers };
+  return { res: res || {}, filled, total: answers.length, filledAnswers, answers };
 }
+
 
 let _ujAutosaveTimer = null;
 function ujScheduleDraftSave() {
@@ -15569,43 +15592,143 @@ document.getElementById('btnRuDetail')?.addEventListener('click', async () => {
   const ids = getSelectedRuangIds();
   if (ids.length !== 1) { toast('Pilih tepat 1 siswa untuk Detail', 'err'); return; }
   try {
+    toast('Memuat detail…', 'ok');
     const res = await apiCall('ruang_ujian_detail', { id: ids[0] });
-    const d = res.data || {};
-    const answers = d.jawaban || [];
-    let body = `<div style="max-height:60vh;overflow:auto;text-align:left;font-size:12px">
-      <b>${escapeHtml(d.nama || '')}</b> · ${escapeHtml(d.nisn || '')} · ${escapeHtml(d.kelas || '')}<br>
-      Status: ${escapeHtml(d.status || '')} · Skor: <b>${d.skor != null ? d.skor : '—'}</b><hr/>`;
-    if (!answers.length) body += '<i>Belum ada jawaban tersimpan.</i>';
-    else {
-      answers.forEach((a, i) => {
-        body += `<div style="margin-bottom:8px;padding:6px;border:1px solid #eee;border-radius:6px">
-          <b>No ${a.nomor || (i + 1)}</b> (${escapeHtml(a.jenis_soal || '')}) skor:
-          <input type="number" step="0.5" min="0" data-jw-id="${escapeHtml(String(a.id || ''))}" value="${a.skor_jawaban != null ? a.skor_jawaban : ''}" style="width:64px" />
-          <div style="margin-top:4px">${escapeHtml(a.pertanyaan || '')}</div>
-          <div style="color:#1565c0">Jawaban: ${escapeHtml(String(a.jawaban || '—'))}</div>
+    const d = res.data || res || {};
+    let answers = d.jawaban || d.answers || d.items || [];
+    if (!Array.isArray(answers)) answers = [];
+
+    // Ambil semua soal paket agar tampil yang dijawab maupun kosong
+    let soalItems = d.soal || d.items_soal || [];
+    const bankId = d.bank_soal_id || d.bank_id || (_bsRuRows || []).find((r) => String(r.id) === String(ids[0]))?.bank_soal_id;
+    if ((!soalItems || !soalItems.length) && bankId) {
+      try {
+        const ir = await apiCall('list_bank_soal_item', { bank_soal_id: bankId });
+        soalItems = ir.data || [];
+      } catch (_) {}
+    }
+
+    // Map jawaban by item id / nomor
+    const byItem = {};
+    const byNomor = {};
+    answers.forEach((a) => {
+      const jw = a.jawaban != null ? a.jawaban : (a.answer != null ? a.answer : a.isi);
+      const key = a.item_id || a.soal_item_id || a.bank_soal_item_id || a.id_item || a.soal_id;
+      if (key != null) byItem[String(key)] = { ...a, jawaban: jw };
+      if (a.nomor != null) byNomor[String(a.nomor)] = { ...a, jawaban: jw };
+    });
+
+    // Susun baris: semua soal
+    let rows = [];
+    if (soalItems && soalItems.length) {
+      const sorted = [...soalItems].sort((a, b) => (Number(a.nomor) || 0) - (Number(b.nomor) || 0));
+      rows = sorted.map((s) => {
+        const hit = byItem[String(s.id)] || byNomor[String(s.nomor)] || {};
+        return {
+          id: hit.id || hit.jawaban_id || '',
+          item_id: s.id,
+          nomor: s.nomor,
+          jenis_soal: s.jenis_soal || s.jenis || hit.jenis_soal || '',
+          pertanyaan: s.pertanyaan || hit.pertanyaan || '',
+          kunci: s.kunci || hit.kunci || '',
+          skor_max: s.skor != null ? s.skor : 1,
+          jawaban: hit.jawaban != null ? hit.jawaban : '',
+          skor_jawaban: hit.skor_jawaban != null ? hit.skor_jawaban : hit.skor,
+          benar: hit.benar,
+        };
+      });
+    } else {
+      rows = answers.map((a, i) => ({
+        id: a.id || '',
+        item_id: a.item_id || a.soal_item_id || '',
+        nomor: a.nomor || (i + 1),
+        jenis_soal: a.jenis_soal || '',
+        pertanyaan: a.pertanyaan || '',
+        kunci: a.kunci || '',
+        skor_max: a.skor_max != null ? a.skor_max : 1,
+        jawaban: a.jawaban != null ? a.jawaban : '',
+        skor_jawaban: a.skor_jawaban != null ? a.skor_jawaban : a.skor,
+        benar: a.benar,
+      }));
+    }
+
+    const isIsian = (j) => {
+      const t = String(j || '').toLowerCase();
+      return t.includes('uraian') || t.includes('isian') || t.includes('essay') || t.includes('esai');
+    };
+
+    let body = `<div style="max-height:65vh;overflow:auto;text-align:left;font-size:12px">
+      <b>${escapeHtml(d.nama || d.siswa_nama || '')}</b> · ${escapeHtml(String(d.nisn || ''))} · ${escapeHtml(d.kelas || d.kelas_nama || '')}<br>
+      Status: <b>${escapeHtml(d.status || '')}</b> · Skor total: <b>${d.skor != null ? d.skor : '—'}</b>
+      <div style="color:#666;margin:4px 0 8px">${rows.length} soal · ${rows.filter((r) => String(r.jawaban || '').trim() !== '').length} dijawab</div>
+      <hr/>`;
+
+    if (!rows.length) {
+      body += '<i>Belum ada data soal/jawaban. Pastikan siswa menekan <b>Simpan</b> atau <b>Kumpulkan</b>.</i>';
+    } else {
+      rows.forEach((a, i) => {
+        const no = a.nomor != null ? a.nomor : (i + 1);
+        const jns = a.jenis_soal || '';
+        const isian = isIsian(jns);
+        const jw = String(a.jawaban || '').trim();
+        const jwShow = jw ? escapeHtml(jw) : '<i style="color:#999">Tidak dijawab</i>';
+        const skorVal = a.skor_jawaban != null && a.skor_jawaban !== '' ? a.skor_jawaban : '';
+        const benarBadge = a.benar === true || a.benar === 'benar' || a.benar === 1
+          ? ' <span style="color:#2e7d32;font-weight:700">✓ Benar</span>'
+          : (a.benar === false || a.benar === 'salah' || a.benar === 0
+            ? ' <span style="color:#c62828;font-weight:700">✗ Salah</span>' : '');
+        // skor input: isian selalu bisa; objektif tampilkan nilai jika ada
+        const skorInput = isian
+          ? `<input type="number" step="0.5" min="0" max="${Number(a.skor_max) || 100}" data-jw-id="${escapeHtml(String(a.id || a.item_id || ''))}" data-item-id="${escapeHtml(String(a.item_id || ''))}" value="${skorVal}" style="width:70px;padding:2px 4px" title="Skor manual isian"/> / ${a.skor_max != null ? a.skor_max : 1}`
+          : (skorVal !== '' ? `skor: <b>${escapeHtml(String(skorVal))}</b>` : 'skor: —');
+        body += `<div style="margin-bottom:10px;padding:8px;border:1px solid #e0e6ed;border-radius:8px;background:#fafbfd">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:4px">
+            <b>No ${escapeHtml(String(no))}</b>
+            <span style="color:#5c6bc0">${escapeHtml(jns)}</span>
+            ${benarBadge}
+            <span style="margin-left:auto">${skorInput}</span>
+          </div>
+          <div style="margin:4px 0;color:#333" class="ru-detail-q">${a.pertanyaan ? (typeof wrapLatexDelimsToMathSpan === 'function' ? wrapLatexDelimsToMathSpan(String(a.pertanyaan).slice(0, 500)) : escapeHtml(String(a.pertanyaan).replace(/<[^>]+>/g, ' ').slice(0, 300))) : '—'}</div>
+          <div style="color:#1565c0"><b>Jawaban siswa:</b> ${jwShow}</div>
+          ${a.kunci ? `<div style="color:#2e7d32;font-size:11px"><b>Kunci:</b> ${escapeHtml(String(a.kunci))}</div>` : ''}
         </div>`;
       });
-      body += `<button type="button" class="btn btn-primary btn-sm" id="btnRuSimpanSkorIsian">Simpan skor isian</button>`;
+      body += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button type="button" class="btn btn-primary btn-sm" id="btnRuSimpanSkorIsian">Simpan skor isian</button>
+        <span style="font-size:11px;color:#666;align-self:center">Isian/uraian: isi skor manual lalu simpan. Objektif dinilai otomatis saat kumpulkan (jika kunci tersedia).</span>
+      </div>`;
     }
     body += '</div>';
+
     if (typeof showBigPopup === 'function') {
       showBigPopup('ok', 'Detail Jawaban', body, 0);
       setTimeout(() => {
+        try {
+          const box = document.querySelector('.big-popup-body, .popup-body, #bigPopupBody') || document.body;
+          if (typeof ujRenderAllMath === 'function') ujRenderAllMath(box);
+          else if (typeof bsRenderMathIn === 'function') bsRenderMathIn(box);
+        } catch (_) {}
         document.getElementById('btnRuSimpanSkorIsian')?.addEventListener('click', async () => {
-          const scores = [...document.querySelectorAll('[data-jw-id]')].map(inp => ({
+          const scores = [...document.querySelectorAll('[data-jw-id]')].map((inp) => ({
             id: inp.getAttribute('data-jw-id'),
+            item_id: inp.getAttribute('data-item-id'),
             skor: inp.value === '' ? null : Number(inp.value),
-          }));
+          })).filter((s) => s.id || s.item_id);
           try {
             await apiCall('ruang_ujian_set_skor', { ruang_id: ids[0], scores });
-            toast('Skor disimpan', 'ok');
+            toast('Skor isian disimpan', 'ok');
             await loadRuangUjianList();
           } catch (err) { toast(errToText(err), 'err'); }
         });
-      }, 250);
+      }, 300);
+    } else {
+      toast('Detail dimuat — popup tidak tersedia', 'err');
     }
-  } catch (e) { toast(errToText(e), 'err'); }
+  } catch (e) {
+    toast(errToText(e), 'err');
+  }
 });
+
 document.getElementById('btnRuSinkron')?.addEventListener('click', () => {
   if (!confirm('Sinkronisasi skor ujian terpilih ke tabel Nilai (nilai fix)?')) return;
   runRuangAction('sinkronisasi');
