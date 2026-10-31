@@ -5217,15 +5217,60 @@ function renderStrukturOrganisasi() {
     .sort(sortByDuk);
   if (!rows.length) {
     tb.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada data guru</td></tr>';
-    return;
-  }
-  tb.innerHTML = rows.map((g, i) => `
+  } else {
+    tb.innerHTML = rows.map((g, i) => `
     <tr>
       <td>${i + 1}</td>
       <td>${escapeHtml(g.nama || '-')}</td>
       <td>${escapeHtml(g.jabatan_struktur || '-')}</td>
       <td>${escapeHtml(g.jabatan_fungsional || '-')}</td>
     </tr>`).join('');
+  }
+  // Selalu sinkron ke panel publik
+  syncStrukturToPublic();
+}
+
+/** Salin legend stats + struktur ke panel dashboard publik (tamu) */
+function syncDashboardPublicPanels() {
+  try {
+    const statsGuru = document.getElementById('statsGuru');
+    const statsSiswa = document.getElementById('statsSiswa');
+    const gPubBox = document.getElementById('dashStatsGuruPub');
+    const sPubBox = document.getElementById('dashStatsSiswaPub');
+    if (gPubBox && statsGuru && statsGuru.innerHTML) gPubBox.innerHTML = statsGuru.innerHTML;
+    if (sPubBox && statsSiswa && statsSiswa.innerHTML) sPubBox.innerHTML = statsSiswa.innerHTML;
+    const gPub = document.getElementById('dashTotalGuruPub');
+    const sPub = document.getElementById('dashTotalSiswaPub');
+    const countGuru = document.getElementById('countGuru');
+    const countSiswa = document.getElementById('countSiswa');
+    if (gPub && countGuru) gPub.textContent = countGuru.textContent || '0';
+    if (sPub && countSiswa) sPub.textContent = countSiswa.textContent || '0';
+    syncStrukturToPublic();
+  } catch (e) { console.warn('syncDashboardPublicPanels', e); }
+}
+
+function syncStrukturToPublic() {
+  try {
+    const tbodyPub = document.getElementById('tbodyStrukturOrgPub');
+    const tbodyOrg = document.getElementById('tbodyStrukturOrg');
+    if (!tbodyPub) return;
+    // Render langsung dari store jika tbodyOrg kosong/memuat
+    const rows = (store.guru || [])
+      .filter(g => {
+        const st = String(g.status || 'Aktif').toLowerCase();
+        return st === 'aktif' || st === '' || st === 'active';
+      })
+      .slice()
+      .sort(sortByDuk);
+    if (!rows.length) {
+      tbodyPub.innerHTML = '<tr class="empty-row"><td colspan="3">Belum ada data guru</td></tr>';
+      return;
+    }
+    tbodyPub.innerHTML = rows.map((g, i) =>
+      '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(g.nama || '-') +
+      '</td><td>' + escapeHtml(g.jabatan_struktur || '-') + '</td></tr>'
+    ).join('');
+  } catch (e) { console.warn('syncStrukturToPublic', e); }
 }
 
 /** Ambil label status singkat untuk sel rekap */
@@ -5459,39 +5504,13 @@ async function renderDashboard() {
     // Setelah 00:00 s/d sebelum sesi 1: statistik kosong, rekap disembunyikan
     if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
     if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
-  // Mirror ke panel publik tamu
-  try {
-    const gPubBox = document.getElementById('dashStatsGuruPub');
-    const sPubBox = document.getElementById('dashStatsSiswaPub');
-    if (gPubBox && statsGuru) gPubBox.innerHTML = statsGuru.innerHTML;
-    if (sPubBox && statsSiswa) sPubBox.innerHTML = statsSiswa.innerHTML;
-    const tbodyPub = document.getElementById('tbodyStrukturOrgPub');
-    const tbodyOrg = document.getElementById('tbodyStrukturOrg');
-    if (tbodyPub && tbodyOrg) {
-      // ringkas: No, Nama, Jabatan Struktur saja
-      const rows = [...tbodyOrg.querySelectorAll('tr')];
-      if (!rows.length || rows[0].classList.contains('empty-row')) {
-        tbodyPub.innerHTML = tbodyOrg.innerHTML;
-      } else {
-        tbodyPub.innerHTML = rows.map((tr, i) => {
-          const tds = tr.querySelectorAll('td');
-          if (tds.length < 2) return tr.outerHTML;
-          const no = tds[0]?.textContent || (i+1);
-          const nama = tds[1]?.textContent || '-';
-          const jab = tds[2]?.textContent || '-';
-          return '<tr><td>' + no + '</td><td>' + nama + '</td><td>' + jab + '</td></tr>';
-        }).join('');
-      }
-    }
-  } catch (_) {}
-
     if (cardGuru) cardGuru.style.display = 'none';
     if (cardSiswa) cardSiswa.style.display = 'none';
-    // hapus teks "Memuat data…" agar tidak terlihat stuck
     const tg = document.getElementById('tbodyRekapGuru');
     const ts = document.getElementById('tbodyRekapSiswa');
     if (tg) tg.innerHTML = '<tr class="empty-row"><td colspan="8">Di luar jam sesi</td></tr>';
     if (ts) ts.innerHTML = '<tr class="empty-row"><td colspan="8">Di luar jam sesi</td></tr>';
+    syncDashboardPublicPanels();
     return;
   }
 
@@ -5516,6 +5535,8 @@ async function renderDashboard() {
   // Rekap kehadiran guru & siswa (nama dari DB, status dari absensi hari ini)
   renderRekapKehadiran('guru', sesiList, absenRows);
   renderRekapKehadiran('siswa', sesiList, absenRows);
+  // Sinkron panel publik (legend + struktur) — wajib untuk tampilan tamu
+  syncDashboardPublicPanels();
   // Pastikan foto user / logo tetap tampil setelah re-render stats
   try { renderUserUI(getSession()); } catch (_) {}
   try { applySekolahToUI(); } catch (_) {}
