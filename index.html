@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="fix-login-mask-2026-10-31">
+<meta name="sis-fix" content="fix-login-mask-instant-2026-10-31">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -532,15 +532,24 @@
     font-size:16px; letter-spacing:4px; text-align:center; outline:none; transition:.2s;
   }
   .login-body input:focus { border-color:var(--biru); box-shadow:0 0 0 3px rgba(33,150,243,.15); }
-  /* Masking kuat: password + disc (HP sering menampilkan digit terakhir) */
+  /* Masking INSTAN: jangan pakai type=password (HP menampilkan digit terakhir ~1 dtk).
+     Pakai type=text + text-security + render bullet manual di JS. */
   .login-body input#inputIdentifier,
   .login-body input.login-pin-mask {
     -webkit-text-security: disc !important;
     text-security: disc !important;
-    font-family: text-security-disc, 'Segoe UI', Tahoma, sans-serif !important;
+    letter-spacing: 8px !important;
+    font-size: 22px !important;
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    color: #1a237e !important;
+    caret-color: #1a237e;
+  }
+  /* Saat JS mengisi bullet •, pastikan tampilan konsisten */
+  .login-body input#inputIdentifier.masked-bullets {
+    -webkit-text-security: none !important;
+    text-security: none !important;
     letter-spacing: 6px !important;
-    /* cegah browser menampilkan karakter terakhir sebentar */
-    ime-mode: disabled;
+    font-size: 20px !important;
   }
   .login-hint { display:none !important; }
   .login-error {
@@ -2691,10 +2700,12 @@
       <p id="loginSekolahNama">SMA Negeri 1 Nusantara</p>
     </div>
     <div class="login-body">
-      <input type="password" id="inputIdentifier" class="login-pin-mask"
+            <input type="text" id="inputIdentifier" class="login-pin-mask"
              inputmode="numeric" pattern="[0-9]*" maxlength="10"
-             autocomplete="off" autocapitalize="off" autocorrect="off"
-             spellcheck="false" enterkeyhint="done" aria-label="Kode login NISN atau PIN" />
+             autocomplete="off" autocapitalize="off"
+             autocorrect="off" spellcheck="false" enterkeyhint="done"
+             aria-label="Kode login NISN atau PIN" />
+      <input type="hidden" id="inputIdentifierReal" value="" />
       <div class="login-error" id="loginError"></div>
       <button class="login-btn" id="btnDoLogin">Masuk</button>
     </div>
@@ -5005,15 +5016,15 @@ const btnDoLogin = document.getElementById('btnDoLogin');
 
 function openLogin() {
   loginError.classList.remove('show');
-  if (inputIdentifier) {
-    inputIdentifier.setAttribute('type', 'password');
-    inputIdentifier.value = '';
+  try { loginPinClear(); } catch (_) {
+    _loginPinReal = '';
+    if (inputIdentifier) inputIdentifier.value = '';
   }
   try { applySekolahToUI(); } catch (_) {}
   loginOverlay.classList.add('active');
   setTimeout(() => {
     if (!inputIdentifier) return;
-    inputIdentifier.setAttribute('type', 'password');
+    try { loginPinRender(); } catch (_) {}
     inputIdentifier.focus();
   }, 200);
 }
@@ -5028,29 +5039,97 @@ loginOverlay.addEventListener('click', (e) => {
   if (e.target === loginOverlay) closeLogin();
 });
 
-// Masking: pastikan type selalu password + hanya digit
-function enforceLoginMask() {
+/* ===== Login PIN: masking INSTAN (bullet •) — tanpa delay digit terakhir ===== */
+let _loginPinReal = ''; // nilai asli (hanya digit)
+
+function loginPinRender() {
   if (!inputIdentifier) return;
-  if (inputIdentifier.getAttribute('type') !== 'password') {
-    inputIdentifier.setAttribute('type', 'password');
-  }
-  const digits = String(inputIdentifier.value || '').replace(/\D/g, '').slice(0, 10);
-  if (inputIdentifier.value !== digits) inputIdentifier.value = digits;
+  inputIdentifier.classList.add('masked-bullets');
+  // Tampilkan bullet sebanyak digit — langsung, tanpa menampilkan angka
+  inputIdentifier.value = _loginPinReal ? '•'.repeat(_loginPinReal.length) : '';
+  const hid = document.getElementById('inputIdentifierReal');
+  if (hid) hid.value = _loginPinReal;
 }
-inputIdentifier.addEventListener('input', enforceLoginMask);
-inputIdentifier.addEventListener('keyup', enforceLoginMask);
+
+function loginPinSet(digits) {
+  _loginPinReal = String(digits || '').replace(/\D/g, '').slice(0, 10);
+  loginPinRender();
+}
+
+function loginPinGet() {
+  return _loginPinReal;
+}
+
+function loginPinClear() {
+  _loginPinReal = '';
+  loginPinRender();
+}
+
+// Intercept ketikan: cegah karakter asli tampil di field
+inputIdentifier.addEventListener('beforeinput', (e) => {
+  // Biarkan hapus / insert lewat handler input; blokir jika bukan digit
+  if (e.inputType && e.inputType.startsWith('insert') && e.data && /\D/.test(e.data)) {
+    e.preventDefault();
+  }
+});
+
+inputIdentifier.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    doLogin();
+    return;
+  }
+  if (e.key === 'Backspace') {
+    e.preventDefault();
+    _loginPinReal = _loginPinReal.slice(0, -1);
+    loginPinRender();
+    return;
+  }
+  if (e.key === 'Delete') {
+    e.preventDefault();
+    loginPinClear();
+    return;
+  }
+  // Digit 0-9
+  if (/^[0-9]$/.test(e.key)) {
+    e.preventDefault();
+    if (_loginPinReal.length < 10) {
+      _loginPinReal += e.key;
+      loginPinRender();
+    }
+    return;
+  }
+  // Abaikan huruf / simbol (kecuali shortcut Ctrl/Meta)
+  if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+  }
+});
+
 inputIdentifier.addEventListener('paste', (e) => {
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData)?.getData('text') || '';
-  inputIdentifier.value = String(text).replace(/\D/g, '').slice(0, 10);
-  enforceLoginMask();
-});
-inputIdentifier.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') doLogin();
+  loginPinSet(text);
 });
 
+// Jaga jika browser mengisi value (autofill / voice)
+inputIdentifier.addEventListener('input', () => {
+  // Jika value bukan murni bullet, ekstrak digit yang mungkin bocor lalu mask ulang
+  const v = String(inputIdentifier.value || '');
+  if (/[0-9]/.test(v)) {
+    const dig = v.replace(/\D/g, '').slice(0, 10);
+    // gabung dengan real jika user somehow typed
+    if (dig && dig !== _loginPinReal) {
+      // Ambil digit baru dari event — fallback: pakai dig sebagai real
+      _loginPinReal = dig.slice(0, 10);
+    }
+  }
+  // Selalu render bullet agar angka tidak sempat terlihat
+  loginPinRender();
+});
+
+
 async function doLogin() {
-  const id = inputIdentifier.value.trim();
+  const id = (typeof loginPinGet === 'function' ? loginPinGet() : String(inputIdentifier.value || '')).replace(/\D/g, '').trim();
   loginError.classList.remove('show');
 
   if (!id) {
