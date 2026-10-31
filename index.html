@@ -2225,6 +2225,50 @@
     object-fit: contain !important; background:#000;
   }
 
+
+  /* ===== Dashboard publik (tamu) ===== */
+  #dashPublicView { display:none; margin-bottom:12px; width:100%; }
+  body:not(.dash-logged-in) #dashPublicView { display:block; }
+  body:not(.dash-logged-in) #panelRekapGuru .dash-left,
+  body:not(.dash-logged-in) #panelRekapSiswa .dash-left { display:none; }
+  body.dash-logged-in #dashPublicView { display:none !important; }
+  .dash-public-grid { display:grid; gap:12px; grid-template-columns:1fr; }
+  @media (min-width:900px) {
+    body:not(.dash-logged-in) .dash-public-grid {
+      grid-template-columns: minmax(260px,1.1fr) minmax(260px,1.1fr) minmax(300px,1.3fr);
+      gap:16px;
+    }
+  }
+  .dash-public-card {
+    background:#fff; border-radius:14px; padding:16px 18px;
+    box-shadow:0 2px 10px rgba(15,23,42,.06); border:1px solid #e8eef5;
+  }
+  .dash-public-logo {
+    width:110px; height:110px; margin:0 auto 12px;
+    display:flex; align-items:center; justify-content:center;
+    background:transparent; border-radius:12px; overflow:hidden;
+  }
+  .dash-public-logo img {
+    width:100%; height:100%; object-fit:contain; display:block; background:transparent;
+  }
+  .dash-public-school-name {
+    text-align:center; font-weight:800; font-size:15px; color:#0f172a;
+    margin-bottom:10px; line-height:1.3;
+  }
+  .dash-public-meta .row, .dash-public-meta .row-block {
+    display:flex; gap:6px; font-size:12px; margin:4px 0; color:#334155; align-items:flex-start;
+  }
+  .dash-public-meta .row-block { flex-direction:column; gap:2px; margin-top:8px; }
+  .dash-public-meta .lbl { font-weight:700; color:#64748b; min-width:88px; flex-shrink:0; }
+  .dash-public-meta .sep { color:#94a3b8; }
+  .dash-public-meta .val { flex:1; color:#0f172a; }
+  .dash-public-hint { font-size:11px; color:#94a3b8; margin-top:10px; text-align:center; }
+  .dash-public-stat-title { font-size:13px; font-weight:700; margin-bottom:8px; color:#0f172a; }
+  .dash-public-stat-num {
+    background:#e0f2fe; color:#0369a1; font-size:12px; font-weight:700;
+    padding:2px 10px; border-radius:8px;
+  }
+
 </style>
 </head>
 <body>
@@ -2304,7 +2348,10 @@
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <div class="logo-sekolah" id="sidebarLogo">S</div>
-    <div class="brand"><span id="sidebarSekolahNama">SMA N 1 NUSANTARA</span><small>Sistem Informasi Sekolah</small></div>
+    <div class="brand">
+      <span id="sidebarSekolahNama">SMA N 1 NUSANTARA</span>
+      <small id="sidebarUserLine">Sistem Informasi Sekolah</small>
+    </div>
   </div>
   <nav class="sidebar-menu">
 
@@ -2412,6 +2459,55 @@
 
   <!-- ========== PAGE: DASHBOARD ========== -->
   <div class="page active" id="page-dashboard">
+
+
+  <!-- Tampilan publik (belum login) -->
+  <div id="dashPublicView">
+    <div class="dash-public-grid">
+      <div class="dash-public-card" id="dashPublicSchool">
+        <div class="dash-public-logo" id="dashPublicLogo"><span style="font-size:11px;color:#94a3b8;">Logo</span></div>
+        <div class="dash-public-school-name" id="dashPublicSchoolName">—</div>
+        <div class="dash-public-meta">
+          <div class="row"><span class="lbl">NSS</span><span class="sep">:</span><span class="val" id="dashPubNss">-</span></div>
+          <div class="row"><span class="lbl">NPSN</span><span class="sep">:</span><span class="val" id="dashPubNpsn">-</span></div>
+          <div class="row"><span class="lbl">Tahun Berdiri</span><span class="sep">:</span><span class="val" id="dashPubTahun">-</span></div>
+          <div class="row"><span class="lbl">Alamat</span><span class="sep">:</span><span class="val" id="dashPubAlamat">-</span></div>
+          <div class="row-block">
+            <span class="lbl">Visi</span>
+            <div class="val" id="dashPubVisi" style="white-space:pre-wrap;">-</div>
+          </div>
+          <div class="row-block">
+            <span class="lbl">Motto</span>
+            <div class="val" id="dashPubMotto" style="white-space:pre-wrap;">-</div>
+          </div>
+        </div>
+        <div class="dash-public-hint">Dari menu <b>Data Sekolah</b></div>
+      </div>
+      <div class="dash-public-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="dash-public-stat-title">Statistik Guru</div>
+          <div class="dash-public-stat-num" id="dashTotalGuruPub">0</div>
+        </div>
+        <div id="dashStatsGuruPub" class="dash-stats" style="width:100%;max-width:100%;min-width:0;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px;">
+          <div class="dash-public-stat-title">Statistik Siswa</div>
+          <div class="dash-public-stat-num" id="dashTotalSiswaPub">0</div>
+        </div>
+        <div id="dashStatsSiswaPub" class="dash-stats" style="width:100%;max-width:100%;min-width:0;"></div>
+      </div>
+      <div class="dash-public-card">
+        <div class="dash-public-stat-title">🏛️ Struktur Organisasi</div>
+        <div class="table-scroll" style="max-height:280px;">
+          <table>
+            <thead><tr><th>No</th><th>Nama</th><th>Jabatan</th></tr></thead>
+            <tbody id="tbodyStrukturOrgPub">
+              <tr class="empty-row"><td colspan="3">Memuat…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- REKAP GURU -->
   <div class="dash-panel" id="panelRekapGuru">
@@ -2990,6 +3086,14 @@
         <div class="form-group full">
           <label>Alamat</label>
           <input type="text" id="sekAlamat" placeholder="Jl. …" />
+        </div>
+        <div class="form-group full">
+          <label>Visi</label>
+          <textarea id="sekVisi" rows="3" placeholder="Visi sekolah" style="width:100%;padding:8px 10px;border:1.5px solid #d0d7e2;border-radius:8px;resize:vertical;font:inherit;"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Motto</label>
+          <textarea id="sekMotto" rows="2" placeholder="Motto sekolah" style="width:100%;padding:8px 10px;border:1.5px solid #d0d7e2;border-radius:8px;resize:vertical;font:inherit;"></textarea>
         </div>
       </div>
       <div class="sek-upload-row" style="display:flex;gap:20px;flex-wrap:wrap;margin-top:16px">
@@ -4517,6 +4621,9 @@ function renderUserUI(session) {
     userDetail.innerHTML = `
       <p><b>Status</b> <span>: Tamu</span></p>
       <p><b>Akses</b> <span>: Dashboard publik</span></p>`;
+    const sideUserG = document.getElementById('sidebarUserLine');
+    if (sideUserG) sideUserG.textContent = 'Sistem Informasi Sekolah';
+    document.body.classList.remove('dash-logged-in');
     applyRoleMenus(null);
     return;
   }
@@ -4535,7 +4642,10 @@ function renderUserUI(session) {
   btnEdit.style.display = '';
   btnSet.style.display = role === 'admin' ? '' : 'none';
   guestBanner.style.display = 'none';
+  document.body.classList.add('dash-logged-in');
   if (userDisplayName) userDisplayName.textContent = nama;
+  const sideUser = document.getElementById('sidebarUserLine');
+  if (sideUser) sideUser.textContent = nama + ' · ' + roleLabel;
 
   // Foto profil dari storage jika ada
   const fotoKey = role === 'siswa' ? String(user.nisn || '') : role === 'guru' ? String(user.pin || '') : 'admin';
@@ -5215,6 +5325,10 @@ async function renderDashboard() {
   const statsSiswa = document.getElementById('statsSiswa');
   if (countGuru) countGuru.textContent = String((store.guru || []).length);
   if (countSiswa) countSiswa.textContent = String((store.siswa || []).length);
+  const gPub = document.getElementById('dashTotalGuruPub');
+  const sPub = document.getElementById('dashTotalSiswaPub');
+  if (gPub) gPub.textContent = String((store.guru || []).length);
+  if (sPub) sPub.textContent = String((store.siswa || []).length);
 
   // sesi list
   let sesiList = getSesiList();
@@ -5236,6 +5350,32 @@ async function renderDashboard() {
     // Setelah 00:00 s/d sebelum sesi 1: statistik kosong, rekap disembunyikan
     if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
     if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
+  // Mirror ke panel publik tamu
+  try {
+    const gPubBox = document.getElementById('dashStatsGuruPub');
+    const sPubBox = document.getElementById('dashStatsSiswaPub');
+    if (gPubBox && statsGuru) gPubBox.innerHTML = statsGuru.innerHTML;
+    if (sPubBox && statsSiswa) sPubBox.innerHTML = statsSiswa.innerHTML;
+    const tbodyPub = document.getElementById('tbodyStrukturOrgPub');
+    const tbodyOrg = document.getElementById('tbodyStrukturOrg');
+    if (tbodyPub && tbodyOrg) {
+      // ringkas: No, Nama, Jabatan Struktur saja
+      const rows = [...tbodyOrg.querySelectorAll('tr')];
+      if (!rows.length || rows[0].classList.contains('empty-row')) {
+        tbodyPub.innerHTML = tbodyOrg.innerHTML;
+      } else {
+        tbodyPub.innerHTML = rows.map((tr, i) => {
+          const tds = tr.querySelectorAll('td');
+          if (tds.length < 2) return tr.outerHTML;
+          const no = tds[0]?.textContent || (i+1);
+          const nama = tds[1]?.textContent || '-';
+          const jab = tds[2]?.textContent || '-';
+          return '<tr><td>' + no + '</td><td>' + nama + '</td><td>' + jab + '</td></tr>';
+        }).join('');
+      }
+    }
+  } catch (_) {}
+
     if (cardGuru) cardGuru.style.display = 'none';
     if (cardSiswa) cardSiswa.style.display = 'none';
     // hapus teks "Memuat data…" agar tidak terlihat stuck
@@ -8260,8 +8400,19 @@ function applySekolahToUI() {
       <p><b>NSS</b> <span>: ${escapeHtml(s.nss || '-')}</span></p>
       <p><b>NPSN</b> <span>: ${escapeHtml(s.npsn || '-')}</span></p>
       <p><b>Th Berdiri</b> <span>: ${escapeHtml(s.tahun_berdiri || '-')}</span></p>
-      <p><b>Alamat</b> <span>: ${escapeHtml(s.alamat || '-')}</span></p>`;
+      <p><b>Alamat</b> <span>: ${escapeHtml(s.alamat || '-')}</span></p>
+      <p><b>Visi</b> <span>: ${escapeHtml(s.visi || '-')}</span></p>
+      <p><b>Motto</b> <span>: ${escapeHtml(s.motto || '-')}</span></p>`;
   }
+  // Panel publik (tamu)
+  const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v || '-'; };
+  setTxt('dashPublicSchoolName', nama);
+  setTxt('dashPubNss', s.nss);
+  setTxt('dashPubNpsn', s.npsn);
+  setTxt('dashPubTahun', s.tahun_berdiri);
+  setTxt('dashPubAlamat', s.alamat);
+  setTxt('dashPubVisi', s.visi);
+  setTxt('dashPubMotto', s.motto);
 
   const logo = s.logo_url || '';
   /** Hapus pixel putih/hitam solid dari logo → PNG transparan */
@@ -8385,6 +8536,7 @@ function applySekolahToUI() {
   };
   document.querySelectorAll('.logo-sekolah').forEach(el => setLogo(el, false));
   setLogo(document.getElementById('schoolAvatar'), true);
+  setLogo(document.getElementById('dashPublicLogo'), true);
 
   document.querySelectorAll('.footer-sekolah-nama').forEach(el => {
     el.textContent = nama;
@@ -8474,6 +8626,8 @@ async function initDataSekolahPage() {
   set('sekNpsn', s.npsn);
   set('sekTahun', s.tahun_berdiri);
   set('sekAlamat', s.alamat);
+  set('sekVisi', s.visi);
+  set('sekMotto', s.motto);
   setSekPreview('sekLogoPreview', s.logo_url);
   setSekPreview('sekTtdPreview', s.ttd_qr_url);
 }
@@ -8507,6 +8661,8 @@ document.getElementById('btnSimpanSekolah')?.addEventListener('click', async () 
     npsn: document.getElementById('sekNpsn')?.value?.trim() || '',
     tahun_berdiri: document.getElementById('sekTahun')?.value?.trim() || '',
     alamat: document.getElementById('sekAlamat')?.value?.trim() || '',
+    visi: document.getElementById('sekVisi')?.value?.trim() || '',
+    motto: document.getElementById('sekMotto')?.value?.trim() || '',
     logo_url: logoEl?.dataset?.url || store.sekolah?.logo_url || '',
     ttd_qr_url: ttdEl?.dataset?.url || store.sekolah?.ttd_qr_url || '',
   };
