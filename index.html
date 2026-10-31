@@ -11313,16 +11313,17 @@ document.getElementById('btnUjSimpan')?.addEventListener('click', async () => {
   try {
     if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan…'; }
     const { res, filled, total } = await ujSimpanJawabanKeServer({ silent: false });
-    const serverSaved = res && res.saved != null ? Number(res.saved) : filled;
+    const serverSaved = res && res.saved != null ? Number(res.saved) : -1;
     const serverMsg = String((res && (res.message || res.msg)) || '');
-    if (serverSaved > 0 || filled > 0) {
-      toast('✓ ' + (serverSaved || filled) + ' jawaban tersimpan di server (' + filled + '/' + total + ' soal). Aman jika keluar.', 'ok');
+    if (serverSaved > 0) {
+      toast('✓ ' + serverSaved + ' jawaban tersimpan di server (' + filled + '/' + total + ' soal). Aman jika keluar.', 'ok');
+    } else if (serverSaved === 0) {
+      toast('Gagal simpan ke server (0 tersimpan). ' + serverMsg + (res && res.errors && res.errors[0] ? ' — ' + res.errors[0] : ''), 'err');
     } else {
-      toast(serverMsg || 'Tidak ada jawaban yang tersimpan — coba lagi', 'err');
+      // server tidak mengembalikan saved — tetap info
+      toast(serverMsg || ('Jawaban dikirim (' + filled + ' soal)'), serverMsg.includes('Gagal') ? 'err' : 'ok');
     }
-    if (res && res.errors && res.errors.length) {
-      console.warn('simpan errors', res.errors);
-    }
+    if (res && res.errors && res.errors.length) console.warn('simpan errors', res.errors);
   } catch (e) {
     toast(errToText(e), 'err');
     // tetap simpan lokal
@@ -15743,7 +15744,7 @@ document.getElementById('btnRuDetail')?.addEventListener('click', async () => {
           </div>
           <div style="margin:4px 0;color:#333" class="ru-detail-q">${a.pertanyaan ? (typeof wrapLatexDelimsToMathSpan === 'function' ? wrapLatexDelimsToMathSpan(String(a.pertanyaan).slice(0, 500)) : escapeHtml(String(a.pertanyaan).replace(/<[^>]+>/g, ' ').slice(0, 300))) : '—'}</div>
           <div style="color:#1565c0"><b>Jawaban siswa:</b> ${jwShow}</div>
-          ${a.kunci ? `<div style="color:#2e7d32;font-size:11px"><b>Kunci:</b> ${escapeHtml(String(a.kunci))}</div>` : ''}
+          ${a.kunci ? `<div style="color:#2e7d32;font-size:11px"><b>Kunci:</b> ${typeof bsFormatKunciHtml === 'function' ? bsFormatKunciHtml(String(a.kunci)) : (typeof wrapLatexDelimsToMathSpan === 'function' ? wrapLatexDelimsToMathSpan(String(a.kunci)) : (typeof bsFormatKunciHtml==='function'?bsFormatKunciHtml(String(a.kunci)):(typeof wrapLatexDelimsToMathSpan==='function'?wrapLatexDelimsToMathSpan(String(a.kunci)):escapeHtml(String(a.kunci)))))}</div>` : ''}
         </div>`;
       });
       body += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
