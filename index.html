@@ -13419,17 +13419,74 @@ async function saveBankSoalHook() {
 })();
 
 /* Ruang Ujian */
-async function loadRuangUjianList() {
+let _bsRuLoadBusy = false;
+let _bsRuLastSig = '';
+
+/** Snapshot data untuk deteksi perubahan (hindari re-render sia-sia) */
+function bsRuDataSignature(rows) {
+  return (rows || []).map((r) =>
+    [r.id, r.status, r.skor, r.max_skor, r.sisa_detik, r.nama, r.kelas, r.nisn].join(':')
+  ).join('|');
+}
+
+/**
+ * Muat daftar Ruang Ujian.
+ * opts.silent = true → refresh di belakang layar (tanpa "Memuat…", tanpa kedip).
+ */
+async function loadRuangUjianList(opts) {
+  const silent = !!(opts && opts.silent);
   const tb = document.getElementById('tbodyRuangUjian');
   const meta = document.getElementById('bsRuMeta');
-  if (tb) tb.innerHTML = '<tr><td colspan="8" class="bs-empty">Memuat…</td></tr>';
+  if (_bsRuLoadBusy) return;
+  _bsRuLoadBusy = true;
+
+  // Simpan checkbox yang tercentang agar tidak hilang saat refresh diam
+  const checkedIds = silent
+    ? new Set([...document.querySelectorAll('.bs-ru-check:checked')].map((c) => String(c.value)))
+    : null;
+
+  if (!silent && tb) {
+    tb.innerHTML = '<tr><td colspan="8" class="bs-empty">Memuat…</td></tr>';
+  }
   try {
     const res = await apiCall('list_ruang_ujian', {});
-    _bsRuRows = res.data || [];
-    renderRuangUjianTable();
+    const next = res.data || [];
+    const sig = bsRuDataSignature(next);
+    const changed = sig !== _bsRuLastSig;
+    _bsRuRows = next;
+    if (!silent || changed || !tb || !tb.children.length) {
+      _bsRuLastSig = sig;
+      renderRuangUjianTable();
+      // Pulihkan centang setelah re-render diam
+      if (checkedIds && checkedIds.size) {
+        document.querySelectorAll('.bs-ru-check').forEach((c) => {
+          if (checkedIds.has(String(c.value))) c.checked = true;
+        });
+      }
+    } else if (meta) {
+      // Update meta saja (jumlah mengerjakan) tanpa sentuh tabel
+      const q = (document.getElementById('bsRuQ')?.value || '').toLowerCase().trim();
+      const stf = document.getElementById('bsRuFilterStatus')?.value || '';
+      let nShow = _bsRuRows.length;
+      if (stf) nShow = _bsRuRows.filter((r) => String(r.status || '') === stf).length;
+      if (q) {
+        nShow = _bsRuRows.filter((r) => {
+          if (stf && String(r.status || '') !== stf) return false;
+          return `${r.nisn || ''} ${r.nama || ''} ${r.kelas || ''}`.toLowerCase().includes(q);
+        }).length;
+      }
+      const nM = _bsRuRows.filter((r) => r.status === 'Mengerjakan').length;
+      meta.textContent = `${nShow} ditampil · ${_bsRuRows.length} total · ${nM} sedang mengerjakan`;
+    }
   } catch (e) {
-    if (tb) tb.innerHTML = `<tr><td colspan="7" class="bs-empty" style="color:#c62828">${escapeHtml(errToText(e))}</td></tr>`;
-    if (meta) meta.textContent = errToText(e);
+    if (!silent) {
+      if (tb) tb.innerHTML = `<tr><td colspan="8" class="bs-empty" style="color:#c62828">${escapeHtml(errToText(e))}</td></tr>`;
+      if (meta) meta.textContent = errToText(e);
+    } else {
+      console.warn('loadRuangUjianList silent', e);
+    }
+  } finally {
+    _bsRuLoadBusy = false;
   }
 }
 
@@ -13513,7 +13570,8 @@ function startRuangUjianLive() {
       const pr = document.getElementById('bsPanelRuang');
       if (!pr || pr.style.display === 'none') return;
       if (_bsTab !== 'ruang') return;
-      loadRuangUjianList();
+      // silent: tidak tampilkan "Memuat…", tidak kedip tabel
+      loadRuangUjianList({ silent: true });
     } catch (_) {}
   }, 4000);
 
@@ -13530,7 +13588,7 @@ function startRuangUjianLive() {
               if (_bsTab !== 'ruang') return;
               const row = payload.new || payload.old;
               if (!row || !row.id) {
-                loadRuangUjianList();
+                loadRuangUjianList({ silent: true });
                 return;
               }
               const id = String(row.id);
@@ -13550,12 +13608,12 @@ function startRuangUjianLive() {
                 };
               } else {
                 // baris baru — reload agar dapat max_skor
-                loadRuangUjianList();
+                loadRuangUjianList({ silent: true });
                 return;
               }
               renderRuangUjianTable();
             } catch (_) {
-              loadRuangUjianList();
+              loadRuangUjianList({ silent: true });
             }
           },
         )
