@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="fix-header-uniform-2026-11-01">
+<meta name="sis-fix" content="fix-guest-dash-rekap-2026-11-01">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -2367,9 +2367,27 @@
   body:not(.dash-logged-in) #dashPublicView { display:block; }
   /* Sembunyikan panel ganda untuk tamu (pakai dashPublicView saja) */
   body:not(.dash-logged-in) #panelRekapGuru,
-  body:not(.dash-logged-in) #panelRekapSiswa,
+  body:not(.dash-logged-in) #panelRekapSiswa { display:none !important; }
+  /* Struktur login-only disembunyikan; tamu pakai versi di dashPublicView */
   body:not(.dash-logged-in) #cardStrukturOrg { display:none !important; }
+  body:not(.dash-logged-in) #dashRekapWrap,
+  body:not(.dash-logged-in) #cardRekapGuru,
+  body:not(.dash-logged-in) #cardRekapSiswa {
+    display: block !important;
+  }
   body.dash-logged-in #dashPublicView { display:none !important; }
+  .dash-public-card-rekap { margin-top: 0; }
+  .dash-public-card-rekap .dash-public-stat-title { margin-bottom: 8px; }
+  .dash-public-card-rekap .table-scroll {
+    max-height: 320px;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  body:not(.dash-logged-in) .dash-public-card-struktur .struktur-scroll {
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+  }
   .dash-public-grid {
     display:grid; gap:12px;
     grid-template-columns:1fr;
@@ -2857,7 +2875,7 @@
       </div>
       <div class="dash-public-card dash-public-card-struktur">
         <div class="dash-public-stat-title">🏛️ Struktur Organisasi</div>
-        <div class="table-scroll struktur-scroll" style="max-height:280px;">
+        <div class="table-scroll struktur-scroll">
           <table class="struktur-table">
             <colgroup>
               <col class="col-str-duk" style="width:34px" />
@@ -2873,6 +2891,32 @@
             </tr></thead>
             <tbody id="tbodyStrukturOrgPub">
               <tr class="empty-row"><td colspan="4">Memuat…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="dash-public-card dash-public-card-rekap" style="grid-column:1/-1;">
+        <div class="dash-public-stat-title">📋 Rekap Kehadiran Guru <small id="labelRekapGuruHariPub" style="font-weight:500;color:#666;font-size:11px"></small></div>
+        <div class="table-scroll rekap-scroll">
+          <table id="tableRekapGuruPub" class="rekap-table">
+            <thead id="theadRekapGuruPub">
+              <tr><th class="col-no">No</th><th class="col-nama">Nama</th></tr>
+            </thead>
+            <tbody id="tbodyRekapGuruPub">
+              <tr class="empty-row"><td colspan="2">Memuat data…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="dash-public-card dash-public-card-rekap" style="grid-column:1/-1;">
+        <div class="dash-public-stat-title">📋 Rekap Kehadiran Siswa <small id="labelRekapSiswaHariPub" style="font-weight:500;color:#666;font-size:11px"></small></div>
+        <div class="table-scroll rekap-scroll">
+          <table id="tableRekapSiswaPub" class="rekap-table">
+            <thead id="theadRekapSiswaPub">
+              <tr><th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-kelas">Kelas</th></tr>
+            </thead>
+            <tbody id="tbodyRekapSiswaPub">
+              <tr class="empty-row"><td colspan="3">Memuat data…</td></tr>
             </tbody>
           </table>
         </div>
@@ -5876,29 +5920,21 @@ function buildAbsenCellHtml(rec) {
 
 function renderRekapKehadiran(role, sesiList, absenRows) {
   const isGuru = role === 'guru';
-  const thead = document.getElementById(isGuru ? 'theadRekapGuru' : 'theadRekapSiswa');
-  const tbody = document.getElementById(isGuru ? 'tbodyRekapGuru' : 'tbodyRekapSiswa');
-  const label = document.getElementById(isGuru ? 'labelRekapGuruHari' : 'labelRekapSiswaHari');
-  if (!thead || !tbody) return;
+  const targets = [
+    {
+      thead: document.getElementById(isGuru ? 'theadRekapGuru' : 'theadRekapSiswa'),
+      tbody: document.getElementById(isGuru ? 'tbodyRekapGuru' : 'tbodyRekapSiswa'),
+      label: document.getElementById(isGuru ? 'labelRekapGuruHari' : 'labelRekapSiswaHari'),
+    },
+    {
+      thead: document.getElementById(isGuru ? 'theadRekapGuruPub' : 'theadRekapSiswaPub'),
+      tbody: document.getElementById(isGuru ? 'tbodyRekapGuruPub' : 'tbodyRekapSiswaPub'),
+      label: document.getElementById(isGuru ? 'labelRekapGuruHariPub' : 'labelRekapSiswaHariPub'),
+    },
+  ];
 
   const list = (sesiList || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
-  if (label) label.textContent = '· ' + todayStr();
-
-  // header dinamis sesuai sesi — kolom ringkas
-  if (isGuru) {
-    thead.innerHTML = `<tr>
-      <th class="col-no">No</th>
-      <th class="col-nama">Nama</th>
-      ${list.map(s => `<th class="col-sesi">${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}
-    </tr>`;
-  } else {
-    thead.innerHTML = `<tr>
-      <th class="col-no">No</th>
-      <th class="col-nama">Nama</th>
-      <th class="col-kelas">Kelas</th>
-      ${list.map(s => `<th class="col-sesi">${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}
-    </tr>`;
-  }
+  const hariLabel = '· ' + todayStr();
 
   let people;
   if (isGuru) {
@@ -5923,31 +5959,50 @@ function renderRekapKehadiran(role, sesiList, absenRows) {
       });
   }
 
-  const colSpan = (isGuru ? 2 : 3) + list.length;
-  if (!people.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${colSpan}">Belum ada data ${isGuru ? 'guru' : 'siswa'}</td></tr>`;
-    return;
-  }
+  const headHtml = isGuru
+    ? `<tr>
+      <th class="col-no">No</th>
+      <th class="col-nama">Nama</th>
+      ${list.map(s => `<th class="col-sesi">${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}
+    </tr>`
+    : `<tr>
+      <th class="col-no">No</th>
+      <th class="col-nama">Nama</th>
+      <th class="col-kelas">Kelas</th>
+      ${list.map(s => `<th class="col-sesi">${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}
+    </tr>`;
 
-  tbody.innerHTML = people.map((p, i) => {
-    const cells = list.map(s => {
-      const rec = findAbsenRecord(absenRows, p, role, s);
-      return `<td class="col-sesi">${buildAbsenCellHtml(rec)}</td>`;
-    }).join('');
-    const namaHtml = `<td class="col-nama"><div class="nama-cell" title="${escapeHtml(p.nama || '')}">${escapeHtml(p.nama || '-')}</div></td>`;
-    if (isGuru) {
-      return `<tr><td class="col-no">${i + 1}</td>${namaHtml}${cells}</tr>`;
-    }
-    return `<tr>
+  const colSpan = (isGuru ? 2 : 3) + list.length;
+  let bodyHtml;
+  if (!people.length) {
+    bodyHtml = `<tr class="empty-row"><td colspan="${colSpan}">Belum ada data ${isGuru ? 'guru' : 'siswa'}</td></tr>`;
+  } else {
+    bodyHtml = people.map((p, i) => {
+      const cells = list.map(s => {
+        const rec = findAbsenRecord(absenRows, p, role, s);
+        return `<td class="col-sesi">${buildAbsenCellHtml(rec)}</td>`;
+      }).join('');
+      const namaHtml = `<td class="col-nama"><div class="nama-cell" title="${escapeHtml(p.nama || '')}">${escapeHtml(p.nama || '-')}</div></td>`;
+      if (isGuru) {
+        return `<tr><td class="col-no">${i + 1}</td>${namaHtml}${cells}</tr>`;
+      }
+      return `<tr>
       <td class="col-no">${i + 1}</td>
       ${namaHtml}
       <td class="col-kelas"><span class="kelas-cell">${escapeHtml(p.kelas || '-')}</span></td>
       ${cells}
     </tr>`;
-  }).join('');
+    }).join('');
+  }
+
+  targets.forEach(t => {
+    if (t.label) t.label.textContent = hariLabel;
+    if (t.thead) t.thead.innerHTML = headHtml;
+    if (t.tbody) t.tbody.innerHTML = bodyHtml;
+  });
 }
 
-async function renderDashboard() {
+async function renderDashboardasync function renderDashboard() {
   /* Pola dashboard libur meniru index-3 (SMPN 1 Sobang):
      - Informasi Sesi: keterangan libur merah + tanggal
      - Legend status: semua "-"
@@ -6020,10 +6075,18 @@ async function renderDashboard() {
     hideReason = 'sebelum-sesi';
   }
 
-  // --- Tampilkan / sembunyikan tabel rekap ---
-  if (rekapWrap) rekapWrap.style.display = hideDashRekap ? 'none' : '';
-  if (cardGuru) cardGuru.style.display = hideDashRekap ? 'none' : '';
-  if (cardSiswa) cardSiswa.style.display = hideDashRekap ? 'none' : '';
+  // --- Tampilkan / sembunyikan tabel rekap (login) ---
+  // Dashboard tamu: tabel rekap di #dashPublicView tetap tampil
+  const isGuest = !getSession();
+  if (rekapWrap) rekapWrap.style.display = (hideDashRekap && !isGuest) ? 'none' : '';
+  if (cardGuru) cardGuru.style.display = (hideDashRekap && !isGuest) ? 'none' : '';
+  if (cardSiswa) cardSiswa.style.display = (hideDashRekap && !isGuest) ? 'none' : '';
+  // Sembunyikan duplikat rekap bawah untuk tamu (sudah ada di dashPublicView)
+  if (isGuest) {
+    if (rekapWrap) rekapWrap.style.display = 'none';
+    if (cardGuru) cardGuru.style.display = 'none';
+    if (cardSiswa) cardSiswa.style.display = 'none';
+  }
   if (rekapMsg) {
     if (hideDashRekap) {
       rekapMsg.style.display = 'block';
@@ -6044,6 +6107,29 @@ async function renderDashboard() {
     // Semua "-" (seperti index-3 saat libur / belum sesi)
     if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
     if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
+    // Tetap isi tabel rekap (kosong/status) agar tampil di dashboard tamu
+    try {
+      const emptyAbs = [];
+      renderRekapKehadiran('guru', sesiList, emptyAbs);
+      renderRekapKehadiran('siswa', sesiList, emptyAbs);
+      const note = hideReason === 'libur'
+        ? 'Hari libur — absensi tidak dihitung'
+        : 'Menunggu Sesi 1 dibuka';
+      ['tbodyRekapGuruPub','tbodyRekapSiswaPub','tbodyRekapGuru','tbodyRekapSiswa'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const cols = el.closest('table')?.querySelectorAll('thead th')?.length || 4;
+        // jangan timpa jika sudah ada baris orang; hanya tambah catatan di label
+      });
+      const lg = document.getElementById('labelRekapGuruHariPub');
+      const ls = document.getElementById('labelRekapSiswaHariPub');
+      if (lg) lg.textContent = '· ' + todayStr() + ' · ' + note;
+      if (ls) ls.textContent = '· ' + todayStr() + ' · ' + note;
+      const lg2 = document.getElementById('labelRekapGuruHari');
+      const ls2 = document.getElementById('labelRekapSiswaHari');
+      if (lg2) lg2.textContent = '· ' + todayStr() + ' · ' + note;
+      if (ls2) ls2.textContent = '· ' + todayStr() + ' · ' + note;
+    } catch (e) { console.warn(e); }
     try { syncDashboardPublicPanels(); } catch (_) {}
     try { renderUserUI(getSession()); } catch (_) {}
     try { applySekolahToUI(); } catch (_) {}
@@ -6070,6 +6156,15 @@ async function renderDashboard() {
       }
       if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
       if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
+      try {
+        renderRekapKehadiran('guru', sesiList, []);
+        renderRekapKehadiran('siswa', sesiList, []);
+        const note = 'Hari libur — absensi tidak dihitung';
+        ['labelRekapGuruHariPub','labelRekapSiswaHariPub','labelRekapGuruHari','labelRekapSiswaHari'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = '· ' + todayStr() + ' · ' + note;
+        });
+      } catch (_) {}
       try { syncDashboardPublicPanels(); } catch (_) {}
       return;
     }
