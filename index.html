@@ -12029,7 +12029,7 @@ function renderIzinTable(rows) {
   const cntEl = document.getElementById(cntId);
   if (cntEl) cntEl.textContent = String(allowedN);
 
-  const colSpan = isGuru ? 5 : 6;
+  const colSpan = isGuru ? 6 : (izinTab === 'fp_siswa' || izinTab === 'fp_guru' ? 7 : 6);
   if (!rows.length) {
     tb.innerHTML = `<tr><td colspan="${colSpan}" style="padding:14px;color:#888;text-align:center">Tidak ada data.</td></tr>`;
     return;
@@ -12045,6 +12045,11 @@ function renderIzinTable(rows) {
         <span class="slider"></span>
       </label>`;
     const chk = `<input type="checkbox" class="izin-chk" data-key="${escapeHtml(r.owner_key)}" ${isAdmin ? '' : 'disabled'} />`;
+    const isFp = izinTab === 'fp_guru' || izinTab === 'fp_siswa';
+    const fpRole = isGuru ? 'guru' : 'siswa';
+    const resetBtn = (isFp && isAdmin)
+      ? `<button type="button" class="btn btn-outline btn-sm izin-reset-fp" data-key="${escapeHtml(r.owner_key)}" data-role="${fpRole}" title="Reset sidik jari agar bisa daftar ulang di perangkat sah">Reset FP</button>`
+      : '';
     if (isGuru) {
       const duk = r.duk != null && r.duk !== '' ? r.duk : '—';
       return `<tr data-key="${escapeHtml(r.owner_key)}">
@@ -12053,6 +12058,7 @@ function renderIzinTable(rows) {
         <td class="col-nama">${escapeHtml(r.nama || '—')}</td>
         <td class="col-st">${st}</td>
         <td class="col-sw">${sw}</td>
+        <td class="col-sw">${resetBtn}</td>
       </tr>`;
     }
     return `<tr data-key="${escapeHtml(r.owner_key)}">
@@ -12062,6 +12068,7 @@ function renderIzinTable(rows) {
       <td class="col-nama">${escapeHtml(r.nama || '—')}</td>
       <td class="col-st">${st}</td>
       <td class="col-sw">${sw}</td>
+      ${isFp ? `<td class="col-sw">${resetBtn}</td>` : ''}
     </tr>`;
   }).join('');
 
@@ -12078,6 +12085,23 @@ function renderIzinTable(rows) {
         toast(allowed ? 'Izin diberikan' : 'Izin dicabut', 'ok');
       } catch (e) {
         swEl.checked = !allowed;
+        toast(errToText(e), 'err');
+      }
+    });
+  });
+
+  tb.querySelectorAll('.izin-reset-fp').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!isAdmin) return;
+      const key = btn.getAttribute('data-key') || '';
+      const r = btn.getAttribute('data-role') || 'guru';
+      if (!key) return;
+      if (!confirm('Reset sidik jari untuk ' + key + '?\nPengguna harus daftar ulang di perangkat yang sah.')) return;
+      try {
+        const res = await apiCall('revoke_fingerprint', { owner_key: key, role: r });
+        toast(res.message || 'Sidik jari direset', 'ok');
+        showBigPopup('ok', 'Reset Sidik Jari', res.message || 'Pengguna dapat daftar ulang sekali.', 2500);
+      } catch (e) {
         toast(errToText(e), 'err');
       }
     });
