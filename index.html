@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="mask-nisn-2026-11-01">
+<meta name="sis-fix" content="fix-nilai-struktur-2026-11-01">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1624,35 +1624,82 @@
   .data-table tbody td {
     padding:6px; border-bottom:1px solid #e8edf3; color:#333; white-space:nowrap;
   }
-  /* Tabel Input/Daftar Nilai — rapat, tanpa scroll horizontal di layar kecil */
-  .nilai-panel .data-table-wrap { overflow-x: auto; }
+  /* Tabel Input/Daftar Nilai — nama wajib terlihat; scroll horizontal jika kolom skor banyak */
+  .nilai-panel .data-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
   .nilai-table.data-table {
-    min-width: 0 !important;
-    width: 100%;
-    table-layout: fixed;
+    min-width: 0;
+    width: max-content;
+    max-width: none;
+    table-layout: auto;
     font-size: 11px;
+    border-collapse: collapse;
   }
   .nilai-table.data-table thead th,
   .nilai-table.data-table tbody td {
-    padding: 5px 4px;
+    padding: 6px 5px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .nilai-table .col-no { width: 32px; text-align: center; }
-  .nilai-table .col-nisn { width: 96px; }
-  .nilai-table .col-nama {
-    width: auto;
-    white-space: normal !important;
-    word-break: break-word;
+    vertical-align: middle;
     line-height: 1.25;
   }
-  .nilai-table .col-lp { width: 32px; text-align: center; }
-  .nilai-table .col-nilai { width: 72px; text-align: center; }
-  .nilai-table .col-nr { width: 48px; text-align: center; }
-  .nilai-table .col-score { width: 44px; text-align: center; }
+  .nilai-table.data-table tbody tr {
+    height: auto;
+  }
+  .nilai-table .col-no {
+    width: 28px;
+    min-width: 28px;
+    max-width: 34px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .nilai-table .col-nisn {
+    width: 88px;
+    min-width: 78px;
+    max-width: 100px;
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px;
+  }
+  .nilai-table .col-nama {
+    min-width: 120px;
+    max-width: 200px;
+    width: 140px;
+    white-space: normal !important;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+    text-align: left;
+    font-weight: 600;
+    color: #1a237e;
+  }
+  .nilai-table .col-lp {
+    width: 28px;
+    min-width: 28px;
+    max-width: 32px;
+    text-align: center;
+  }
+  .nilai-table .col-nilai {
+    width: 64px;
+    min-width: 56px;
+    text-align: center;
+  }
+  .nilai-table .col-nr {
+    width: 44px;
+    min-width: 40px;
+    text-align: center;
+    font-weight: 700;
+  }
+  .nilai-table .col-score {
+    width: 40px;
+    min-width: 36px;
+    max-width: 48px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
   .nilai-table .nilai-input-cell {
-    width: 56px !important;
+    width: 52px !important;
     max-width: 56px;
     padding: 3px 4px !important;
     font-size: 11px !important;
@@ -1786,9 +1833,24 @@
 
   @media (max-width: 480px) {
     .nilai-table.data-table { font-size: 10px; }
-    .nilai-table .col-nisn { width: 86px; }
-    .nilai-table .col-nilai { width: 64px; }
-    .nilai-table .nilai-input-cell { width: 50px !important; max-width: 50px; }
+    .nilai-table.data-table thead th,
+    .nilai-table.data-table tbody td {
+      padding: 5px 3px;
+    }
+    .nilai-table .col-no { width: 24px; min-width: 24px; max-width: 28px; }
+    .nilai-table .col-nisn { width: 72px; min-width: 68px; max-width: 84px; font-size: 9.5px; }
+    .nilai-table .col-nama {
+      min-width: 110px;
+      width: 120px;
+      max-width: 160px;
+      font-size: 10px;
+      line-height: 1.25;
+    }
+    .nilai-table .col-lp { width: 24px; min-width: 24px; }
+    .nilai-table .col-nilai { width: 56px; min-width: 48px; }
+    .nilai-table .col-nr { width: 36px; min-width: 34px; }
+    .nilai-table .col-score { width: 34px; min-width: 32px; max-width: 40px; font-size: 10px; }
+    .nilai-table .nilai-input-cell { width: 46px !important; max-width: 50px; font-size: 10px !important; }
   }
   .data-table tbody tr:hover { background:#f5f9ff; }
   .data-table tbody tr.selected { background:#e3f2fd; }
@@ -10266,7 +10328,7 @@ function renderNilaiDaftar(payload) {
     return `<tr>
       <td class="col-no">${i + 1}</td>
       <td class="col-nisn" title="NISN disamarkan">${maskNisn(String(r.nisn || ''))}</td>
-      <td class="col-nama">${escapeHtml(r.nama || '')}</td>
+      <td class="col-nama" title="${escapeHtml(r.nama || '')}">${escapeHtml(r.nama || '—')}</td>
       <td class="col-lp">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
       ${cells}
       <td class="col-nr" style="font-weight:700">${escapeHtml(String(nr))}</td>
