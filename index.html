@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="security-harden-2026-11-01">
+<meta name="sis-fix" content="mask-nisn-2026-11-01">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -5079,6 +5079,28 @@ function escapeHtml(str) {
     .replace(/"/g,'&quot;');
 }
 
+/**
+ * Samarkan NISN untuk tampilan (bukan untuk kirim API).
+ * Contoh 10 digit: 1234******
+ */
+function maskNisn(v) {
+  const s = String(v ?? '').replace(/\D/g, '');
+  if (!s) return '—';
+  if (s.length <= 4) return '****';
+  const head = s.slice(0, 4);
+  return head + '*'.repeat(Math.max(4, Math.min(8, s.length - 4)));
+}
+
+/** Samarkan identitas di tabel: NISN 10 digit di-mask; selain itu (NIP dll.) ditampilkan apa adanya */
+function maskIdentDisplay(v) {
+  const raw = String(v ?? '').trim();
+  if (!raw || raw === '-') return '—';
+  const dig = raw.replace(/\D/g, '');
+  if (dig.length === 10) return maskNisn(dig);
+  if (dig.length >= 8 && dig.length <= 12 && dig === raw.replace(/\s/g, '')) return maskNisn(dig);
+  return escapeHtml(raw);
+}
+
 /* ===== Login modal ===== */
 const loginOverlay = document.getElementById('loginOverlay');
 const inputIdentifier = document.getElementById('inputIdentifier');
@@ -6333,7 +6355,7 @@ function renderSiswa(filter) {
       <td>${i + 1}</td>
       <td>${escapeHtml(s.nama)}</td>
       <td>${escapeHtml(s.jenis_kelamin || '-')}</td>
-      <td>${escapeHtml(s.nisn || '-')}</td>
+      <td title="NISN disamarkan">${maskNisn(s.nisn)}</td>
       <td>${escapeHtml(s.kelas || '-')}</td>
       <td>${escapeHtml(s.tmp_lahir || '-')}</td>
       <td>${fmtDate(s.tgl_lahir)}</td>
@@ -6522,7 +6544,7 @@ function renderLulusan(filter) {
       <td>${i + 1}</td>
       <td>${escapeHtml(l.nama)}</td>
       <td>${escapeHtml(l.jenis_kelamin || '-')}</td>
-      <td>${escapeHtml(l.nisn || '-')}</td>
+      <td title="NISN disamarkan">${maskNisn(l.nisn)}</td>
       <td>${statusBadge(l.status || 'Lulus')}</td>
       <td>${escapeHtml(l.predikat || '-')}</td>
       <td>${escapeHtml(l.tmp_lahir || '-')}</td>
@@ -7510,6 +7532,9 @@ function statusClass(st) {
   return '';
 }
 function showAbsenResult(elId, type, msg) {
+  if (typeof msg === 'string') {
+    msg = msg.replace(/\b(\d{10})\b/g, (_, n) => maskNisn(n));
+  }
   const el = document.getElementById(elId);
   if (el) {
     el.className = 'absen-result show ' + type;
@@ -7664,6 +7689,10 @@ function handleAbsenResult(elId, res) {
     warn: 'Peringatan',
     err: 'Absen Gagal',
   };
+  // Samarkan urutan 10 digit (NISN) di pesan tampilan
+  if (res.msg && typeof res.msg === 'string') {
+    res = { ...res, msg: String(res.msg).replace(/\b(\d{10})\b/g, (_, n) => maskNisn(n)) };
+  }
   const el = document.getElementById(elId);
   if (el) {
     el.className = 'absen-result';
@@ -7864,7 +7893,7 @@ async function renderScanLogTable(opts = {}) {
     const scanner = r.scanned_by || r.operator || '-';
     return `<tr>
       <td>${i + 1}</td>
-      <td>${escapeHtml(r._idShow)}</td>
+      <td title="NISN/identitas disamarkan">${r.role === 'siswa' || String(r._idShow||'').replace(/\D/g,'').length===10 ? maskNisn(r._idShow) : escapeHtml(r._idShow || '-')}</td>
       <td>${escapeHtml(r.nama || '-')}</td>
       <td>${escapeHtml(r._kelas || '-')}</td>
       <td>${escapeHtml(r.jam || '-')}</td>
@@ -10136,7 +10165,7 @@ function renderNilaiInputTable(rows) {
     const val = r.nilai != null && r.nilai !== '' ? String(r.nilai) : '';
     return `<tr data-siswa-id="${escapeHtml(String(r.siswa_id || ''))}" data-nisn="${escapeHtml(String(r.nisn || ''))}">
       <td class="col-no">${i + 1}</td>
-      <td class="col-nisn">${escapeHtml(String(r.nisn || ''))}</td>
+      <td class="col-nisn" title="NISN disamarkan">${maskNisn(String(r.nisn || ''))}</td>
       <td class="col-nama">${escapeHtml(r.nama || '')}</td>
       <td class="col-lp">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
       <td class="col-nilai"><input type="number" class="nilai-input-cell" min="0" max="100" step="0.01" placeholder="1-100"
@@ -10212,7 +10241,7 @@ function renderNilaiDaftar(payload) {
     const nr = r.nr != null ? (Math.round(Number(r.nr) * 100) / 100) : '—';
     return `<tr>
       <td class="col-no">${i + 1}</td>
-      <td class="col-nisn">${escapeHtml(String(r.nisn || ''))}</td>
+      <td class="col-nisn" title="NISN disamarkan">${maskNisn(String(r.nisn || ''))}</td>
       <td class="col-nama">${escapeHtml(r.nama || '')}</td>
       <td class="col-lp">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
       ${cells}
@@ -10505,7 +10534,7 @@ function renderRekapTable(rows, tipe) {
       return `<tr>
         <td class="col-no">${i + 1}</td>
         <td class="td-nama">${escapeHtml(r.nama || '')}</td>
-        <td class="col-nisn">${escapeHtml(r.nisn || r.kode || '')}</td>
+        <td class="col-nisn" title="NISN disamarkan">${maskNisn(r.nisn || r.kode || '')}</td>
         <td class="col-kls">${escapeHtml(r.kelas || '')}</td>
         ${stats}
         <td class="col-stat"><b>${r.jml_sesi || 0}</b></td>
@@ -10516,7 +10545,7 @@ function renderRekapTable(rows, tipe) {
     return `<tr>
       <td class="col-no">${i + 1}</td>
       <td class="td-nama">${escapeHtml(r.nama || '')}</td>
-      <td class="col-nisn">${escapeHtml(r.kode || '')}</td>
+      <td class="col-nisn" title="NISN disamarkan">${maskNisn(r.kode || '')}</td>
       ${stats}
       <td class="col-stat"><b>${r.jml_sesi || 0}</b></td>
       <td class="col-stat"><b>${r.nilai_hadir || 0}</b></td>
@@ -10574,7 +10603,7 @@ function renderEditTable(payload) {
         data-tanggal="${escapeHtml(r.tanggal || '')}" data-nisn="${escapeHtml(r.nisn || '')}" data-person="${escapeHtml(String(personKey))}" /></td>
       <td class="col-no">${i + 1}</td>
       <td class="td-nama">${escapeHtml(r.nama || '')}</td>
-      <td class="col-nisn">${escapeHtml(r.nisn || '')}</td>
+      <td class="col-nisn" title="NISN disamarkan">${maskNisn(r.nisn || '')}</td>
       ${showKls ? `<td class="col-kls">${escapeHtml(r.kelas || '')}</td>` : ''}
       <td class="col-tgl">${escapeHtml(r.tanggal || '')}</td>
       ${cells}
@@ -11561,7 +11590,7 @@ function renderNaikKelasTable() {
     return `<tr data-id="${escapeHtml(String(s.id))}">
       <td><input type="checkbox" class="nk-check-naik" data-id="${escapeHtml(String(s.id))}" /></td>
       <td>${i + 1}</td>
-      <td>${escapeHtml(s.nisn || '')}</td>
+      <td title="NISN disamarkan">${maskNisn(s.nisn)}</td>
       <td style="white-space:normal;min-width:140px">${escapeHtml(s.nama || '')}</td>
       <td style="text-align:center">${lp}</td>
       <td>${escapeHtml(s.kelas || '')}</td>
@@ -11644,7 +11673,7 @@ function renderKelulusanTable() {
     return `<tr data-id="${escapeHtml(String(s.id))}">
       <td><input type="checkbox" class="nk-check-lulus" data-id="${escapeHtml(String(s.id))}" /></td>
       <td>${i + 1}</td>
-      <td>${escapeHtml(s.nisn || '')}</td>
+      <td title="NISN disamarkan">${maskNisn(s.nisn)}</td>
       <td style="white-space:normal;min-width:140px">${escapeHtml(s.nama || '')}</td>
       <td style="text-align:center">${lp}</td>
       <td>${escapeHtml(s.kelas || '')}</td>
@@ -13504,7 +13533,7 @@ function renderPengumumanLulus(data) {
   set('plTglSk', plFmtDateId(p.tgl_kelulusan || s.tgl_lulus));
   set('plTahun', tahun);
   set('plNama', s.nama || '—');
-  set('plNisn', s.nisn || '—');
+  set('plNisn', maskNisn(s.nisn));
   set('plSekolahNama', namaSek);
   set('plPredikat', (s.predikat || '—').toUpperCase());
   set('plKetSekolah', namaSek);
@@ -13662,7 +13691,7 @@ function renderValidasiLulusan(data) {
 
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('vlNama', (s.nama || '—').toUpperCase());
-  set('vlNisn', s.nisn || '—');
+  set('vlNisn', maskNisn(s.nisn));
   const tLahir = [s.tmp_lahir, vlFmtLongDate(s.tgl_lahir)].filter(x => x && x !== '—').join(', ');
   set('vlTlahir', tLahir || '—');
   set('vlStatusAwal', s.status_awal || '—');
@@ -13802,7 +13831,7 @@ function renderPengumumanEmbed(data) {
   set('plTglSkEmbed', typeof plFmtDateId === 'function' ? plFmtDateId(p.tgl_kelulusan || s.tgl_lulus) : (p.tgl_kelulusan || '—'));
   set('plTahunEmbed', p.tahun_ajaran || s.tahun_lulus || '—');
   set('plNamaEmbed', s.nama || '—');
-  set('plNisnEmbed', s.nisn || '—');
+  set('plNisnEmbed', maskNisn(s.nisn));
   const stEl = document.getElementById('plStatusEmbed');
   const key = String(s.status_key || s.status || 'LULUS').toUpperCase();
   const label = key.includes('TANGGUH') ? 'DITANGGUHKAN' : (key.includes('TIDAK') ? 'TIDAK LULUS' : 'LULUS');
@@ -14550,7 +14579,7 @@ function renderCariSiswaResult(data) {
 
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('csNama', (s.nama || '—').toUpperCase());
-  set('csNisn', s.nisn || '—');
+  set('csNisn', maskNisn(s.nisn));
   set('csKelas', s.kelas || '—');
 
   const photo = document.getElementById('csPhoto');
