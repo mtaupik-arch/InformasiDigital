@@ -1979,7 +1979,7 @@
     background:#1565c0; color:#fff; border-color:#1565c0;
   }
   .izin-suggest {
-    position:absolute; left:0; right:0; top:100%; z-index:40;
+    position:absolute; left:0; right:0; top:100%; z-index:80;
     background:#fff; border:1px solid #cfd8dc; border-radius:6px;
     max-height:220px; overflow:auto; box-shadow:0 6px 16px rgba(0,0,0,.12);
   }
@@ -4728,7 +4728,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
-  &copy; 2025 <b> SMP NEGERI 1 SOBANG</b> — By MTM
+  &copy; 2025 <br><b>SMP NEGERI 1 SOBANG</b> — By MTM
 </footer>
 
 <script>
@@ -8925,45 +8925,65 @@ document.getElementById('btnHapusAbsenSesi')?.addEventListener('click', async ()
 /* ===== Input Izin / Sakit — pencarian Nama / NISN ===== */
 function izinSearchList(q, role) {
   const needle = String(q || '').trim().toLowerCase();
-  if (!needle || needle.length < 1) return [];
+  // Preview nama mulai 2 karakter
+  if (!needle || needle.length < 2) return [];
+  const dig = needle.replace(/\D/g, '');
+  const matchNama = (nama) => {
+    const n = String(nama || '').toLowerCase();
+    if (n.includes(needle)) return true;
+    // cocokkan per kata (mis. "bu" → Budi)
+    return n.split(/\s+/).some(w => w.startsWith(needle) || w.includes(needle));
+  };
   if (role === 'guru') {
     return (store.guru || []).filter(g => {
-      const nama = String(g.nama || '').toLowerCase();
       const pin = String(g.pin || '');
       const nip = String(g.nip || '');
-      return nama.includes(needle) || pin.includes(needle) || nip.includes(needle);
-    }).slice(0, 12);
+      return matchNama(g.nama) ||
+        (dig && (pin.includes(dig) || nip.includes(dig)));
+    }).slice(0, 15);
   }
   return (store.siswa || []).filter(s => {
-    const nama = String(s.nama || '').toLowerCase();
     const nisn = String(s.nisn || '');
     const kelas = String(s.kelas || '').toLowerCase();
-    return nama.includes(needle) || nisn.includes(needle) || kelas.includes(needle);
-  }).slice(0, 12);
+    return matchNama(s.nama) ||
+      (dig && nisn.includes(dig)) ||
+      kelas.includes(needle);
+  }).slice(0, 15);
 }
 
-function showIzinSuggest(items, role) {
+function showIzinSuggest(items, role, q) {
   const box = document.getElementById('izinSuggest');
   if (!box) return;
+  const needle = String(q || '').trim();
+  if (needle.length > 0 && needle.length < 2) {
+    box.innerHTML = '<div class="izin-suggest-item" style="cursor:default;color:#888">Ketik minimal 2 huruf untuk mencari nama…</div>';
+    box.style.display = 'block';
+    return;
+  }
   if (!items.length) {
-    box.style.display = 'none';
-    box.innerHTML = '';
+    if (needle.length >= 2) {
+      box.innerHTML = '<div class="izin-suggest-item" style="cursor:default;color:#888">Tidak ada nama yang cocok</div>';
+      box.style.display = 'block';
+    } else {
+      box.style.display = 'none';
+      box.innerHTML = '';
+    }
     return;
   }
   box.innerHTML = items.map((p, i) => {
     if (role === 'guru') {
       return `<div class="izin-suggest-item" data-idx="${i}" data-kode="${escapeHtml(p.pin || p.nip || '')}">
         <b>${escapeHtml(p.nama || '')}</b>
-        <small>PIN: ${escapeHtml(p.pin || '-')} · NIP: ${escapeHtml(p.nip || '-')}</small>
+        <small>NIP: ${escapeHtml(p.nip || '-')} · ${escapeHtml(p.jabatan_struktur || '')}</small>
       </div>`;
     }
     return `<div class="izin-suggest-item" data-idx="${i}" data-kode="${escapeHtml(p.nisn || '')}">
       <b>${escapeHtml(p.nama || '')}</b>
-      <small>NISN: ${escapeHtml(p.nisn || '-')} · Kelas: ${escapeHtml(p.kelas || '-')}</small>
+      <small>NISN: ${escapeHtml(typeof maskNisn === 'function' ? maskNisn(p.nisn) : (p.nisn || '-'))} · Kelas: ${escapeHtml(p.kelas || '-')}</small>
     </div>`;
   }).join('');
   box.style.display = 'block';
-  box.querySelectorAll('.izin-suggest-item').forEach(el => {
+  box.querySelectorAll('.izin-suggest-item[data-kode]').forEach(el => {
     el.addEventListener('mousedown', (e) => {
       e.preventDefault();
       selectIzinPerson(el.getAttribute('data-kode'), el.querySelector('b')?.textContent || '');
@@ -8985,7 +9005,7 @@ function selectIzinPerson(kode, nama) {
   if (box) { box.style.display = 'none'; box.innerHTML = ''; }
 }
 
-function initInputIzinPage() {
+async function initInputIzinPage() {
   const sess = (typeof getSession === 'function') ? getSession() : null;
   const optGuru = document.getElementById('izinRoleOptGuru');
   const roleSel = document.getElementById('izinRole');
@@ -8993,13 +9013,23 @@ function initInputIzinPage() {
   if (optGuru) optGuru.style.display = isAdmin ? '' : 'none';
   if (roleSel && !isAdmin) {
     roleSel.value = 'siswa';
-    // guru tidak boleh pilih tipe guru
     roleSel.dispatchEvent(new Event('change'));
   }
   const lab = document.getElementById('izinKodeLabel');
   const inp = document.getElementById('izinKode');
   if (lab) lab.textContent = 'Cari Nama / NISN';
-  if (inp) inp.placeholder = 'Ketik nama atau NISN…';
+  if (inp) {
+    inp.placeholder = 'Ketik minimal 2 huruf nama…';
+    inp.value = '';
+  }
+  const hid = document.getElementById('izinKodeResolved');
+  if (hid) hid.value = '';
+  const box = document.getElementById('izinSuggest');
+  if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+  // Pastikan daftar siswa tersedia untuk preview
+  try {
+    if (!(store.siswa || []).length) await refreshStoreFromDb();
+  } catch (_) {}
 }
 
 document.getElementById('izinRole')?.addEventListener('change', () => {
@@ -9025,7 +9055,7 @@ document.getElementById('izinKode')?.addEventListener('input', () => {
   const q = document.getElementById('izinKode')?.value || '';
   document.getElementById('izinKodeResolved').value = '';
   const items = izinSearchList(q, role);
-  showIzinSuggest(items, role);
+  showIzinSuggest(items, role, q);
 });
 document.getElementById('izinKode')?.addEventListener('blur', () => {
   setTimeout(() => {
@@ -9037,7 +9067,7 @@ document.getElementById('izinKode')?.addEventListener('focus', () => {
   const role = document.getElementById('izinRole')?.value || 'siswa';
   const q = document.getElementById('izinKode')?.value || '';
   if (q && !document.getElementById('izinKodeResolved')?.value) {
-    showIzinSuggest(izinSearchList(q, role), role);
+    showIzinSuggest(izinSearchList(q, role), role, q);
   }
 });
 
