@@ -6146,9 +6146,13 @@ function navigate(page, opts = {}) {
     'login-log'
   ]);
   // rekap-data: guru boleh lihat (kelas ampu); Edit Absensi tetap admin di dalam halaman
+  // sidik-jari-siswa: untuk siswa (daftar/absen mandiri), bukan khusus guru
   const GURU_PAGES = new Set([
-    'scan-barcode','sidik-jari-siswa','input-daftar-nilai','bank-soal','cari-siswa',
+    'scan-barcode','input-daftar-nilai','bank-soal','cari-siswa',
     'download-absensi','input-izin','rekap-data'
+  ]);
+  const SISWA_PAGES = new Set([
+    'sidik-jari-siswa','nilai-saya','syarat-naik','tugas-ujian','jadwal-mapel-kelas'
   ]);
   if (ADMIN_ONLY_PAGES.has(target) && !requireSession('admin')) {
     toast('Halaman ini hanya untuk Admin. Silakan login.', 'err');
@@ -6156,6 +6160,16 @@ function navigate(page, opts = {}) {
   } else if (GURU_PAGES.has(target) && !requireSession('guru')) {
     toast('Halaman ini memerlukan login Guru/Admin.', 'err');
     target = 'dashboard';
+  } else if (SISWA_PAGES.has(target)) {
+    const s = getSession();
+    // Siswa wajib; guru/admin boleh buka (bimbingan / uji)
+    if (!s || !s.token) {
+      toast('Silakan login untuk mengakses halaman ini.', 'err');
+      target = 'dashboard';
+    } else if (s.role !== 'siswa' && s.role !== 'guru' && s.role !== 'admin') {
+      toast('Akses tidak diizinkan.', 'err');
+      target = 'dashboard';
+    }
   }
 
   const pageEl = document.getElementById('page-' + target);
