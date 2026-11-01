@@ -5265,9 +5265,14 @@ async function doLogin() {
     const session = {
       token: data.token,
       role: data.role,
-      user: data.user,
+      user: data.user || {},
       expires_at: data.expires_at,
     };
+    // PIN 6 digit yang diketik saat login — disimpan di sesi untuk sidik jari / absen mandiri
+    // (DB bisa menyimpan hash; client tetap butuh PIN plaintext operasional dari sesi login)
+    if ((session.role === 'guru' || session.role === 'admin') && id.length === 6) {
+      session.user = { ...(session.user || {}), pin: id };
+    }
     saveSession(session);
     renderUserUI(session);
     closeLogin();
@@ -7977,29 +7982,39 @@ function base64ToBuffer(b64) {
   return arr.buffer;
 }
 
-/** identity siswa = NISN, guru = PIN */
+/** identity siswa = NISN, guru = PIN (plaintext dari sesi login, bukan hash DB) */
 function resolveFpIdentity(role) {
   const sess = getSession();
   if (role === 'siswa') {
     const nisn = (document.getElementById('fpNisnInput')?.value || '').replace(/\D/g, '');
     const id = nisn || (sess?.role === 'siswa' ? String(sess.user?.nisn || '').replace(/\D/g, '') : '');
     if (!id || id.length !== 10) return { ok: false, msg: 'Masukkan NISN 10 digit atau login sebagai siswa' };
-    return { ok: true, identity: id, role: 'siswa', display: 'NISN ' + id };
+    return { ok: true, identity: id, role: 'siswa', display: 'NISN ' + maskNisn(id) };
   }
-  // guru / admin — absen mandiri pakai PIN
-  const pin = String(sess?.user?.pin || '').replace(/\D/g, '');
-  if (!pin || pin.length !== 6) {
-    // fallback: cari di store.guru by id/nama
+  // Guru / admin absen mandiri: PIN 6 digit dari sesi (diisi saat login)
+  let pin = String(sess?.user?.pin || '').replace(/\D/g, '');
+  if (pin.length !== 6) {
+    // Jangan pakai pin dari store jika ter-hash / dikosongkan sanitize
     const g = (store.guru || []).find(x =>
       String(x.id) === String(sess?.user?.id) ||
       (sess?.user?.nama && x.nama === sess.user.nama)
     );
     const p2 = String(g?.pin || '').replace(/\D/g, '');
-    if (!p2 || p2.length !== 6) {
-      return { ok: false, msg: 'PIN guru tidak ditemukan. Login ulang sebagai guru.' };
-    }
-    return { ok: true, identity: p2, role: 'guru', display: sess?.user?.nama || 'Guru' };
+    if (p2.length === 6 && !(g && g.pin_is_hashed)) pin = p2;
   }
+  if (pin.length !== 6) {
+    return {
+      ok: false,
+      msg: 'PIN guru tidak tersedia di sesi. <b>Login ulang</b> dengan PIN 6 digit, lalu daftar sidik jari lagi.',
+    };
+  }
+  // Simpan kembali ke sesi agar konsisten
+  try {
+    if (sess && sess.user) {
+      sess.user.pin = pin;
+      saveSession(sess);
+    }
+  } catch (_) {}
   return { ok: true, identity: pin, role: 'guru', display: sess?.user?.nama || 'Guru' };
 }
 
