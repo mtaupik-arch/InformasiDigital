@@ -10451,12 +10451,47 @@ function fillRekapKelas() {
   if (!sel) return;
   const cur = sel.value;
   const set = new Set();
-  (store.kelas || []).forEach(k => { if (k.nama) set.add(String(k.nama)); });
-  (store.siswa || []).forEach(s => { if (s.kelas) set.add(String(s.kelas)); });
-  const arr = [...set].sort((a, b) => a.localeCompare(b, 'id'));
-  sel.innerHTML = '<option value="">Semua kelas</option>' +
+  const sess = getSession();
+  // Guru: hanya kelas yang diampu (periode aktif)
+  if (sess && sess.role === 'guru') {
+    const guruId = sess.user?.id;
+    const aktif = typeof getActivePeriode === 'function' ? getActivePeriode() : null;
+    const ampu = (store.guru_ampu || []).filter(a =>
+      String(a.guru_id) === String(guruId) &&
+      (!aktif || !a.periode_id || String(a.periode_id) === String(aktif.id))
+    );
+    ampu.forEach(a => {
+      const k = (store.kelas || []).find(x => String(x.id) === String(a.kelas_id));
+      if (k && k.nama) set.add(String(k.nama));
+    });
+    // fallback: jika ampu kosong di store, jangan tampilkan semua kelas sekolah
+  } else {
+    (store.kelas || []).forEach(k => { if (k.nama) set.add(String(k.nama)); });
+    (store.siswa || []).forEach(s => { if (s.kelas) set.add(String(s.kelas)); });
+  }
+  const arr = [...set].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+  const allLabel = (sess && sess.role === 'guru')
+    ? (arr.length ? 'Semua kelas ampu' : 'Belum ada kelas ampu')
+    : 'Semua kelas';
+  sel.innerHTML = '<option value="">' + allLabel + '</option>' +
     arr.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
   if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+
+/** Kelas yang boleh dilihat guru di rekap (nama kelas) */
+function rekapGuruAllowedKelas() {
+  const sess = getSession();
+  if (!sess || sess.role !== 'guru') return null;
+  const guruId = sess.user?.id;
+  const aktif = typeof getActivePeriode === 'function' ? getActivePeriode() : null;
+  const names = new Set();
+  (store.guru_ampu || []).forEach(a => {
+    if (String(a.guru_id) !== String(guruId)) return;
+    if (aktif && a.periode_id && String(a.periode_id) !== String(aktif.id)) return;
+    const k = (store.kelas || []).find(x => String(x.id) === String(a.kelas_id));
+    if (k && k.nama) names.add(String(k.nama));
+  });
+  return names;
 }
 
 function defaultRekapDates() {
@@ -10723,6 +10758,11 @@ async function cariRekap() {
       let rows = res.data || [];
       // cadangan filter client
       if (q) rows = rows.filter(r => matchNamaNisn(r, q));
+      // Guru: filter kelas ampu di client (server sudah membatasi)
+      const allowed = rekapGuruAllowedKelas();
+      if (allowed && String(tipe).toLowerCase() !== 'guru') {
+        rows = rows.filter(r => allowed.has(String(r.kelas || '').trim()));
+      }
       renderRekapTable(rows, tipe);
       if (meta) meta.textContent = `${rows.length} orang · ${dari} s/d ${sampai}` + (q ? ` · filter: ${q}` : '');
     }
@@ -10733,26 +10773,41 @@ async function cariRekap() {
 }
 
 async function initRekapPage() {
-  // Pastikan data master ada untuk preview pencarian
-  if (!(store.siswa || []).length || !(store.kelas || []).length) {
+  // Pastikan data master ada untuk preview pencarian + ampu guru
+  if (!(store.siswa || []).length || !(store.kelas || []).length || !(store.guru_ampu || []).length) {
     try {
       const boot = await apiCall('bootstrap', {});
       if (boot?.data) {
         if (boot.data.siswa) store.siswa = boot.data.siswa;
         if (boot.data.guru) store.guru = boot.data.guru;
         if (boot.data.kelas) store.kelas = boot.data.kelas;
+        if (boot.data.guru_ampu) store.guru_ampu = boot.data.guru_ampu;
+        if (boot.data.mapel) store.mapel = boot.data.mapel;
         saveStore(store);
       }
     } catch (_) {}
   }
   fillRekapKelas();
   defaultRekapDates();
+  // Guru: paksa tab Rekap (bukan Edit Absensi)
   switchRekapTab(rekapIsAdmin() ? rekapTab : 'rekap');
   const kelasWrap = document.getElementById('rekapKelasWrap');
-  const tipe = document.getElementById('rekapTipe')?.value;
+  const tipeEl = document.getElementById('rekapTipe');
+  const tipe = tipeEl?.value;
   if (kelasWrap) kelasWrap.style.display = tipe === 'guru' ? 'none' : '';
+  // Guru: nonaktifkan opsi rekap antar-guru (server juga membatasi)
+  if (tipeEl && !rekapIsAdmin()) {
+    [...tipeEl.options].forEach(o => {
+      if (String(o.value).toLowerCase() === 'guru') o.disabled = true;
+    });
+    if (String(tipeEl.value).toLowerCase() === 'guru') tipeEl.value = 'siswa';
+  }
   const mode = document.getElementById('rekapModeLabel');
-  if (mode) mode.textContent = rekapIsAdmin() ? 'Mode admin' : 'Mode lihat saja (Guru)';
+  if (mode) {
+    mode.textContent = rekapIsAdmin()
+      ? 'Mode admin (Rekap + Edit Absensi)'
+      : 'Mode guru: rekap kelas ampu (tanpa Edit Absensi)';
+  }
 }
 
 document.getElementById('rekapTabs')?.addEventListener('click', (e) => {
