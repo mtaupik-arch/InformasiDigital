@@ -2293,7 +2293,11 @@
   /* Sembunyikan panel ganda untuk tamu (pakai dashPublicView saja) */
   body:not(.dash-logged-in) #panelRekapGuru,
   body:not(.dash-logged-in) #panelRekapSiswa,
-  body:not(.dash-logged-in) #cardStrukturOrg { display:none !important; }
+  body:not(.dash-logged-in) #cardStrukturOrg,
+  body:not(.dash-logged-in) #dashRekapWrap,
+  body:not(.dash-logged-in) #cardRekapGuru,
+  body:not(.dash-logged-in) #cardRekapSiswa,
+  body:not(.dash-logged-in) #dashRekapHiddenMsg { display:none !important; }
   body.dash-logged-in #dashPublicView { display:none !important; }
   .dash-public-grid {
     display:grid; gap:12px;
@@ -2773,10 +2777,16 @@
               <col class="col-str-no" style="width:18px" />
               <col class="col-str-nama" />
               <col class="col-str-jab" />
+              <col class="col-str-fung" />
             </colgroup>
-            <thead><tr><th class="col-str-no">#</th><th class="col-str-nama">Nama</th><th class="col-str-jab">Jabatan</th></tr></thead>
+            <thead><tr>
+              <th class="col-str-no">#</th>
+              <th class="col-str-nama">Nama</th>
+              <th class="col-str-jab">Jab. Struktur</th>
+              <th class="col-str-fung">Jab. Fungsional</th>
+            </tr></thead>
             <tbody id="tbodyStrukturOrgPub">
-              <tr class="empty-row"><td colspan="3">Memuat…</td></tr>
+              <tr class="empty-row"><td colspan="4">Memuat…</td></tr>
             </tbody>
           </table>
         </div>
@@ -5668,12 +5678,13 @@ function syncStrukturToPublic() {
       .slice()
       .sort(sortByDuk);
     if (!rows.length) {
-      tbodyPub.innerHTML = '<tr class="empty-row"><td colspan="3">Belum ada data guru</td></tr>';
+      tbodyPub.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada data guru</td></tr>';
       return;
     }
     tbodyPub.innerHTML = rows.map((g, i) =>
       '<tr><td class="col-str-no">' + (i + 1) + '</td><td class="col-str-nama">' + escapeHtml(g.nama || '-') +
-      '</td><td class="col-str-jab">' + escapeHtml(g.jabatan_struktur || '-') + '</td></tr>'
+      '</td><td class="col-str-jab">' + escapeHtml(g.jabatan_struktur || '-') +
+      '</td><td class="col-str-fung">' + escapeHtml(g.jabatan_fungsional || '-') + '</td></tr>'
     ).join('');
   } catch (e) { console.warn('syncStrukturToPublic', e); }
 }
@@ -5923,9 +5934,15 @@ async function renderDashboard() {
   let liburHariIni = null;
   try { liburHariIni = isTanggalLibur(today); } catch (_) { liburHariIni = null; }
 
-  // true = sembunyikan tabel rekap (libur ATAU sebelum sesi 1)
+  // true = sembunyikan tabel rekap (libur ATAU sebelum sesi 1 ATAU tamu)
   let hideDashRekap = false;
   let hideReason = '';
+  const sessDash = (typeof getSession === 'function') ? getSession() : null;
+  const isGuestDash = !sessDash || !sessDash.token;
+  if (isGuestDash) {
+    hideDashRekap = true;
+    hideReason = 'tamu';
+  }
 
   // --- Informasi Sesi (chip / detail) ---
   if (chipWrap) {
@@ -5961,7 +5978,11 @@ async function renderDashboard() {
   if (cardGuru) cardGuru.style.display = hideDashRekap ? 'none' : '';
   if (cardSiswa) cardSiswa.style.display = hideDashRekap ? 'none' : '';
   if (rekapMsg) {
-    if (hideDashRekap) {
+    if (hideDashRekap && hideReason === 'tamu') {
+      // Tamu: sembunyikan total (CSS + tidak tampil pesan rekap internal)
+      rekapMsg.style.display = 'none';
+      rekapMsg.textContent = '';
+    } else if (hideDashRekap) {
       rekapMsg.style.display = 'block';
       if (hideReason === 'libur') {
         const ket = (liburHariIni && liburHariIni.keterangan) ? liburHariIni.keterangan : 'Hari Libur';
@@ -6103,11 +6124,12 @@ function navigate(page, opts = {}) {
   const ADMIN_ONLY_PAGES = new Set([
     'backup-data','data-sekolah','data-siswa','data-guru','data-lulusan','periode',
     'sesi-libur','naik-kelas','izin-sidik','arsip-absensi','integrasi-gdrive',
-    'rekap-data','login-log'
+    'login-log'
   ]);
+  // rekap-data: guru boleh lihat (kelas ampu); Edit Absensi tetap admin di dalam halaman
   const GURU_PAGES = new Set([
     'scan-barcode','sidik-jari-siswa','input-daftar-nilai','bank-soal','cari-siswa',
-    'download-absensi','input-izin'
+    'download-absensi','input-izin','rekap-data'
   ]);
   if (ADMIN_ONLY_PAGES.has(target) && !requireSession('admin')) {
     toast('Halaman ini hanya untuk Admin. Silakan login.', 'err');
