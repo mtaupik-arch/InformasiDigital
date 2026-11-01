@@ -2557,7 +2557,7 @@
   </div>
 
   <div class="topbar-center">
-    <div class="nama-sekolah">SMA NEGERI 1 NUSANTARA</div>
+    <div class="nama-sekolah">SMP NEGERI 1 SOBANG</div>
     <div class="datetime" id="datetime">Kamis, 02 Okt 2026 • 00:00:00</div>
     <div class="user-name" id="topUserName">👤 Tamu (belum login)</div>
   </div>
@@ -2704,7 +2704,7 @@
     <div class="login-header">
       <div class="logo-circle" id="loginLogo">S</div>
       <h2>Login Sistem Informasi</h2>
-      <p id="loginSekolahNama">SMA Negeri 1 Nusantara</p>
+      <p id="loginSekolahNama">SMP NEGERI 1 SOBANG</p>
     </div>
     <div class="login-body">
             <input type="text" id="inputIdentifier" class="login-pin-mask"
@@ -2802,7 +2802,7 @@
     <div class="dash-body">
       <div class="dash-left">
         <div class="dash-avatar" id="schoolAvatar">S</div>
-        <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
+        <div class="dash-name" id="schoolName">SMP NEGERI 1 SOBANG</div>
         <div class="dash-detail" id="schoolDetail">
           <p><b>NSS</b> <span>: -</span></p>
           <p><b>NPSN</b> <span>: -</span></p>
@@ -4729,7 +4729,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
-  &copy; 2025 <b>SMA Negeri 1 Nusantara</b> — Sistem Informasi Sekolah
+  &copy; 2025 <b> SMP NEGERI 1 SOBANG</b> — By MTM
 </footer>
 
 <script>
@@ -9242,7 +9242,7 @@ document.getElementById('upFileInput')?.addEventListener('change', async (e) => 
 /* ===== Data Sekolah ===== */
 function applySekolahToUI() {
   const s = store.sekolah || {};
-  const nama = s.nama || 'SMA NEGERI 1 NUSANTARA';
+  const nama = s.nama || 'SMP NEGERI 1 SOBANG';
   document.querySelectorAll('.nama-sekolah').forEach(el => { el.textContent = nama; });
   const schoolName = document.getElementById('schoolName');
   if (schoolName) schoolName.textContent = nama;
