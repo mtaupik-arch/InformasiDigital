@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="fix-fix-syntax-2026-11-01">
+<meta name="sis-fix" content="mask-nisn-2026-11-01">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1618,101 +1618,41 @@
   .data-table { width:100%; border-collapse:collapse; font-size:11.5px; min-width:860px; }
   .data-table thead th {
     background:#1565c0; color:#fff; padding:8px 6px; text-align:left;
-    font-size:10.5px; font-weight:600; font-family:'Segoe UI', Tahoma, sans-serif;
-    letter-spacing:.3px; white-space:nowrap; position:sticky; top:0;
-    border-radius:0; border:none;
+    font-size:10.5px; font-weight:600; white-space:nowrap; position:sticky; top:0;
+    border-radius:0;
   }
   .data-table tbody td {
     padding:6px; border-bottom:1px solid #e8edf3; color:#333; white-space:nowrap;
   }
-  /* Tabel Input/Daftar Nilai — nama wajib terlihat; scroll horizontal jika kolom skor banyak */
-  .nilai-panel .data-table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    max-width: 100%;
-  }
+  /* Tabel Input/Daftar Nilai — rapat, tanpa scroll horizontal di layar kecil */
+  .nilai-panel .data-table-wrap { overflow-x: auto; }
   .nilai-table.data-table {
-    min-width: 0;
-    width: max-content;
-    max-width: none;
-    table-layout: auto;
+    min-width: 0 !important;
+    width: 100%;
+    table-layout: fixed;
     font-size: 11px;
-    border-collapse: collapse;
   }
-  .nilai-table.data-table thead th {
-    background: #1565c0 !important;
-    color: #ffffff !important;
-    font-size: 10.5px !important;
-    font-weight: 600 !important;
-    font-family: 'Segoe UI', Tahoma, sans-serif !important;
-    letter-spacing: .3px;
-    text-transform: none;
-    white-space: nowrap;
-    vertical-align: middle;
-    padding: 8px 5px;
-    border: none !important;
-  }
+  .nilai-table.data-table thead th,
   .nilai-table.data-table tbody td {
-    padding: 6px 5px;
+    padding: 5px 4px;
     white-space: nowrap;
-    vertical-align: middle;
-    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .nilai-table.data-table tbody tr {
-    height: auto;
-  }
-  .nilai-table .col-no {
-    width: 28px;
-    min-width: 28px;
-    max-width: 34px;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-  }
-  .nilai-table .col-nisn {
-    width: 88px;
-    min-width: 78px;
-    max-width: 100px;
-    font-family: ui-monospace, monospace;
-    font-size: 10.5px;
-  }
+  .nilai-table .col-no { width: 32px; text-align: center; }
+  .nilai-table .col-nisn { width: 96px; }
   .nilai-table .col-nama {
-    min-width: 120px;
-    max-width: 200px;
-    width: 140px;
+    width: auto;
     white-space: normal !important;
     word-break: break-word;
-    overflow-wrap: anywhere;
-    line-height: 1.3;
-    text-align: left;
-    font-weight: 600;
-    color: #1a237e;
+    line-height: 1.25;
   }
-  .nilai-table .col-lp {
-    width: 28px;
-    min-width: 28px;
-    max-width: 32px;
-    text-align: center;
-  }
-  .nilai-table .col-nilai {
-    width: 64px;
-    min-width: 56px;
-    text-align: center;
-  }
-  .nilai-table .col-nr {
-    width: 44px;
-    min-width: 40px;
-    text-align: center;
-    font-weight: 700;
-  }
-  .nilai-table .col-score {
-    width: 40px;
-    min-width: 36px;
-    max-width: 48px;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-  }
+  .nilai-table .col-lp { width: 32px; text-align: center; }
+  .nilai-table .col-nilai { width: 72px; text-align: center; }
+  .nilai-table .col-nr { width: 48px; text-align: center; }
+  .nilai-table .col-score { width: 44px; text-align: center; }
   .nilai-table .nilai-input-cell {
-    width: 52px !important;
+    width: 56px !important;
     max-width: 56px;
     padding: 3px 4px !important;
     font-size: 11px !important;
@@ -1846,24 +1786,9 @@
 
   @media (max-width: 480px) {
     .nilai-table.data-table { font-size: 10px; }
-    .nilai-table.data-table thead th,
-    .nilai-table.data-table tbody td {
-      padding: 5px 3px;
-    }
-    .nilai-table .col-no { width: 24px; min-width: 24px; max-width: 28px; }
-    .nilai-table .col-nisn { width: 72px; min-width: 68px; max-width: 84px; font-size: 9.5px; }
-    .nilai-table .col-nama {
-      min-width: 110px;
-      width: 120px;
-      max-width: 160px;
-      font-size: 10px;
-      line-height: 1.25;
-    }
-    .nilai-table .col-lp { width: 24px; min-width: 24px; }
-    .nilai-table .col-nilai { width: 56px; min-width: 48px; }
-    .nilai-table .col-nr { width: 36px; min-width: 34px; }
-    .nilai-table .col-score { width: 34px; min-width: 32px; max-width: 40px; font-size: 10px; }
-    .nilai-table .nilai-input-cell { width: 46px !important; max-width: 50px; font-size: 10px !important; }
+    .nilai-table .col-nisn { width: 86px; }
+    .nilai-table .col-nilai { width: 64px; }
+    .nilai-table .nilai-input-cell { width: 50px !important; max-width: 50px; }
   }
   .data-table tbody tr:hover { background:#f5f9ff; }
   .data-table tbody tr.selected { background:#e3f2fd; }
@@ -2367,27 +2292,9 @@
   body:not(.dash-logged-in) #dashPublicView { display:block; }
   /* Sembunyikan panel ganda untuk tamu (pakai dashPublicView saja) */
   body:not(.dash-logged-in) #panelRekapGuru,
-  body:not(.dash-logged-in) #panelRekapSiswa { display:none !important; }
-  /* Struktur login-only disembunyikan; tamu pakai versi di dashPublicView */
+  body:not(.dash-logged-in) #panelRekapSiswa,
   body:not(.dash-logged-in) #cardStrukturOrg { display:none !important; }
-  body:not(.dash-logged-in) #dashRekapWrap,
-  body:not(.dash-logged-in) #cardRekapGuru,
-  body:not(.dash-logged-in) #cardRekapSiswa {
-    display: block !important;
-  }
   body.dash-logged-in #dashPublicView { display:none !important; }
-  .dash-public-card-rekap { margin-top: 0; }
-  .dash-public-card-rekap .dash-public-stat-title { margin-bottom: 8px; }
-  .dash-public-card-rekap .table-scroll {
-    max-height: 320px;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  body:not(.dash-logged-in) .dash-public-card-struktur .struktur-scroll {
-    max-height: none !important;
-    overflow-x: hidden !important;
-    overflow-y: visible !important;
-  }
   .dash-public-grid {
     display:grid; gap:12px;
     grid-template-columns:1fr;
@@ -2524,7 +2431,7 @@
   }
 
 
-  /* Struktur Organisasi — DUK | Nama | Jab. Struktur | Jab. Fungsional (tanpa scroll H) */
+  /* Struktur Organisasi — kolom No sempit, Nama lebih lebar */
   .struktur-scroll {
     overflow-x: hidden !important;
     max-width: 100%;
@@ -2538,94 +2445,79 @@
   }
   table.struktur-table th,
   table.struktur-table td {
-    padding: 6px 4px;
+    padding: 7px 6px;
     vertical-align: middle;
     word-wrap: break-word;
     overflow-wrap: break-word;
     white-space: normal;
-    line-height: 1.3;
   }
-  /* Header seragam dengan .data-table (biru + huruf putih) */
-  table.struktur-table thead th {
-    background: #1565c0 !important;
-    color: #ffffff !important;
-    font-size: 10.5px !important;
-    font-weight: 600 !important;
-    font-family: 'Segoe UI', Tahoma, sans-serif !important;
-    letter-spacing: .3px;
-    text-transform: none;
-    white-space: nowrap !important;
-    border: none !important;
-    padding: 8px 4px !important;
-  }
-  /* DUK — sempit, angka saja */
-  table.struktur-table col.col-str-duk { width: 34px; }
-  table.struktur-table th.col-str-duk,
-  table.struktur-table td.col-str-duk {
-    width: 34px !important;
-    max-width: 40px !important;
-    min-width: 28px !important;
+  /* No: se-sempit mungkin (hanya angka) */
+  table.struktur-table col.col-str-no { width: 18px; }
+  table.struktur-table th.col-str-no,
+  table.struktur-table td.col-str-no,
+  table.struktur-table thead th:first-child,
+  table.struktur-table tbody td:first-child {
+    width: 18px !important;
+    max-width: 18px !important;
+    min-width: 16px !important;
     text-align: center !important;
-    padding: 6px 2px !important;
+    padding: 6px 1px !important;
     box-sizing: border-box;
     overflow: hidden;
-    white-space: nowrap !important;
-    font-variant-numeric: tabular-nums;
-  }
-  table.struktur-table td.col-str-duk {
+    white-space: nowrap;
     font-size: 11px;
-    font-weight: 700;
-    color: #1565c0;
+    letter-spacing: -0.3px;
   }
   /* Nama */
-  table.struktur-table col.col-str-nama { width: 32%; }
   table.struktur-table th.col-str-nama,
-  table.struktur-table td.col-str-nama {
-    width: 32% !important;
+  table.struktur-table td.col-str-nama,
+  table.struktur-table thead th:nth-child(2),
+  table.struktur-table tbody td:nth-child(2) {
+    width: 42% !important;
     text-align: left !important;
     white-space: normal;
-    padding-left: 5px !important;
+    padding-left: 6px !important;
   }
-  table.struktur-table td.col-str-nama {
-    font-weight: 600;
-    color: #1a237e;
-  }
-  /* Jabatan dalam struktur */
-  table.struktur-table col.col-str-jab { width: 30%; }
+  /* Jabatan struktur — lebih lega agar tidak bertumpuk */
   table.struktur-table th.col-str-jab,
-  table.struktur-table td.col-str-jab {
-    width: 30% !important;
+  table.struktur-table td.col-str-jab,
+  table.struktur-table thead th:nth-child(3),
+  table.struktur-table tbody td:nth-child(3) {
+    width: 38% !important;
     text-align: left !important;
     white-space: normal;
-    line-height: 1.3;
+    line-height: 1.35;
   }
-  /* Jabatan fungsional */
-  table.struktur-table col.col-str-fung { width: 28%; }
+  /* Jabatan fungsional (4 kolom) */
   table.struktur-table th.col-str-fung,
-  table.struktur-table td.col-str-fung {
-    width: 28% !important;
+  table.struktur-table td.col-str-fung,
+  table.struktur-table thead th:nth-child(4),
+  table.struktur-table tbody td:nth-child(4) {
+    width: 20% !important;
     text-align: left !important;
     white-space: normal;
-    line-height: 1.3;
+    line-height: 1.35;
   }
   @media (max-width: 480px) {
-    table.struktur-table { font-size: 10.5px; }
-    table.struktur-table th,
-    table.struktur-table td { padding: 5px 3px; line-height: 1.28; }
-    table.struktur-table th.col-str-duk,
-    table.struktur-table td.col-str-duk {
-      width: 28px !important;
-      max-width: 32px !important;
-      min-width: 24px !important;
-      padding: 5px 1px !important;
+    table.struktur-table { font-size: 11px; }
+    table.struktur-table th.col-str-no,
+    table.struktur-table td.col-str-no,
+    table.struktur-table thead th:first-child,
+    table.struktur-table tbody td:first-child {
+      width: 16px !important;
+      max-width: 16px !important;
+      min-width: 14px !important;
+      padding: 5px 0 !important;
       font-size: 10px;
     }
-    table.struktur-table th.col-str-nama,
-    table.struktur-table td.col-str-nama { width: 30% !important; }
-    table.struktur-table th.col-str-jab,
-    table.struktur-table td.col-str-jab { width: 32% !important; }
-    table.struktur-table th.col-str-fung,
-    table.struktur-table td.col-str-fung { width: 28% !important; }
+    table.struktur-table thead th:nth-child(2),
+    table.struktur-table tbody td:nth-child(2) {
+      width: 40% !important;
+    }
+    table.struktur-table thead th:nth-child(3),
+    table.struktur-table tbody td:nth-child(3) {
+      width: 40% !important;
+    }
   }
 
   /* Informasi Sesi — center */
@@ -2810,7 +2702,7 @@
     <div class="login-body">
             <input type="text" id="inputIdentifier" class="login-pin-mask"
              inputmode="numeric" pattern="[0-9]*" maxlength="10"
-             autocomplete="off" autocapitalize="off"
+             placeholder="NISN / PIN" autocomplete="off" autocapitalize="off"
              autocorrect="off" spellcheck="false" enterkeyhint="done"
              aria-label="Kode login NISN atau PIN" />
       <input type="hidden" id="inputIdentifierReal" value="" />
@@ -2875,48 +2767,16 @@
       </div>
       <div class="dash-public-card dash-public-card-struktur">
         <div class="dash-public-stat-title">🏛️ Struktur Organisasi</div>
-        <div class="table-scroll struktur-scroll">
+        <div class="table-scroll struktur-scroll" style="max-height:280px;">
           <table class="struktur-table">
             <colgroup>
-              <col class="col-str-duk" style="width:34px" />
+              <col class="col-str-no" style="width:18px" />
               <col class="col-str-nama" />
               <col class="col-str-jab" />
-              <col class="col-str-fung" />
             </colgroup>
-            <thead><tr>
-              <th class="col-str-duk">DUK</th>
-              <th class="col-str-nama">Nama</th>
-              <th class="col-str-jab">Jab. Struktur</th>
-              <th class="col-str-fung">Jab. Fungsional</th>
-            </tr></thead>
+            <thead><tr><th class="col-str-no">#</th><th class="col-str-nama">Nama</th><th class="col-str-jab">Jabatan</th></tr></thead>
             <tbody id="tbodyStrukturOrgPub">
-              <tr class="empty-row"><td colspan="4">Memuat…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="dash-public-card dash-public-card-rekap" style="grid-column:1/-1;">
-        <div class="dash-public-stat-title">📋 Rekap Kehadiran Guru <small id="labelRekapGuruHariPub" style="font-weight:500;color:#666;font-size:11px"></small></div>
-        <div class="table-scroll rekap-scroll">
-          <table id="tableRekapGuruPub" class="rekap-table">
-            <thead id="theadRekapGuruPub">
-              <tr><th class="col-no">No</th><th class="col-nama">Nama</th></tr>
-            </thead>
-            <tbody id="tbodyRekapGuruPub">
-              <tr class="empty-row"><td colspan="2">Memuat data…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="dash-public-card dash-public-card-rekap" style="grid-column:1/-1;">
-        <div class="dash-public-stat-title">📋 Rekap Kehadiran Siswa <small id="labelRekapSiswaHariPub" style="font-weight:500;color:#666;font-size:11px"></small></div>
-        <div class="table-scroll rekap-scroll">
-          <table id="tableRekapSiswaPub" class="rekap-table">
-            <thead id="theadRekapSiswaPub">
-              <tr><th class="col-no">No</th><th class="col-nama">Nama</th><th class="col-kelas">Kelas</th></tr>
-            </thead>
-            <tbody id="tbodyRekapSiswaPub">
-              <tr class="empty-row"><td colspan="3">Memuat data…</td></tr>
+              <tr class="empty-row"><td colspan="3">Memuat…</td></tr>
             </tbody>
           </table>
         </div>
@@ -2929,7 +2789,7 @@
     <div class="dash-body">
       <div class="dash-left">
         <div class="dash-avatar" id="schoolAvatar">S</div>
-        <div class="dash-name" id="schoolName">SMP NEGERI 1 SOBANG</div>
+        <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
         <div class="dash-detail" id="schoolDetail">
           <p><b>NSS</b> <span>: -</span></p>
           <p><b>NPSN</b> <span>: -</span></p>
@@ -2980,14 +2840,14 @@
     <div class="table-scroll struktur-scroll">
       <table class="struktur-table" id="tableStrukturOrg">
         <colgroup>
-          <col class="col-str-duk" style="width:34px" />
+          <col class="col-str-no" style="width:18px" />
           <col class="col-str-nama" />
           <col class="col-str-jab" />
           <col class="col-str-fung" />
         </colgroup>
         <thead>
           <tr>
-            <th class="col-str-duk">DUK</th>
+            <th class="col-str-no">#</th>
             <th class="col-str-nama">Nama</th>
             <th class="col-str-jab">Jab. Struktur</th>
             <th class="col-str-fung">Jab. Fungsional</th>
@@ -3555,7 +3415,7 @@
       <div class="form-grid" id="formSekolah">
         <div class="form-group full">
           <label>Nama Sekolah</label>
-          <input type="text" id="sekNama" />
+          <input type="text" id="sekNama" placeholder="SMA NEGERI 1 …" />
         </div>
         <div class="form-group">
           <label>NSS</label>
@@ -4856,7 +4716,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
-  &copy; 2025 <b>SMPN 1 SOBANG</b> — By MTM
+  &copy; 2025 <b>SMA Negeri 1 Nusantara</b> — Sistem Informasi Sekolah
 </footer>
 
 <script>
@@ -4956,6 +4816,13 @@ async function refreshStoreFromDb() {
     store.bobot_nilai = d.bobot_nilai || store.bobot_nilai || [];
     store.guru_ampu = d.guru_ampu || store.guru_ampu || [];
     store.user_foto = d.user_foto || store.user_foto || [];
+    if (d.public_counts) store.public_counts = d.public_counts;
+    else {
+      store.public_counts = {
+        guru: (store.guru || []).length,
+        siswa: (store.siswa || []).length,
+      };
+    }
     if (d.sekolah) {
       store.sekolah = d.sekolah;
       applySekolahToUI();
@@ -5417,6 +5284,9 @@ async function doLogin() {
     renderUserUI(session);
     closeLogin();
     closeProfileMenu();
+    // Muat data sesuai role (guru: ampu saja; admin: penuh; tamu→login)
+    try { await refreshStoreFromDb(); } catch (_) {}
+    try { if (typeof renderDashboard === 'function') await renderDashboard(); } catch (_) {}
     const roleLabel = session.role === 'siswa' ? 'Siswa' : session.role === 'guru' ? 'Guru' : 'Administrator';
     showBigPopup('ok', 'Login Berhasil',
       `Selamat datang, <b>${escapeHtml(session.user?.nama || '')}</b><br>Masuk sebagai ${roleLabel}.`, 2800);
@@ -5523,15 +5393,35 @@ document.getElementById('btnPengaturan')?.addEventListener('click', (e) => {
 });
 
 /* ===== Logout ===== */
-document.getElementById('btnLogout').addEventListener('click', (e) => {
+document.getElementById('btnLogout').addEventListener('click', async (e) => {
   e.preventDefault();
   e.stopPropagation();
   clearSession();
   closeProfileMenu();
+  // Hapus cache master role sebelumnya agar UI tidak tetap menampilkan data guru/admin
+  try {
+    store.siswa = [];
+    store.guru = [];
+    store.lulusan = [];
+    store.guru_ampu = [];
+    store.user_foto = [];
+    store.public_counts = { guru: 0, siswa: 0 };
+    saveStore(store);
+  } catch (_) {}
   renderUserUI(null);
   navigate('dashboard');
   tutupSidebar();
   showBigPopup('ok', 'Logout Berhasil', 'Anda telah keluar dari sistem.<br>Silakan login kembali untuk mengakses fitur.', 2800);
+  // Muat ulang data publik (struktur, jumlah) tanpa sesi
+  try {
+    await refreshStoreFromDb();
+  } catch (_) {}
+  try {
+    if (typeof renderDashboard === 'function') await renderDashboard();
+  } catch (_) {}
+  try {
+    if (typeof renderStrukturOrganisasi === 'function') renderStrukturOrganisasi();
+  } catch (_) {}
 });
 
 document.addEventListener('click', (e) => {
@@ -5573,6 +5463,7 @@ function seedStore() {
     guru_ampu: [],
     sekolah: null,
     user_foto: [],
+    public_counts: { guru: 0, siswa: 0 },
   };
 }
 
@@ -5732,15 +5623,13 @@ function renderStrukturOrganisasi() {
   if (!rows.length) {
     tb.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada data guru</td></tr>';
   } else {
-    tb.innerHTML = rows.map((g) => {
-      const duk = (g.duk != null && g.duk !== '') ? g.duk : '—';
-      return `<tr>
-      <td class="col-str-duk">${escapeHtml(String(duk))}</td>
+    tb.innerHTML = rows.map((g, i) => `
+    <tr>
+      <td class="col-str-no">${i + 1}</td>
       <td class="col-str-nama">${escapeHtml(g.nama || '-')}</td>
       <td class="col-str-jab">${escapeHtml(g.jabatan_struktur || '-')}</td>
       <td class="col-str-fung">${escapeHtml(g.jabatan_fungsional || '-')}</td>
-    </tr>`;
-    }).join('');
+    </tr>`).join('');
   }
   // Selalu sinkron ke panel publik
   syncStrukturToPublic();
@@ -5779,16 +5668,13 @@ function syncStrukturToPublic() {
       .slice()
       .sort(sortByDuk);
     if (!rows.length) {
-      tbodyPub.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada data guru</td></tr>';
+      tbodyPub.innerHTML = '<tr class="empty-row"><td colspan="3">Belum ada data guru</td></tr>';
       return;
     }
-    tbodyPub.innerHTML = rows.map((g) => {
-      const duk = (g.duk != null && g.duk !== '') ? g.duk : '—';
-      return '<tr><td class="col-str-duk">' + escapeHtml(String(duk)) +
-        '</td><td class="col-str-nama">' + escapeHtml(g.nama || '-') +
-        '</td><td class="col-str-jab">' + escapeHtml(g.jabatan_struktur || '-') +
-        '</td><td class="col-str-fung">' + escapeHtml(g.jabatan_fungsional || '-') + '</td></tr>';
-    }).join('');
+    tbodyPub.innerHTML = rows.map((g, i) =>
+      '<tr><td class="col-str-no">' + (i + 1) + '</td><td class="col-str-nama">' + escapeHtml(g.nama || '-') +
+      '</td><td class="col-str-jab">' + escapeHtml(g.jabatan_struktur || '-') + '</td></tr>'
+    ).join('');
   } catch (e) { console.warn('syncStrukturToPublic', e); }
 }
 
@@ -5920,21 +5806,29 @@ function buildAbsenCellHtml(rec) {
 
 function renderRekapKehadiran(role, sesiList, absenRows) {
   const isGuru = role === 'guru';
-  const targets = [
-    {
-      thead: document.getElementById(isGuru ? 'theadRekapGuru' : 'theadRekapSiswa'),
-      tbody: document.getElementById(isGuru ? 'tbodyRekapGuru' : 'tbodyRekapSiswa'),
-      label: document.getElementById(isGuru ? 'labelRekapGuruHari' : 'labelRekapSiswaHari'),
-    },
-    {
-      thead: document.getElementById(isGuru ? 'theadRekapGuruPub' : 'theadRekapSiswaPub'),
-      tbody: document.getElementById(isGuru ? 'tbodyRekapGuruPub' : 'tbodyRekapSiswaPub'),
-      label: document.getElementById(isGuru ? 'labelRekapGuruHariPub' : 'labelRekapSiswaHariPub'),
-    },
-  ];
+  const thead = document.getElementById(isGuru ? 'theadRekapGuru' : 'theadRekapSiswa');
+  const tbody = document.getElementById(isGuru ? 'tbodyRekapGuru' : 'tbodyRekapSiswa');
+  const label = document.getElementById(isGuru ? 'labelRekapGuruHari' : 'labelRekapSiswaHari');
+  if (!thead || !tbody) return;
 
   const list = (sesiList || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
-  const hariLabel = '· ' + todayStr();
+  if (label) label.textContent = '· ' + todayStr();
+
+  // header dinamis sesuai sesi — kolom ringkas
+  if (isGuru) {
+    thead.innerHTML = `<tr>
+      <th class="col-no">No</th>
+      <th class="col-nama">Nama</th>
+      ${list.map(s => `<th class="col-sesi">${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}
+    </tr>`;
+  } else {
+    thead.innerHTML = `<tr>
+      <th class="col-no">No</th>
+      <th class="col-nama">Nama</th>
+      <th class="col-kelas">Kelas</th>
+      ${list.map(s => `<th class="col-sesi">${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}
+    </tr>`;
+  }
 
   let people;
   if (isGuru) {
@@ -5959,47 +5853,28 @@ function renderRekapKehadiran(role, sesiList, absenRows) {
       });
   }
 
-  const headHtml = isGuru
-    ? `<tr>
-      <th class="col-no">No</th>
-      <th class="col-nama">Nama</th>
-      ${list.map(s => `<th class="col-sesi">${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}
-    </tr>`
-    : `<tr>
-      <th class="col-no">No</th>
-      <th class="col-nama">Nama</th>
-      <th class="col-kelas">Kelas</th>
-      ${list.map(s => `<th class="col-sesi">${escapeHtml(s.nama || 'Sesi')}</th>`).join('')}
-    </tr>`;
-
   const colSpan = (isGuru ? 2 : 3) + list.length;
-  let bodyHtml;
   if (!people.length) {
-    bodyHtml = `<tr class="empty-row"><td colspan="${colSpan}">Belum ada data ${isGuru ? 'guru' : 'siswa'}</td></tr>`;
-  } else {
-    bodyHtml = people.map((p, i) => {
-      const cells = list.map(s => {
-        const rec = findAbsenRecord(absenRows, p, role, s);
-        return `<td class="col-sesi">${buildAbsenCellHtml(rec)}</td>`;
-      }).join('');
-      const namaHtml = `<td class="col-nama"><div class="nama-cell" title="${escapeHtml(p.nama || '')}">${escapeHtml(p.nama || '-')}</div></td>`;
-      if (isGuru) {
-        return `<tr><td class="col-no">${i + 1}</td>${namaHtml}${cells}</tr>`;
-      }
-      return `<tr>
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${colSpan}">Belum ada data ${isGuru ? 'guru' : 'siswa'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = people.map((p, i) => {
+    const cells = list.map(s => {
+      const rec = findAbsenRecord(absenRows, p, role, s);
+      return `<td class="col-sesi">${buildAbsenCellHtml(rec)}</td>`;
+    }).join('');
+    const namaHtml = `<td class="col-nama"><div class="nama-cell" title="${escapeHtml(p.nama || '')}">${escapeHtml(p.nama || '-')}</div></td>`;
+    if (isGuru) {
+      return `<tr><td class="col-no">${i + 1}</td>${namaHtml}${cells}</tr>`;
+    }
+    return `<tr>
       <td class="col-no">${i + 1}</td>
       ${namaHtml}
       <td class="col-kelas"><span class="kelas-cell">${escapeHtml(p.kelas || '-')}</span></td>
       ${cells}
     </tr>`;
-    }).join('');
-  }
-
-  targets.forEach(t => {
-    if (t.label) t.label.textContent = hariLabel;
-    if (t.thead) t.thead.innerHTML = headHtml;
-    if (t.tbody) t.tbody.innerHTML = bodyHtml;
-  });
+  }).join('');
 }
 
 async function renderDashboard() {
@@ -6014,12 +5889,18 @@ async function renderDashboard() {
   const countSiswa = document.getElementById('countSiswa');
   const statsGuru = document.getElementById('statsGuru');
   const statsSiswa = document.getElementById('statsSiswa');
-  if (countGuru) countGuru.textContent = String((store.guru || []).length);
-  if (countSiswa) countSiswa.textContent = String((store.siswa || []).length);
+  const nGuru = (store.public_counts && store.public_counts.guru != null)
+    ? Number(store.public_counts.guru)
+    : (store.guru || []).length;
+  const nSiswa = (store.public_counts && store.public_counts.siswa != null)
+    ? Number(store.public_counts.siswa)
+    : (store.siswa || []).length;
+  if (countGuru) countGuru.textContent = String(nGuru);
+  if (countSiswa) countSiswa.textContent = String(nSiswa);
   const gPub = document.getElementById('dashTotalGuruPub');
   const sPub = document.getElementById('dashTotalSiswaPub');
-  if (gPub) gPub.textContent = String((store.guru || []).length);
-  if (sPub) sPub.textContent = String((store.siswa || []).length);
+  if (gPub) gPub.textContent = String(nGuru);
+  if (sPub) sPub.textContent = String(nSiswa);
 
   let sesiList = [];
   try { sesiList = getSesiList(); } catch (_) { sesiList = []; }
@@ -6075,18 +5956,10 @@ async function renderDashboard() {
     hideReason = 'sebelum-sesi';
   }
 
-  // --- Tampilkan / sembunyikan tabel rekap (login) ---
-  // Dashboard tamu: tabel rekap di #dashPublicView tetap tampil
-  const isGuest = !getSession();
-  if (rekapWrap) rekapWrap.style.display = (hideDashRekap && !isGuest) ? 'none' : '';
-  if (cardGuru) cardGuru.style.display = (hideDashRekap && !isGuest) ? 'none' : '';
-  if (cardSiswa) cardSiswa.style.display = (hideDashRekap && !isGuest) ? 'none' : '';
-  // Sembunyikan duplikat rekap bawah untuk tamu (sudah ada di dashPublicView)
-  if (isGuest) {
-    if (rekapWrap) rekapWrap.style.display = 'none';
-    if (cardGuru) cardGuru.style.display = 'none';
-    if (cardSiswa) cardSiswa.style.display = 'none';
-  }
+  // --- Tampilkan / sembunyikan tabel rekap ---
+  if (rekapWrap) rekapWrap.style.display = hideDashRekap ? 'none' : '';
+  if (cardGuru) cardGuru.style.display = hideDashRekap ? 'none' : '';
+  if (cardSiswa) cardSiswa.style.display = hideDashRekap ? 'none' : '';
   if (rekapMsg) {
     if (hideDashRekap) {
       rekapMsg.style.display = 'block';
@@ -6107,29 +5980,6 @@ async function renderDashboard() {
     // Semua "-" (seperti index-3 saat libur / belum sesi)
     if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
     if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
-    // Tetap isi tabel rekap (kosong/status) agar tampil di dashboard tamu
-    try {
-      const emptyAbs = [];
-      renderRekapKehadiran('guru', sesiList, emptyAbs);
-      renderRekapKehadiran('siswa', sesiList, emptyAbs);
-      const note = hideReason === 'libur'
-        ? 'Hari libur — absensi tidak dihitung'
-        : 'Menunggu Sesi 1 dibuka';
-      ['tbodyRekapGuruPub','tbodyRekapSiswaPub','tbodyRekapGuru','tbodyRekapSiswa'].forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const cols = el.closest('table')?.querySelectorAll('thead th')?.length || 4;
-        // jangan timpa jika sudah ada baris orang; hanya tambah catatan di label
-      });
-      const lg = document.getElementById('labelRekapGuruHariPub');
-      const ls = document.getElementById('labelRekapSiswaHariPub');
-      if (lg) lg.textContent = '· ' + todayStr() + ' · ' + note;
-      if (ls) ls.textContent = '· ' + todayStr() + ' · ' + note;
-      const lg2 = document.getElementById('labelRekapGuruHari');
-      const ls2 = document.getElementById('labelRekapSiswaHari');
-      if (lg2) lg2.textContent = '· ' + todayStr() + ' · ' + note;
-      if (ls2) ls2.textContent = '· ' + todayStr() + ' · ' + note;
-    } catch (e) { console.warn(e); }
     try { syncDashboardPublicPanels(); } catch (_) {}
     try { renderUserUI(getSession()); } catch (_) {}
     try { applySekolahToUI(); } catch (_) {}
@@ -6156,15 +6006,6 @@ async function renderDashboard() {
       }
       if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
       if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
-      try {
-        renderRekapKehadiran('guru', sesiList, []);
-        renderRekapKehadiran('siswa', sesiList, []);
-        const note = 'Hari libur — absensi tidak dihitung';
-        ['labelRekapGuruHariPub','labelRekapSiswaHariPub','labelRekapGuruHari','labelRekapSiswaHari'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.textContent = '· ' + todayStr() + ' · ' + note;
-        });
-      } catch (_) {}
       try { syncDashboardPublicPanels(); } catch (_) {}
       return;
     }
@@ -9323,7 +9164,7 @@ document.getElementById('upFileInput')?.addEventListener('change', async (e) => 
 /* ===== Data Sekolah ===== */
 function applySekolahToUI() {
   const s = store.sekolah || {};
-  const nama = s.nama || 'SMP NEGERI 1 SOBANG';
+  const nama = s.nama || 'SMA NEGERI 1 NUSANTARA';
   document.querySelectorAll('.nama-sekolah').forEach(el => { el.textContent = nama; });
   const schoolName = document.getElementById('schoolName');
   if (schoolName) schoolName.textContent = nama;
@@ -10453,7 +10294,7 @@ function renderNilaiDaftar(payload) {
     return `<tr>
       <td class="col-no">${i + 1}</td>
       <td class="col-nisn" title="NISN disamarkan">${maskNisn(String(r.nisn || ''))}</td>
-      <td class="col-nama" title="${escapeHtml(r.nama || '')}">${escapeHtml(r.nama || '—')}</td>
+      <td class="col-nama">${escapeHtml(r.nama || '')}</td>
       <td class="col-lp">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
       ${cells}
       <td class="col-nr" style="font-weight:700">${escapeHtml(String(nr))}</td>
