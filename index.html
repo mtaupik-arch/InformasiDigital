@@ -3033,20 +3033,19 @@
   <div class="page" id="page-sidik-jari-siswa">
     <div class="page-title">👆 Sidik Jari Siswa <span class="periode-badge" id="badgePeriodeFp">Periode: -</span></div>
     <div class="absen-card">
-      <div class="absen-icon">🔐</div>
+      <div class="absen-icon" style="font-size:42px;line-height:1">👆</div>
       <h4>Absensi Sidik Jari Siswa</h4>
-      <p class="hint">Gunakan sensor sidik jari HP (WebAuthn). Login sebagai siswa, atau masukkan NISN. Logika absensi sama dengan scan barcode.</p>
+      <p class="hint">Gunakan sensor sidik jari perangkat (WebAuthn). Login sebagai siswa terlebih dahulu — identitas diambil otomatis dari akun Anda.</p>
       <div class="sesi-aktif-box" id="fpSesiAktif">Sesi aktif: memuat…</div>
-      <div style="max-width:300px;margin:0 auto 12px;text-align:left">
-        <label style="font-size:11px;font-weight:600;color:#555">NISN (otomatis jika sudah login)</label>
-        <input type="text" id="fpNisnInput" class="search-box" style="width:100%;max-width:none;margin-top:4px" maxlength="10" placeholder="10 digit NISN" inputmode="numeric" />
-      </div>
-      <div class="absen-actions" style="flex-direction:column;align-items:center">
-        <button type="button" class="btn btn-danger" id="btnFpMain" style="min-width:220px;padding:12px 18px;font-size:14px">Daftarkan Sidik Jari</button>
-        <p id="fpBtnHint" style="font-size:11px;color:#888;margin-top:8px;text-align:center">Belum terdaftar di perangkat ini</p>
+      <div class="absen-actions" style="flex-direction:column;align-items:center;gap:10px">
+        <button type="button" class="btn btn-danger btn-fp-main" id="btnFpMain"
+          style="min-width:240px;padding:14px 22px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:10px;border-radius:12px">
+          <span class="fp-btn-ico" aria-hidden="true" style="font-size:22px;line-height:1">👆</span>
+          <span class="fp-btn-label">Daftarkan Sidik Jari</span>
+        </button>
+        <p id="fpBtnHint" style="font-size:11px;color:#888;margin:0;text-align:center">Belum terdaftar di perangkat ini</p>
       </div>
       <div class="absen-result" id="fpResult"></div>
-      <div class="absen-log" id="fpLog"><div class="log-item" style="color:#999">Belum ada riwayat absen hari ini</div></div>
     </div>
     <div class="card" style="margin-top:8px">
       <h3>Legend Status</h3>
@@ -4006,13 +4005,13 @@
     </div>
 
     <div class="ns-legend" id="nsLegend">
-      <div><b>NRH</b> = Rerata Nilai Harian</div>
+      <div><b>NRH</b> = Rerata nilai harian ÷ jumlah penilaian guru (tidak ikut = 0)</div>
       <div><b>PTS</b> = Penilaian Tengah Semester</div>
       <div><b>ASAS</b> = Asesmen Akhir Semester</div>
       <div><b>ASAJ</b> = Asesmen Akhir Jenjang</div>
       <div style="margin-top:6px;color:#666">
-        Kolom muncul dinamis sesuai jenis penilaian yang sudah diisi.
-        Default: <code>NRH</code> &amp; <code>NR</code>. Bobot dari menu Mapel &amp; Kelas.
+        <b>NR</b> = gabungan berbobot dari menu Mapel &amp; Kelas (mis. 80% NRH + 20% PTS).
+        Komponen belum ada dihitung 0; bobot tetap dipakai.
       </div>
     </div>
   </div>
@@ -4729,7 +4728,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
-  &copy; 2025 <b> SMP NEGERI 1 SOBANG</b> — By MTM
+  &copy; 2025 <b>SMP NEGERI 1 SOBANG</b> — By MTM
 </footer>
 
 <script>
@@ -5302,13 +5301,11 @@ async function doLogin() {
     renderUserUI(session);
     closeLogin();
     closeProfileMenu();
-    // Muat data sesuai role (guru: ampu saja; admin: penuh; tamu→login)
-    try { await refreshStoreFromDb(); } catch (_) {}
-    try { if (typeof renderDashboard === 'function') await renderDashboard(); } catch (_) {}
     const roleLabel = session.role === 'siswa' ? 'Siswa' : session.role === 'guru' ? 'Guru' : 'Administrator';
+    // Popup sukses langsung (jangan tunggu bootstrap / dashboard)
     showBigPopup('ok', 'Login Berhasil',
-      `Selamat datang, <b>${escapeHtml(session.user?.nama || '')}</b><br>Masuk sebagai ${roleLabel}.`, 2800);
-    // Catat log login hanya untuk guru/siswa (bukan admin)
+      `Selamat datang, <b>${escapeHtml(session.user?.nama || '')}</b><br>Masuk sebagai ${roleLabel}.`, 2200);
+    // Log login di latar (non-blocking)
     try {
       if (session.role !== 'admin') {
         const kode = session.role === 'siswa'
@@ -5323,18 +5320,23 @@ async function doLogin() {
         }).catch(() => {});
       }
     } catch (_) {}
-    btnDoLogin.textContent = 'Memuat data…';
-    try {
-      await refreshStoreFromDb();
-      const active = document.querySelector('.page.active');
-      if (active?.id === 'page-data-siswa') renderSiswa();
-      if (active?.id === 'page-data-guru') renderGuru();
-      if (active?.id === 'page-data-lulusan') renderLulusan();
-      if (active?.id === 'page-periode') renderPeriode();
-      if (active?.id === 'page-sesi-libur') initSesiLiburPage();
-      if (active?.id === 'page-scan-barcode') { initScanPage(); }
-      if (active?.id === 'page-dashboard' || !active) renderDashboard();
-    } catch (e) { console.warn('post-login refresh', e); }
+    // Muat data role di latar — tidak menunda popup
+    btnDoLogin.textContent = 'Masuk';
+    ;(async () => {
+      try {
+        await refreshStoreFromDb();
+        const active = document.querySelector('.page.active');
+        if (active?.id === 'page-data-siswa') renderSiswa();
+        if (active?.id === 'page-data-guru') renderGuru();
+        if (active?.id === 'page-data-lulusan') renderLulusan();
+        if (active?.id === 'page-periode') renderPeriode();
+        if (active?.id === 'page-sesi-libur') initSesiLiburPage();
+        if (active?.id === 'page-scan-barcode') { initScanPage(); }
+        if (active?.id === 'page-dashboard' || !active) {
+          if (typeof renderDashboard === 'function') await renderDashboard();
+        }
+      } catch (e) { console.warn('post-login refresh', e); }
+    })();
   } catch (err) {
     console.error(err);
     showLoginError(err.message || 'Tidak dapat terhubung ke server. Pastikan Edge Function login & api sudah di-deploy.');
@@ -7810,15 +7812,6 @@ function handleAbsenResult(elId, res) {
 
 function initSidikJariPage() {
   updateSesiBadges();
-  renderAbsenLog('fpLog', 'siswa');
-  const sess = getSession();
-  if (sess && sess.role === 'siswa' && sess.user?.nisn) {
-    const inp = document.getElementById('fpNisnInput');
-    if (inp) {
-      inp.value = sess.user.nisn;
-      inp.readOnly = true;
-    }
-  }
   updateFpMainButton('siswa');
 }
 
@@ -8079,10 +8072,11 @@ function base64ToBuffer(b64) {
 function resolveFpIdentity(role) {
   const sess = getSession();
   if (role === 'siswa') {
-    const nisn = (document.getElementById('fpNisnInput')?.value || '').replace(/\D/g, '');
-    const id = nisn || (sess?.role === 'siswa' ? String(sess.user?.nisn || '').replace(/\D/g, '') : '');
-    if (!id || id.length !== 10) return { ok: false, msg: 'Masukkan NISN 10 digit atau login sebagai siswa' };
-    return { ok: true, identity: id, role: 'siswa', display: 'NISN ' + maskNisn(id) };
+    const id = sess?.role === 'siswa' ? String(sess.user?.nisn || '').replace(/\D/g, '') : '';
+    if (!id || id.length !== 10) {
+      return { ok: false, msg: 'Login sebagai siswa terlebih dahulu (NISN akun tidak ditemukan).' };
+    }
+    return { ok: true, identity: id, role: 'siswa', display: sess?.user?.nama || ('NISN ' + maskNisn(id)) };
   }
   // Guru / admin absen mandiri: PIN 6 digit dari sesi (diisi saat login)
   let pin = String(sess?.user?.pin || '').replace(/\D/g, '');
@@ -8134,21 +8128,18 @@ function applyFpButtonState(role, registered) {
     return;
   }
 
+  const ico = '<span class="fp-btn-ico" aria-hidden="true" style="font-size:22px;line-height:1">👆</span>';
+  const baseStyle = 'min-width:240px;padding:14px 22px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:10px;border-radius:12px';
   if (registered) {
-    btn.textContent = 'Absen Sidik Jari';
-    btn.className = 'btn btn-primary';
-    btn.style.minWidth = '220px';
-    btn.style.padding = '12px 18px';
-    btn.style.fontSize = '14px';
-    btn.style.background = '';
-    if (hint) hint.textContent = 'Terdaftar · ketuk untuk absen';
+    btn.className = 'btn btn-primary btn-fp-main';
+    btn.style.cssText = baseStyle;
+    btn.innerHTML = ico + '<span class="fp-btn-label">Absen Sidik Jari</span>';
+    if (hint) hint.textContent = 'Terdaftar · ketuk untuk absen dengan sidik jari';
   } else {
-    btn.textContent = 'Daftarkan Sidik Jari';
-    btn.className = 'btn btn-danger';
-    btn.style.minWidth = '220px';
-    btn.style.padding = '12px 18px';
-    btn.style.fontSize = '14px';
-    if (hint) hint.textContent = 'Belum terdaftar';
+    btn.className = 'btn btn-danger btn-fp-main';
+    btn.style.cssText = baseStyle;
+    btn.innerHTML = ico + '<span class="fp-btn-label">Daftarkan Sidik Jari</span>';
+    if (hint) hint.textContent = 'Belum terdaftar di perangkat ini';
   }
 }
 
@@ -8315,7 +8306,7 @@ async function fpMainActionSiswa() {
   const res = await prosesAbsen(info.identity, 'fingerprint');
   scanTargetRole = prev;
   handleAbsenResult(resultEl, res);
-  if (res.ok || res.type === 'reject') renderAbsenLog('fpLog', 'siswa');
+  if (res.ok || res.type === 'reject') /* fpLog dihapus dari UI */
 }
 
 /** Tombol utama guru: daftar atau absen mandiri */
@@ -8369,7 +8360,7 @@ async function fpMainActionGuru() {
 
 document.getElementById('btnFpMain')?.addEventListener('click', fpMainActionSiswa);
 document.getElementById('btnGuruFpMain')?.addEventListener('click', fpMainActionGuru);
-document.getElementById('fpNisnInput')?.addEventListener('input', () => updateFpMainButton('siswa'));
+/* fpNisnInput dihapus */
 
 /* QR Scanner — pola cepat seperti index.html (fps 60, BarcodeDetector, kamera tetap hidup) */
 const SCAN_SAME_CODE_MS = 700;
@@ -13431,7 +13422,7 @@ async function assertFpIzin(roleTarget, ownerKey) {
   let key = String(ownerKey || '').replace(/\D/g, '');
   if (!key) {
     if (r === 'siswa') {
-      key = String(document.getElementById('fpNisnInput')?.value || sess?.user?.nisn || sess?.user?.kode || '').replace(/\D/g, '');
+      key = String(sess?.user?.nisn || sess?.user?.kode || '').replace(/\D/g, '');
     } else {
       key = String(sess?.user?.pin || sess?.user?.kode || '').replace(/\D/g, '');
     }
