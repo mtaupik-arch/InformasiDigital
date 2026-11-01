@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
-<meta name="sis-fix" content="fix-nilai-struktur-2026-11-01">
+<meta name="sis-fix" content="fix-header-uniform-2026-11-01">
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1618,8 +1618,9 @@
   .data-table { width:100%; border-collapse:collapse; font-size:11.5px; min-width:860px; }
   .data-table thead th {
     background:#1565c0; color:#fff; padding:8px 6px; text-align:left;
-    font-size:10.5px; font-weight:600; white-space:nowrap; position:sticky; top:0;
-    border-radius:0;
+    font-size:10.5px; font-weight:600; font-family:'Segoe UI', Tahoma, sans-serif;
+    letter-spacing:.3px; white-space:nowrap; position:sticky; top:0;
+    border-radius:0; border:none;
   }
   .data-table tbody td {
     padding:6px; border-bottom:1px solid #e8edf3; color:#333; white-space:nowrap;
@@ -1638,7 +1639,19 @@
     font-size: 11px;
     border-collapse: collapse;
   }
-  .nilai-table.data-table thead th,
+  .nilai-table.data-table thead th {
+    background: #1565c0 !important;
+    color: #ffffff !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    letter-spacing: .3px;
+    text-transform: none;
+    white-space: nowrap;
+    vertical-align: middle;
+    padding: 8px 5px;
+    border: none !important;
+  }
   .nilai-table.data-table tbody td {
     padding: 6px 5px;
     white-space: nowrap;
@@ -2514,6 +2527,19 @@
     white-space: normal;
     line-height: 1.3;
   }
+  /* Header seragam dengan .data-table (biru + huruf putih) */
+  table.struktur-table thead th {
+    background: #1565c0 !important;
+    color: #ffffff !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    letter-spacing: .3px;
+    text-transform: none;
+    white-space: nowrap !important;
+    border: none !important;
+    padding: 8px 4px !important;
+  }
   /* DUK — sempit, angka saja */
   table.struktur-table col.col-str-duk { width: 34px; }
   table.struktur-table th.col-str-duk,
@@ -2526,8 +2552,10 @@
     box-sizing: border-box;
     overflow: hidden;
     white-space: nowrap !important;
-    font-size: 11px;
     font-variant-numeric: tabular-nums;
+  }
+  table.struktur-table td.col-str-duk {
+    font-size: 11px;
     font-weight: 700;
     color: #1565c0;
   }
@@ -2539,6 +2567,8 @@
     text-align: left !important;
     white-space: normal;
     padding-left: 5px !important;
+  }
+  table.struktur-table td.col-str-nama {
     font-weight: 600;
     color: #1a237e;
   }
