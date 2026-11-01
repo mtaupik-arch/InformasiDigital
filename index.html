@@ -3226,7 +3226,7 @@
           <label>Tipe</label>
           <select id="izinRole">
             <option value="siswa">Siswa</option>
-            <option value="guru">Guru</option>
+            <option value="guru" id="izinRoleOptGuru">Guru</option>
           </select>
         </div>
         <div class="form-group">
@@ -6173,6 +6173,7 @@ function navigate(page, opts = {}) {
   if (target === 'input-daftar-nilai') runPage(() => initNilaiPage());
   if (target === 'rekap-data') runPage(() => initRekapPage());
   if (target === 'download-absensi') runPage(() => initDownloadAbsensiPage());
+  if (target === 'input-izin') runPage(() => initInputIzinPage());
   if (target === 'backup-data') runPage(() => initBackupPage());
   if (target === 'reset-pin') runPage(() => initResetPinPage());
   if (target === 'naik-kelas') runPage(() => initNaikKelasPage());
@@ -8960,6 +8961,23 @@ function selectIzinPerson(kode, nama) {
   if (box) { box.style.display = 'none'; box.innerHTML = ''; }
 }
 
+function initInputIzinPage() {
+  const sess = (typeof getSession === 'function') ? getSession() : null;
+  const optGuru = document.getElementById('izinRoleOptGuru');
+  const roleSel = document.getElementById('izinRole');
+  const isAdmin = sess && sess.role === 'admin';
+  if (optGuru) optGuru.style.display = isAdmin ? '' : 'none';
+  if (roleSel && !isAdmin) {
+    roleSel.value = 'siswa';
+    // guru tidak boleh pilih tipe guru
+    roleSel.dispatchEvent(new Event('change'));
+  }
+  const lab = document.getElementById('izinKodeLabel');
+  const inp = document.getElementById('izinKode');
+  if (lab) lab.textContent = 'Cari Nama / NISN';
+  if (inp) inp.placeholder = 'Ketik nama atau NISN…';
+}
+
 document.getElementById('izinRole')?.addEventListener('change', () => {
   const role = document.getElementById('izinRole')?.value;
   const lab = document.getElementById('izinKodeLabel');
@@ -9000,18 +9018,23 @@ document.getElementById('izinKode')?.addEventListener('focus', () => {
 });
 
 document.getElementById('btnSimpanIzin')?.addEventListener('click', async () => {
-  const role = document.getElementById('izinRole')?.value || 'siswa';
+  const sess = getSession();
+  let role = document.getElementById('izinRole')?.value || 'siswa';
+  // Guru hanya boleh input izin/sakit siswa
+  if (sess && sess.role === 'guru') role = 'siswa';
+  if (sess && sess.role !== 'admin' && role === 'guru') {
+    toast('Hanya Admin yang dapat input izin/sakit untuk Guru', 'err');
+    return;
+  }
   const status = document.getElementById('izinStatus')?.value || 'Izin';
   let kode = (document.getElementById('izinKodeResolved')?.value || '').replace(/\D/g, '');
   if (!kode) {
-    // fallback: ambil digit dari input (NISN/PIN diketik langsung)
     kode = (document.getElementById('izinKode')?.value || '').replace(/\D/g, '');
   }
   const out = document.getElementById('izinResult');
   if (!kode) { toast('Pilih dari daftar pencarian atau ketik NISN/PIN', 'err'); return; }
   if (role === 'siswa' && kode.length !== 10) { toast('NISN harus 10 digit — pilih dari hasil pencarian', 'err'); return; }
   try {
-    const sess = getSession();
     const res = await apiCall('input_izin_sakit', {
       role, status, kode,
       scanned_by: sess?.user?.nama ? (sess.user.nama + ' (' + sess.role + ')') : 'Petugas',
@@ -17719,6 +17742,25 @@ function dlCellMark(st) {
   return '';
 }
 
+function dlGuruAllowedKelasNames() {
+  const sess = (typeof getSession === 'function') ? getSession() : null;
+  if (!sess || sess.role !== 'guru') return null; // null = semua (admin)
+  const names = new Set();
+  const guruId = sess.user?.id;
+  const aktif = (typeof getActivePeriode === 'function') ? getActivePeriode() : null;
+  (store.guru_ampu || []).forEach(a => {
+    if (String(a.guru_id) !== String(guruId)) return;
+    if (aktif && a.periode_id && String(a.periode_id) !== String(aktif.id)) return;
+    const k = (store.kelas || []).find(x => String(x.id) === String(a.kelas_id));
+    if (k && k.nama) names.add(String(k.nama).trim());
+  });
+  // cadangan: siswa yang sudah difilter bootstrap
+  (store.siswa || []).forEach(s => {
+    if (s.kelas) names.add(String(s.kelas).trim());
+  });
+  return names;
+}
+
 async function initDownloadAbsensiPage() {
   const now = new Date();
   const bl = document.getElementById('dlAbsBulan');
@@ -17729,16 +17771,28 @@ async function initDownloadAbsensiPage() {
   }
   if (th && !th.value) th.value = String(now.getFullYear());
 
+  try {
+    if (!(store.guru_ampu || []).length || !(store.kelas || []).length) {
+      await refreshStoreFromDb();
+    }
+  } catch (_) {}
+
   const selK = document.getElementById('dlAbsKelas');
   if (selK) {
+    const allowed = dlGuruAllowedKelasNames();
     const set = new Set();
-    (store.kelas || []).forEach(k => { if (k.nama) set.add(String(k.nama)); });
-    (store.siswa || []).forEach(s => { if (s.kelas) set.add(String(s.kelas)); });
+    if (allowed) {
+      allowed.forEach(n => set.add(n));
+    } else {
+      (store.kelas || []).forEach(k => { if (k.nama) set.add(String(k.nama).trim()); });
+      (store.siswa || []).forEach(s => { if (s.kelas) set.add(String(s.kelas).trim()); });
+    }
     const arr = [...set].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
     const cur = selK.value;
-    selK.innerHTML = '<option value="">- Pilih -</option>' +
+    const emptyLabel = (allowed && !arr.length) ? '- Belum ada kelas ampu -' : '- Pilih -';
+    selK.innerHTML = '<option value="">' + emptyLabel + '</option>' +
       arr.map(k => '<option value="' + escapeHtml(k) + '">' + escapeHtml(k) + '</option>').join('');
-    if (cur) selK.value = cur;
+    if (cur && arr.includes(cur)) selK.value = cur;
   }
 
   const jenis = document.getElementById('dlAbsJenis');
@@ -17746,6 +17800,7 @@ async function initDownloadAbsensiPage() {
   function syncJenis() {
     const j = jenis?.value || 'guru';
     if (wrap) wrap.style.display = (j === 'guru') ? 'none' : '';
+    // Guru: opsi absensi guru = diri sendiri saja (tetap tampil)
   }
   if (jenis && !jenis.dataset.dlBound) {
     jenis.dataset.dlBound = '1';
@@ -17754,15 +17809,16 @@ async function initDownloadAbsensiPage() {
   syncJenis();
 }
 
-async function dlFetchAbsensiMonth(y, m, tipe) {
+async function dlFetchAbsensiMonth(y, m, tipe, kelas) {
   const start = dlDateStr(y, m, 1);
   const end = dlDateStr(y, m, dlDaysInMonth(y, m));
   try {
-    const res = await apiCall('list_absensi_range', { dari: start, sampai: end, tipe: tipe || undefined });
+    const payload = { dari: start, sampai: end, tipe: tipe || undefined };
+    if (kelas) payload.kelas = kelas;
+    const res = await apiCall('list_absensi_range', payload);
     return res.data || [];
   } catch (e) {
     console.warn('list_absensi_range', e);
-    // Fallback: rekap tidak punya detail harian — return kosong + toast
     toast(errToText(e), 'err');
     return [];
   }
@@ -17946,7 +18002,7 @@ async function dlBuildSheet() {
 
   const tipeDb = jenis === 'guru' ? 'guru' : 'siswa';
   const people = dlLoadPeople(jenis === 'guru' ? 'guru' : 'siswa', kelas);
-  const absRows = await dlFetchAbsensiMonth(tahun, bulan, tipeDb);
+  const absRows = await dlFetchAbsensiMonth(tahun, bulan, tipeDb, kelas || '');
 
   const idSet = new Set(people.map(p => String(p.id)));
   const kodeSet = new Set();
