@@ -2582,7 +2582,7 @@
   </div>
 
   <div class="topbar-center">
-    <div class="nama-sekolah">SMP NEGERI 1 SOBANG</div>
+    <div class="nama-sekolah">SMA NEGERI 1 NUSANTARA</div>
     <div class="datetime" id="datetime">Kamis, 02 Okt 2026 • 00:00:00</div>
     <div class="user-name" id="topUserName">👤 Tamu (belum login)</div>
   </div>
@@ -2729,12 +2729,12 @@
     <div class="login-header">
       <div class="logo-circle" id="loginLogo">S</div>
       <h2>Login Sistem Informasi</h2>
-      <p id="loginSekolahNama">SMP NEGERI 1 SOBANG</p>
+      <p id="loginSekolahNama">SMA Negeri 1 Nusantara</p>
     </div>
     <div class="login-body">
             <input type="text" id="inputIdentifier" class="login-pin-mask"
              inputmode="numeric" pattern="[0-9]*" maxlength="10"
-             autocomplete="off" autocapitalize="off"
+             placeholder="NISN / PIN" autocomplete="off" autocapitalize="off"
              autocorrect="off" spellcheck="false" enterkeyhint="done"
              aria-label="Kode login NISN atau PIN" />
       <input type="hidden" id="inputIdentifierReal" value="" />
@@ -2827,7 +2827,7 @@
     <div class="dash-body">
       <div class="dash-left">
         <div class="dash-avatar" id="schoolAvatar">S</div>
-        <div class="dash-name" id="schoolName">SMP NEGERI 1 SOBANG</div>
+        <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
         <div class="dash-detail" id="schoolDetail">
           <p><b>NSS</b> <span>: -</span></p>
           <p><b>NPSN</b> <span>: -</span></p>
@@ -3570,7 +3570,7 @@
           <tbody id="tbodyNilaiDaftar"><tr class="empty-row"><td colspan="5">Pilih mapel &amp; kelas, lalu Muat Data.</td></tr></tbody>
         </table>
       </div>
-      <p style="font-size:11px;color:#888;margin-top:8px">Kolom NH1, TGS1, … muncul otomatis setelah nilai diinput.</p>
+      <p style="font-size:11px;color:#888;margin-top:8px">Kolom NRH1, PTS, ASAS, … muncul otomatis sesuai jenis & penilaian ke yang diinput.</p>
     </div>
   </div>
 
@@ -4753,7 +4753,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
-  &copy;2026 <b> SMP NEGERI 1 SOBANG</b> — By MTM
+  &copy; 2025 <b>SMA Negeri 1 Nusantara</b> — Sistem Informasi Sekolah
 </footer>
 
 <script>
@@ -9288,7 +9288,7 @@ document.getElementById('upFileInput')?.addEventListener('change', async (e) => 
 /* ===== Data Sekolah ===== */
 function applySekolahToUI() {
   const s = store.sekolah || {};
-  const nama = s.nama || 'SMP NEGERI 1 SOBANG';
+  const nama = s.nama || 'SMA NEGERI 1 NUSANTARA';
   document.querySelectorAll('.nama-sekolah').forEach(el => { el.textContent = nama; });
   const schoolName = document.getElementById('schoolName');
   if (schoolName) schoolName.textContent = nama;
@@ -10069,18 +10069,25 @@ function openKelasForm(id) {
 function openBobotForm(id) {
   const row = id ? (store.bobot_nilai || []).find(r => String(r.id) === String(id)) : null;
   crudState = { entity: 'bobot_nilai', id: row ? row.id : null };
-  const jenisOpts = ['NH', 'TGS', 'PTS', 'ASAS', 'ASAJ', 'ASAT'];
+  const jenisOpts = ['NRH', 'PTS', 'ASAS', 'ASAJ', 'ASAT'];
   document.getElementById('crudModalTitle').textContent = row ? 'Edit Bobot Nilai' : 'Tambah Bobot Nilai';
   document.getElementById('crudModalBody').innerHTML = `
     <div class="form-grid">
       <div class="form-group"><label>Jenis Nilai *</label>
-        <select name="jenis">${jenisOpts.map(j => `<option value="${j}" ${row?.jenis === j ? 'selected' : ''}>${j}</option>`).join('')}</select>
+        <select name="jenis">${jenisOpts.map(j => {
+          const rj = String(row?.jenis || '').toUpperCase();
+          const sel = (rj === j) || ((rj === 'NH' || rj === 'TGS' || rj === 'HARIAN') && j === 'NRH');
+          return `<option value="${j}" ${sel ? 'selected' : ''}>${j}</option>`;
+        }).join('')}</select>
       </div>
       <div class="form-group"><label>Semester</label><input name="semester" value="${escapeHtml(row?.semester || '')}" placeholder="opsional" /></div>
       <div class="form-group"><label>Bobot %</label><input type="number" name="bobot" value="${row?.bobot != null ? escapeHtml(String(row.bobot)) : ''}" min="0" max="100" step="1" placeholder="60" /></div>
       <div class="form-group"><label>Urutan</label><input type="number" name="urutan" value="${row?.urutan ?? ((store.bobot_nilai||[]).length + 1)}" /></div>
     </div>
-    <p style="font-size:11px;color:#666;margin-top:8px">NH = Nilai Harian · TGS = Tugas · PTS = Penilaian Tengah Semester · ASAS/ASAJ/ASAT = Asesmen</p>`;
+    <p style="font-size:11px;color:#666;margin-top:8px">
+      <b>NRH</b> = rerata nilai harian · <b>PTS</b> · <b>ASAS</b> · <b>ASAJ</b> · <b>ASAT</b>.
+      NR dihitung dari bobot jenis-jenis ini saja (bukan NH/TGS terpisah).
+    </p>`;
   document.getElementById('crudModal').classList.add('active');
 }
 
@@ -10263,10 +10270,14 @@ function fillNilaiFilters() {
     : '<option value="">— tidak ada mapel —</option>');
   if (curM && [...mapelSel.options].some(o => o.value === curM)) mapelSel.value = curM;
   fillNilaiKelasOptions();
+  const JENIS_BOBOT_OK = new Set(['NRH', 'PTS', 'ASAS', 'ASAJ', 'ASAT']);
   const jenisList = (store.bobot_nilai || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
-  const jenisOpts = jenisList.length
-    ? [...new Set(jenisList.map(j => String(j.jenis || '').toUpperCase()).filter(Boolean))]
-    : ['NH', 'TGS', 'PTS', 'ASAS', 'ASAJ', 'ASAT'];
+  let jenisOpts = jenisList.length
+    ? [...new Set(jenisList.map(j => String(j.jenis || '').toUpperCase()).filter(j => JENIS_BOBOT_OK.has(j)))]
+    : [];
+  if (!jenisOpts.length) jenisOpts = ['NRH', 'PTS', 'ASAS', 'ASAJ', 'ASAT'];
+  // Input harian memakai jenis NRH (ke-1, ke-2, …)
+  if (!jenisOpts.includes('NRH')) jenisOpts = ['NRH', ...jenisOpts];
   const curJ = jenisSel?.value;
   if (jenisSel) {
     jenisSel.innerHTML = jenisOpts.map(j => `<option value="${escapeHtml(j)}">${escapeHtml(j)}</option>`).join('');
@@ -15214,7 +15225,7 @@ function bsJenisOptions(selected) {
   const list = (store.bobot_nilai || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
   let opts = '<option value="">- Pilih Jenis -</option>';
   if (!list.length) {
-    ['NRH', 'PTS', 'PAS', 'Ulangan'].forEach(j => {
+    ['NRH', 'PTS', 'ASAS', 'ASAJ', 'ASAT'].forEach(j => {
       opts += `<option value="${j}" ${selected === j ? 'selected' : ''}>${j}</option>`;
     });
   } else {
