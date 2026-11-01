@@ -2702,7 +2702,7 @@
     <div class="login-body">
             <input type="text" id="inputIdentifier" class="login-pin-mask"
              inputmode="numeric" pattern="[0-9]*" maxlength="10"
-             placeholder="NISN / PIN" autocomplete="off" autocapitalize="off"
+             autocomplete="off" autocapitalize="off"
              autocorrect="off" spellcheck="false" enterkeyhint="done"
              aria-label="Kode login NISN atau PIN" />
       <input type="hidden" id="inputIdentifierReal" value="" />
@@ -2789,7 +2789,7 @@
     <div class="dash-body">
       <div class="dash-left">
         <div class="dash-avatar" id="schoolAvatar">S</div>
-        <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
+        <div class="dash-name" id="schoolName">SMP NEGERI 1 SOBANG</div>
         <div class="dash-detail" id="schoolDetail">
           <p><b>NSS</b> <span>: -</span></p>
           <p><b>NPSN</b> <span>: -</span></p>
@@ -3415,7 +3415,7 @@
       <div class="form-grid" id="formSekolah">
         <div class="form-group full">
           <label>Nama Sekolah</label>
-          <input type="text" id="sekNama" placeholder="SMA NEGERI 1 …" />
+          <input type="text" id="sekNama" />
         </div>
         <div class="form-group">
           <label>NSS</label>
@@ -4716,7 +4716,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
-  &copy; 2025 <b>SMA Negeri 1 Nusantara</b> — Sistem Informasi Sekolah
+  &copy; 2025 <b>SMPN 1 SOBANG</b> — By MTM
 </footer>
 
 <script>
@@ -9127,7 +9127,7 @@ document.getElementById('upFileInput')?.addEventListener('change', async (e) => 
 /* ===== Data Sekolah ===== */
 function applySekolahToUI() {
   const s = store.sekolah || {};
-  const nama = s.nama || 'SMA NEGERI 1 NUSANTARA';
+  const nama = s.nama || 'SMP NEGERI 1 SOBANG';
   document.querySelectorAll('.nama-sekolah').forEach(el => { el.textContent = nama; });
   const schoolName = document.getElementById('schoolName');
   if (schoolName) schoolName.textContent = nama;
