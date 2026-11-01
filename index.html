@@ -1624,40 +1624,65 @@
   .data-table tbody td {
     padding:6px; border-bottom:1px solid #e8edf3; color:#333; white-space:nowrap;
   }
-  /* Tabel Input/Daftar Nilai — rapat, tanpa scroll horizontal di layar kecil */
-  .nilai-panel .data-table-wrap { overflow-x: auto; }
+  /* Tabel Input/Daftar Nilai — baris rapat, nama selalu terbaca */
+  .nilai-panel .data-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .nilai-table.data-table {
-    min-width: 0 !important;
-    width: 100%;
-    table-layout: fixed;
+    min-width: 520px !important;
+    width: max-content;
+    max-width: none;
+    table-layout: auto;
     font-size: 11px;
+    border-collapse: collapse;
   }
   .nilai-table.data-table thead th,
   .nilai-table.data-table tbody td {
-    padding: 5px 4px;
+    padding: 3px 5px !important;
+    line-height: 1.2 !important;
+    vertical-align: middle;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    border-bottom: 1px solid #e8edf3;
   }
-  .nilai-table .col-no { width: 32px; text-align: center; }
-  .nilai-table .col-nisn { width: 96px; }
+  .nilai-table.data-table tbody tr { height: auto; }
+  .nilai-table .col-no { width: 28px; min-width: 28px; text-align: center; }
+  .nilai-table .col-nisn { width: 88px; min-width: 80px; font-size: 10px; }
   .nilai-table .col-nama {
-    width: auto;
+    min-width: 140px;
+    max-width: 220px;
     white-space: normal !important;
     word-break: break-word;
-    line-height: 1.25;
+    line-height: 1.25 !important;
+    font-weight: 600;
+    color: #1a237e;
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 2;
+    box-shadow: 2px 0 4px rgba(0,0,0,.04);
   }
-  .nilai-table .col-lp { width: 32px; text-align: center; }
-  .nilai-table .col-nilai { width: 72px; text-align: center; }
-  .nilai-table .col-nr { width: 48px; text-align: center; }
-  .nilai-table .col-score { width: 44px; text-align: center; }
+  .nilai-table thead th.col-nama {
+    background: #e8eaf6;
+    z-index: 3;
+  }
+  .nilai-table .col-lp { width: 28px; min-width: 28px; text-align: center; }
+  .nilai-table .col-nilai { width: 64px; text-align: center; }
+  .nilai-table .col-nr { min-width: 44px; text-align: center; font-weight: 700; }
+  .nilai-table .col-score { min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; }
   .nilai-table .nilai-input-cell {
-    width: 56px !important;
-    max-width: 56px;
-    padding: 3px 4px !important;
+    width: 52px !important;
+    max-width: 52px;
+    padding: 2px 3px !important;
     font-size: 11px !important;
     text-align: center;
   }
+  /* Warna rentang nilai */
+  .nilai-table .nv-lt70, .nilai-table .nv-lt70 .nilai-input-cell { color: #c62828 !important; font-weight: 700; }
+  .nilai-table .nv-lt80, .nilai-table .nv-lt80 .nilai-input-cell { color: #ef6c00 !important; font-weight: 700; }
+  .nilai-table .nv-lt90, .nilai-table .nv-lt90 .nilai-input-cell { color: #2e7d32 !important; font-weight: 700; }
+  .nilai-table .nv-ge90, .nilai-table .nv-ge90 .nilai-input-cell { color: #1565c0 !important; font-weight: 700; }
+  .nilai-table td.nv-lt70 { background: #ffebee; }
+  .nilai-table td.nv-lt80 { background: #fff3e0; }
+  .nilai-table td.nv-lt90 { background: #e8f5e9; }
+  .nilai-table td.nv-ge90 { background: #e3f2fd; }
 
   /* ===== REKAP DATA ABSENSI ===== */
   .rekap-page-title { font-size:20px; font-weight:800; color:#1a237e; margin-bottom:14px; }
@@ -4728,7 +4753,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
-  &copy; 2025 <br><b>SMP NEGERI 1 SOBANG</b> — By MTM
+  &copy;2026 <b> SMP NEGERI 1 SOBANG</b> — By MTM
 </footer>
 
 <script>
@@ -10302,6 +10327,18 @@ function lpLabel(jk) {
   if (s.startsWith('P') || s === 'FEMALE' || s === 'WANITA') return 'P';
   return s ? s.charAt(0) : '—';
 }
+
+/** Kelas warna nilai: <70 merah, <80 orange, <90 hijau, ≥90 biru */
+function nilaiScoreClass(v) {
+  if (v == null || v === '' || v === '—') return '';
+  const n = Number(v);
+  if (isNaN(n)) return '';
+  if (n < 70) return 'nv-lt70';
+  if (n < 80) return 'nv-lt80';
+  if (n < 90) return 'nv-lt90';
+  return 'nv-ge90';
+}
+
 function renderNilaiInputTable(rows) {
   nilaiInputRows = rows || [];
   const tb = document.getElementById('tbodyNilaiInput');
@@ -10314,15 +10351,25 @@ function renderNilaiInputTable(rows) {
   }
   tb.innerHTML = rows.map((r, i) => {
     const val = r.nilai != null && r.nilai !== '' ? String(r.nilai) : '';
+    const sc = nilaiScoreClass(val);
     return `<tr data-siswa-id="${escapeHtml(String(r.siswa_id || ''))}" data-nisn="${escapeHtml(String(r.nisn || ''))}">
       <td class="col-no">${i + 1}</td>
       <td class="col-nisn" title="NISN disamarkan">${maskNisn(String(r.nisn || ''))}</td>
-      <td class="col-nama">${escapeHtml(r.nama || '')}</td>
+      <td class="col-nama" title="${escapeHtml(r.nama || '')}">${escapeHtml(r.nama || '')}</td>
       <td class="col-lp">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
-      <td class="col-nilai"><input type="number" class="nilai-input-cell" min="0" max="100" step="0.01" placeholder="1-100"
+      <td class="col-nilai ${sc}"><input type="number" class="nilai-input-cell" min="0" max="100" step="0.01" placeholder="—"
         value="${escapeHtml(val)}" style="border:1px solid #c5d0e0;border-radius:3px" /></td>
     </tr>`;
   }).join('');
+  tb.querySelectorAll('.nilai-input-cell').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const td = inp.closest('td');
+      if (!td) return;
+      td.classList.remove('nv-lt70', 'nv-lt80', 'nv-lt90', 'nv-ge90');
+      const c = nilaiScoreClass(inp.value);
+      if (c) td.classList.add(c);
+    });
+  });
 }
 function collectNilaiInputRows() {
   const tb = document.getElementById('tbodyNilaiInput');
@@ -10387,16 +10434,18 @@ function renderNilaiDaftar(payload) {
   tb.innerHTML = rows.map((r, i) => {
     const cells = columns.map(c => {
       const v = r.scores?.[c.key];
-      return `<td class="col-score">${v != null ? escapeHtml(String(v)) : '—'}</td>`;
+      const sc = nilaiScoreClass(v);
+      return `<td class="col-score ${sc}">${v != null ? escapeHtml(String(v)) : '—'}</td>`;
     }).join('');
     const nr = r.nr != null ? (Math.round(Number(r.nr) * 100) / 100) : '—';
+    const nrCls = nilaiScoreClass(nr === '—' ? null : nr);
     return `<tr>
       <td class="col-no">${i + 1}</td>
       <td class="col-nisn" title="NISN disamarkan">${maskNisn(String(r.nisn || ''))}</td>
-      <td class="col-nama">${escapeHtml(r.nama || '')}</td>
+      <td class="col-nama" title="${escapeHtml(r.nama || '')}">${escapeHtml(r.nama || '')}</td>
       <td class="col-lp">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
       ${cells}
-      <td class="col-nr" style="font-weight:700">${escapeHtml(String(nr))}</td>
+      <td class="col-nr ${nrCls}">${escapeHtml(String(nr))}</td>
     </tr>`;
   }).join('');
 }
