@@ -2299,6 +2299,9 @@
   body:not(.dash-logged-in) #cardRekapSiswa,
   body:not(.dash-logged-in) #dashRekapHiddenMsg { display:none !important; }
   body.dash-logged-in #dashPublicView { display:none !important; }
+  /* Siswa: tidak perlu rekap kehadiran guru */
+  body.role-siswa #panelRekapGuru,
+  body.role-siswa #cardRekapGuru { display:none !important; }
   .dash-public-grid {
     display:grid; gap:12px;
     grid-template-columns:1fr;
@@ -5014,6 +5017,7 @@ function renderUserUI(session) {
     const sideUserG = document.getElementById('sidebarUserLine');
     if (sideUserG) sideUserG.textContent = 'Sistem Informasi Sekolah';
     document.body.classList.remove('dash-logged-in');
+    document.body.classList.remove('role-siswa', 'role-guru', 'role-admin');
     applyRoleMenus(null);
     return;
   }
@@ -5033,6 +5037,10 @@ function renderUserUI(session) {
   btnSet.style.display = role === 'admin' ? '' : 'none';
   guestBanner.style.display = 'none';
   document.body.classList.add('dash-logged-in');
+  document.body.classList.remove('role-siswa', 'role-guru', 'role-admin');
+  if (role === 'siswa' || role === 'guru' || role === 'admin') {
+    document.body.classList.add('role-' + role);
+  }
   if (userDisplayName) userDisplayName.textContent = nama;
   const sideUser = document.getElementById('sidebarUserLine');
   if (sideUser) sideUser.textContent = nama + ' · ' + roleLabel;
@@ -5921,6 +5929,11 @@ async function renderDashboard() {
   const rekapMsg = document.getElementById('dashRekapHiddenMsg');
   const cardGuru = document.getElementById('cardRekapGuru');
   const cardSiswa = document.getElementById('cardRekapSiswa');
+  const panelGuru = document.getElementById('panelRekapGuru');
+  const sessRole = ((typeof getSession === 'function') ? getSession() : null)?.role || null;
+  const hideGuruRekap = sessRole === 'siswa';
+  if (panelGuru) panelGuru.style.display = hideGuruRekap ? 'none' : '';
+  if (cardGuru && hideGuruRekap) cardGuru.style.display = 'none';
 
   // Hapus "Memuat data…" secepatnya
   const tg0 = document.getElementById('tbodyRekapGuru');
@@ -5975,7 +5988,7 @@ async function renderDashboard() {
 
   // --- Tampilkan / sembunyikan tabel rekap ---
   if (rekapWrap) rekapWrap.style.display = hideDashRekap ? 'none' : '';
-  if (cardGuru) cardGuru.style.display = hideDashRekap ? 'none' : '';
+  if (cardGuru) cardGuru.style.display = (hideDashRekap || hideGuruRekap) ? 'none' : '';
   if (cardSiswa) cardSiswa.style.display = hideDashRekap ? 'none' : '';
   if (rekapMsg) {
     if (hideDashRekap && hideReason === 'tamu') {
@@ -6041,9 +6054,15 @@ async function renderDashboard() {
     } catch (_) { absenRows = []; }
   }
 
-  if (statsGuru) statsGuru.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'guru');
   if (statsSiswa) statsSiswa.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'siswa');
-  try { renderRekapKehadiran('guru', sesiList, absenRows); } catch (e) { console.warn(e); }
+  if (!hideGuruRekap) {
+    if (statsGuru) statsGuru.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'guru');
+    try { renderRekapKehadiran('guru', sesiList, absenRows); } catch (e) { console.warn(e); }
+  } else {
+    if (statsGuru) statsGuru.innerHTML = '';
+    if (cardGuru) cardGuru.style.display = 'none';
+    if (panelGuru) panelGuru.style.display = 'none';
+  }
   try { renderRekapKehadiran('siswa', sesiList, absenRows); } catch (e) { console.warn(e); }
   try { syncDashboardPublicPanels(); } catch (_) {}
   try { renderUserUI(getSession()); } catch (_) {}
