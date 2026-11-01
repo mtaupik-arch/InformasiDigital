@@ -17870,22 +17870,35 @@ function dlCountStatsHarian(dayStatuses, daysInfo) {
   return { c, persen, jml: c.TW + c.TL + c.S + c.I + c.A + c.B, efektif };
 }
 
+function dlResolveSesiStatus(dayMap, sesi) {
+  if (!dayMap || !sesi) return null;
+  if (sesi.id != null && dayMap['id:' + sesi.id]) return dayMap['id:' + sesi.id];
+  if (sesi.nama) {
+    const nk = 'n:' + String(sesi.nama).trim().toLowerCase();
+    if (dayMap[nk]) return dayMap[nk];
+  }
+  // cocokkan longgar: nama sesi terkandung di key
+  const sn = String(sesi.nama || '').trim().toLowerCase();
+  if (sn) {
+    for (const [k, v] of Object.entries(dayMap)) {
+      if (k.startsWith('n:') && (k.slice(2) === sn || k.slice(2).includes(sn) || sn.includes(k.slice(2)))) return v;
+    }
+  }
+  return null;
+}
+
 function dlCountStatsSesi(personSesiMap, daysInfo, sesiList) {
   const c = { TW: 0, TL: 0, S: 0, I: 0, A: 0, B: 0 };
   let efektif = 0;
-  const sesiKeys = (sesiList || []).map(s => {
-    if (s && s.id != null) return 'id:' + s.id;
-    if (s && s.nama) return 'n:' + String(s.nama).trim().toLowerCase();
-    return null;
-  }).filter(Boolean);
+  const list = (sesiList || []).filter(Boolean);
 
   daysInfo.forEach(di => {
     if (di.libur) return;
     const dayMap = (personSesiMap && personSesiMap[di.date]) || {};
-    if (sesiKeys.length) {
-      sesiKeys.forEach(sk => {
+    if (list.length) {
+      list.forEach(s => {
         efektif++;
-        const st = dayMap[sk] || 'A';
+        const st = dlResolveSesiStatus(dayMap, s) || 'A';
         if (st === 'TW') c.TW++;
         else if (st === 'TL') c.TL++;
         else if (st === 'S') c.S++;
@@ -17941,10 +17954,16 @@ async function dlBuildSheet() {
     [p.nisn, p.kode, p.pin].forEach(v => { const k = String(v || '').trim(); if (k) kodeSet.add(k); });
   });
   const namaSet = new Set(people.map(p => String(p.nama || '').trim().toLowerCase()).filter(Boolean));
+  people.forEach(p => {
+    const dig = String(p.nisn || p.kode || '').replace(/\D/g, '');
+    if (dig) kodeSet.add(dig);
+  });
   const absFiltered = absRows.filter(r => {
     if (r.ref_id != null && r.ref_id !== '' && idSet.has(String(r.ref_id))) return true;
     const kode = String(r.kode || '').trim();
+    const dig = kode.replace(/\D/g, '');
     if (kode && kodeSet.has(kode)) return true;
+    if (dig && kodeSet.has(dig)) return true;
     const nm = String(r.nama || '').trim().toLowerCase();
     if (nm && namaSet.has(nm)) return true;
     return false;
