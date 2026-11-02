@@ -2591,7 +2591,7 @@
   </div>
 
   <div class="topbar-center">
-    <div class="nama-sekolah">SMA NEGERI 1 NUSANTARA</div>
+    <div class="nama-sekolah">SMP NEGERI 1 SOBANG</div>
     <div class="datetime" id="datetime">Kamis, 02 Okt 2026 • 00:00:00</div>
     <div class="user-name" id="topUserName">👤 Tamu (belum login)</div>
   </div>
@@ -2657,7 +2657,7 @@
   <div class="sidebar-header">
     <div class="logo-sekolah" id="sidebarLogo">S</div>
     <div class="brand">
-      <span id="sidebarSekolahNama">SMA N 1 NUSANTARA</span>
+      <span id="sidebarSekolahNama">SMP NEGERI 1 SOBANG</span>
       <small id="sidebarUserLine">Sistem Informasi Sekolah</small>
     </div>
   </div>
@@ -2738,14 +2738,14 @@
     <div class="login-header">
       <div class="logo-circle" id="loginLogo">S</div>
       <h2>Login Sistem Informasi</h2>
-      <p id="loginSekolahNama">SMA Negeri 1 Nusantara</p>
+      <p id="loginSekolahNama">SMP NEGERI 1 SOBANG</p>
     </div>
     <div class="login-body">
             <input type="text" id="inputIdentifier" class="login-pin-mask"
              inputmode="numeric" pattern="[0-9]*" maxlength="10"
-             placeholder="NISN / PIN" autocomplete="off" autocapitalize="off"
+             placeholder="" autocomplete="off" autocapitalize="off"
              autocorrect="off" spellcheck="false" enterkeyhint="done"
-             aria-label="Kode login NISN atau PIN" />
+             aria-label="Kode login" />
       <input type="hidden" id="inputIdentifierReal" value="" />
       <div class="login-error" id="loginError"></div>
       <button class="login-btn" id="btnDoLogin">Masuk</button>
@@ -2836,7 +2836,7 @@
     <div class="dash-body">
       <div class="dash-left">
         <div class="dash-avatar" id="schoolAvatar">S</div>
-        <div class="dash-name" id="schoolName">SMA NEGERI 1 NUSANTARA</div>
+        <div class="dash-name" id="schoolName">SMP NEGERI 1 SOBANG</div>
         <div class="dash-detail" id="schoolDetail">
           <p><b>NSS</b> <span>: -</span></p>
           <p><b>NPSN</b> <span>: -</span></p>
@@ -3461,7 +3461,7 @@
       <div class="form-grid" id="formSekolah">
         <div class="form-group full">
           <label>Nama Sekolah</label>
-          <input type="text" id="sekNama" placeholder="SMA NEGERI 1 …" />
+          <input type="text" id="sekNama" placeholder="SMP NEGERI 1 SOBANG" />
         </div>
         <div class="form-group">
           <label>NSS</label>
@@ -4611,7 +4611,7 @@
         <button type="button" class="btn btn-outline btn-sm" id="btnRuBukaKembali" title="Buka ulang tanpa hilangkan jawaban">↩ Buka Kembali</button>
         <button type="button" class="btn btn-success btn-sm" id="btnRuSelesaikan" title="Paksa selesai jika waktu habis tidak terkirim">✓ Selesaikan</button>
         <button type="button" class="btn btn-primary btn-sm" id="btnRuPerpanjang" title="Tambah waktu ujian">⏱ Perpanjang</button>
-        <button type="button" class="btn btn-outline btn-sm" id="btnRuReset" title="Reset lembar ujian ke awal">↺ Reset</button>
+        <button type="button" class="btn btn-danger btn-sm" id="btnRuHapus" title="Hapus data ujian — siswa dianggap peserta baru saat mengerjakan lagi">🗑 Hapus</button>
         <button type="button" class="btn btn-outline btn-sm" id="btnRuDetail" title="Detail jawaban & skor isian">📋 Detail</button>
         <button type="button" class="btn btn-primary btn-sm" id="btnRuSinkron" title="Pindahkan skor ke tabel nilai">⟳ Sinkronisasi</button>
       </div>
@@ -4762,7 +4762,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer class="footer">
-  &copy; 2025 <b>SMA Negeri 1 Nusantara</b> — Sistem Informasi Sekolah
+  &copy; 2025 <b>SMP NEGERI 1 SOBANG</b> — Sistem Informasi Sekolah
 </footer>
 
 <script>
@@ -9421,7 +9421,7 @@ document.getElementById('upFileInput')?.addEventListener('change', async (e) => 
 /* ===== Data Sekolah ===== */
 function applySekolahToUI() {
   const s = store.sekolah || {};
-  const nama = s.nama || 'SMA NEGERI 1 NUSANTARA';
+  const nama = s.nama || 'SMP NEGERI 1 SOBANG';
   document.querySelectorAll('.nama-sekolah').forEach(el => { el.textContent = nama; });
   const schoolName = document.getElementById('schoolName');
   if (schoolName) schoolName.textContent = nama;
@@ -17788,9 +17788,10 @@ document.getElementById('btnRuPerpanjang')?.addEventListener('click', () => {
   if (!(menit > 0)) { toast('Menit tidak valid', 'err'); return; }
   runRuangAction('perpanjang', { menit });
 });
-document.getElementById('btnRuReset')?.addEventListener('click', () => {
-  if (!confirm('Reset lembar ujian siswa terpilih? Jawaban akan dihapus.')) return;
-  runRuangAction('reset');
+document.getElementById('btnRuHapus')?.addEventListener('click', () => {
+  if (!confirm('Hapus data ujian siswa terpilih?\n\nJawaban & status ujian akan dihapus permanen.\nSaat siswa mengerjakan lagi, dianggap sebagai peserta baru.')) return;
+  // aksi hapus: hapus baris ruang_ujian (+ jawaban) agar masuk ulang = peserta baru
+  runRuangAction('hapus');
 });
 document.getElementById('btnRuDetail')?.addEventListener('click', async () => {
   const ids = getSelectedRuangIds();
