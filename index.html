@@ -4376,37 +4376,26 @@
   <div class="page" id="page-jadwal-mapel">
     <div class="page-title">📅 Jadwal Mapel</div>
     <div class="card">
-      <p style="font-size:12px;color:#546e7a;margin:0 0 10px;line-height:1.4">
-        Admin mengunggah jadwal (PDF / JPG / JPEG) per guru.
-        Guru yang login hanya melihat jadwal miliknya.
+      <p style="font-size:12px;color:#546e7a;margin:0 0 10px;line-height:1.4" id="jmHint">
+        Jadwal mapel ditampilkan sesuai guru yang login. Admin dapat mengunggah/ganti file jadwal per guru.
       </p>
-      <div class="jm-toolbar">
-        <input type="search" class="search-box" id="jmQ" placeholder="Cari nama guru…" />
+      <div class="jm-toolbar" id="jmToolbarAdmin" style="display:none;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">
+        <label style="font-size:12px;font-weight:600;color:#455a64">Guru</label>
+        <select id="jmGuruSelect" class="search-box" style="min-width:180px;max-width:280px;flex:1"></select>
+        <button type="button" class="btn btn-success btn-sm" id="btnJmUpload">📤 Upload / Ganti</button>
+        <button type="button" class="btn btn-danger btn-sm" id="btnJmHapus" style="display:none">🗑 Hapus</button>
         <button type="button" class="btn btn-outline btn-sm" id="btnJmReload">↻</button>
       </div>
       <div class="jm-meta" id="jmMeta">Memuat…</div>
-      <div class="data-table-wrap" style="overflow-x:auto">
-        <table class="data-table" style="min-width:0;width:100%;font-size:11.5px">
-          <thead>
-            <tr>
-              <th style="width:28px">No</th>
-              <th>Nama Guru</th>
-              <th style="width:72px">Status</th>
-              <th style="width:120px">Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyJadwalMapel">
-            <tr><td colspan="4" style="padding:12px;color:#888;text-align:center">Memuat…</td></tr>
-          </tbody>
-        </table>
+      <div id="jmEmpty" class="ujian-locked" style="display:none">
+        <div class="ul-ico">📅</div>
+        <h4>Jadwal belum tersedia</h4>
+        <p style="font-size:12.5px;margin-top:4px">Admin belum mengunggah jadwal untuk Anda.</p>
       </div>
-      <div id="jmViewerWrap" style="display:none;margin-top:12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-          <b id="jmViewerTitle" style="font-size:13px;color:#1565c0">Pratinjau</b>
-          <div style="display:flex;gap:6px">
-            <a class="btn btn-primary btn-sm" id="jmOpenTab" href="#" target="_blank" rel="noopener">Buka</a>
-            <button type="button" class="btn btn-outline btn-sm" id="jmCloseViewer">Tutup</button>
-          </div>
+      <div id="jmViewerWrap" style="display:none;margin-top:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <b id="jmViewerTitle" style="font-size:13px;color:#1565c0">Jadwal Mapel</b>
+          <a class="btn btn-primary btn-sm" id="jmOpenTab" href="#" target="_blank" rel="noopener">Buka di tab baru</a>
         </div>
         <div class="jm-preview" id="jmPreview"></div>
         <div class="jm-meta" id="jmViewerMeta"></div>
@@ -4420,45 +4409,29 @@
   <div class="page" id="page-jadwal-mapel-kelas">
     <div class="page-title">🗓️ Jadwal Mapel Kelas</div>
     <div class="card">
-      <p style="font-size:12px;color:#546e7a;margin:0 0 10px;line-height:1.4">
-        Admin mengunggah jadwal (PDF / JPG / JPEG) per kelas.
-        Siswa yang login hanya melihat jadwal kelasnya sendiri.
+      <p style="font-size:12px;color:#546e7a;margin:0 0 10px;line-height:1.4" id="jmkHint">
+        Jadwal kelas ditampilkan sesuai kelas siswa yang login. Admin dapat mengunggah/ganti file jadwal per kelas.
       </p>
-      <div class="jmk-toolbar" id="jmkToolbarAdmin">
-        <input type="search" class="search-box" id="jmkQ" placeholder="Cari kelas…" />
+      <div class="jmk-toolbar" id="jmkToolbarAdmin" style="display:none;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">
+        <label style="font-size:12px;font-weight:600;color:#455a64">Kelas</label>
+        <select id="jmkKelasSelect" class="search-box" style="min-width:120px;max-width:200px"></select>
+        <button type="button" class="btn btn-success btn-sm" id="btnJmkUpload">📤 Upload / Ganti</button>
+        <button type="button" class="btn btn-danger btn-sm" id="btnJmkHapus" style="display:none">🗑 Hapus</button>
         <button type="button" class="btn btn-outline btn-sm" id="btnJmkReload">↻</button>
       </div>
       <div class="jmk-meta" id="jmkMeta">Memuat…</div>
-      <div class="data-table-wrap" style="overflow-x:auto" id="jmkTableWrap">
-        <table class="data-table" style="min-width:0;width:100%;font-size:11.5px">
-          <thead>
-            <tr>
-              <th style="width:28px">No</th>
-              <th>Kelas</th>
-              <th style="width:72px">Status</th>
-              <th style="width:130px">Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyJadwalMapelKelas">
-            <tr><td colspan="4" style="padding:12px;color:#888;text-align:center">Memuat…</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div id="jmkViewerWrap" style="display:none;margin-top:12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-          <b id="jmkViewerTitle" style="font-size:13px;color:#1565c0">Pratinjau</b>
-          <div style="display:flex;gap:6px">
-            <a class="btn btn-primary btn-sm" id="jmkOpenTab" href="#" target="_blank" rel="noopener">Buka</a>
-            <button type="button" class="btn btn-outline btn-sm" id="jmkCloseViewer">Tutup</button>
-          </div>
-        </div>
-        <div class="jmk-preview" id="jmkPreview"></div>
-        <div class="jmk-meta" id="jmkViewerMeta"></div>
-      </div>
       <div id="jmkSiswaEmpty" class="ujian-locked" style="display:none">
         <div class="ul-ico">📅</div>
         <h4>Jadwal belum tersedia</h4>
         <p style="font-size:12.5px;margin-top:4px">Admin belum mengunggah jadwal untuk kelas Anda.</p>
+      </div>
+      <div id="jmkViewerWrap" style="display:none;margin-top:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <b id="jmkViewerTitle" style="font-size:13px;color:#1565c0">Jadwal Kelas</b>
+          <a class="btn btn-primary btn-sm" id="jmkOpenTab" href="#" target="_blank" rel="noopener">Buka di tab baru</a>
+        </div>
+        <div class="jmk-preview" id="jmkPreview"></div>
+        <div class="jmk-meta" id="jmkViewerMeta"></div>
       </div>
     </div>
     <input type="file" id="jmkFileInput" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" style="display:none" />
@@ -15033,76 +15006,120 @@ async function compressJadwalFile(file) {
 let _jmRows = [];
 let _jmUploadGuruId = null;
 
+function _jmResolveGuruId(sess) {
+  if (!sess || sess.role !== 'guru') return null;
+  const u = sess.user || {};
+  if (u.id) return String(u.id);
+  const pin = String(u.pin || '').replace(/\D/g, '');
+  const nip = String(u.nip || '').trim();
+  const hit = (store.guru || []).find(g =>
+    (pin && String(g.pin || '').replace(/\D/g, '') === pin) ||
+    (nip && String(g.nip || '') === nip) ||
+    (u.nama && String(g.nama || '').toLowerCase() === String(u.nama).toLowerCase())
+  );
+  return hit ? String(hit.id) : null;
+}
+
 async function initJadwalMapelPage() {
   const sess = getSession();
-  if (!sess || (sess.role !== 'admin' && sess.role !== 'guru')) {
-    const tb = document.getElementById('tbodyJadwalMapel');
-    if (tb) tb.innerHTML = '<tr><td colspan="4" style="padding:12px;color:#c62828;text-align:center">Login sebagai Admin atau Guru.</td></tr>';
+  const role = sess?.role || null;
+  const toolbar = document.getElementById('jmToolbarAdmin');
+  const empty = document.getElementById('jmEmpty');
+  const viewer = document.getElementById('jmViewerWrap');
+  const meta = document.getElementById('jmMeta');
+  const hint = document.getElementById('jmHint');
+
+  if (!sess || (role !== 'admin' && role !== 'guru')) {
+    if (toolbar) toolbar.style.display = 'none';
+    if (viewer) viewer.style.display = 'none';
+    if (empty) {
+      empty.style.display = '';
+      empty.querySelector('h4') && (empty.querySelector('h4').textContent = 'Login diperlukan');
+      empty.querySelector('p') && (empty.querySelector('p').textContent = 'Login sebagai Guru atau Admin untuk melihat jadwal mapel.');
+    }
+    if (meta) meta.textContent = '';
     return;
   }
+
+  if (hint) {
+    hint.textContent = role === 'admin'
+      ? 'Pilih guru lalu unggah/ganti file jadwal (PDF / JPG). Guru yang login hanya melihat jadwal miliknya.'
+      : 'Jadwal mapel Anda ditampilkan di bawah (jika sudah diunggah admin).';
+  }
+  if (toolbar) toolbar.style.display = role === 'admin' ? 'flex' : 'none';
+  if (empty) empty.style.display = 'none';
   await loadJadwalMapelList();
 }
 
 async function loadJadwalMapelList() {
-  const tb = document.getElementById('tbodyJadwalMapel');
   const meta = document.getElementById('jmMeta');
-  if (tb) tb.innerHTML = '<tr><td colspan="4" style="padding:12px;color:#888;text-align:center">Memuat…</td></tr>';
+  const empty = document.getElementById('jmEmpty');
+  const viewer = document.getElementById('jmViewerWrap');
+  const sess = getSession();
+  const role = sess?.role || null;
+  if (meta) meta.textContent = 'Memuat…';
   try {
     const res = await apiCall('list_jadwal_mapel', {});
     _jmRows = res.data || [];
-    renderJadwalMapelTable();
+    // Admin: isi select guru
+    if (role === 'admin') {
+      const sel = document.getElementById('jmGuruSelect');
+      if (sel) {
+        const cur = sel.value;
+        const list = _jmRows.slice().sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
+        sel.innerHTML = list.map(r => {
+          const st = r.tersedia ? '✓' : '–';
+          return `<option value="${escapeHtml(String(r.guru_id))}">${escapeHtml(r.nama || 'Guru')} (${st})</option>`;
+        }).join('') || '<option value="">— tidak ada guru —</option>';
+        if (cur && list.some(r => String(r.guru_id) === cur)) sel.value = cur;
+      }
+      showJmForSelectedAdmin();
+    } else if (role === 'guru') {
+      const gid = _jmResolveGuruId(sess);
+      const row = _jmRows.find(r => String(r.guru_id) === String(gid));
+      if (row && row.tersedia && row.file_url) {
+        if (empty) empty.style.display = 'none';
+        showJadwalViewer(row);
+        if (meta) meta.textContent = 'Jadwal mapel · ' + (row.nama || 'Anda');
+      } else {
+        if (viewer) viewer.style.display = 'none';
+        if (empty) empty.style.display = '';
+        if (meta) meta.textContent = 'Belum ada jadwal untuk Anda';
+      }
+    }
   } catch (e) {
-    if (tb) tb.innerHTML = `<tr><td colspan="4" style="padding:12px;color:#c62828">${escapeHtml(errToText(e))}</td></tr>`;
     if (meta) meta.textContent = errToText(e);
+    if (viewer) viewer.style.display = 'none';
+    if (empty) {
+      empty.style.display = '';
+      empty.querySelector('h4') && (empty.querySelector('h4').textContent = 'Gagal memuat');
+      empty.querySelector('p') && (empty.querySelector('p').textContent = errToText(e));
+    }
   }
 }
 
-function renderJadwalMapelTable() {
-  const tb = document.getElementById('tbodyJadwalMapel');
+function showJmForSelectedAdmin() {
+  const sel = document.getElementById('jmGuruSelect');
+  const gid = sel?.value || '';
+  const row = _jmRows.find(r => String(r.guru_id) === String(gid));
+  const btnDel = document.getElementById('btnJmHapus');
   const meta = document.getElementById('jmMeta');
-  const q = (document.getElementById('jmQ')?.value || '').toLowerCase().trim();
-  let rows = _jmRows.slice();
-  if (q) rows = rows.filter(r => String(r.nama || '').toLowerCase().includes(q));
-  const ada = rows.filter(r => r.tersedia).length;
-  const belum = rows.length - ada;
-  if (meta) meta.textContent = `${rows.length} guru · ${ada} tersedia · ${belum} belum`;
-  const isAdmin = getSession()?.role === 'admin';
-
-  if (!rows.length) {
-    if (tb) tb.innerHTML = '<tr><td colspan="4" style="padding:12px;color:#888;text-align:center">Tidak ada data guru.</td></tr>';
-    return;
-  }
-
-  if (tb) {
-    tb.innerHTML = rows.map((r, i) => {
-      const st = r.tersedia
-        ? '<span class="jm-pill ok">Tersedia</span>'
-        : '<span class="jm-pill no">Belum</span>';
-      let acts = '';
-      if (r.tersedia) {
-        acts += `<button type="button" class="btn btn-primary btn-sm" data-jm-view="${escapeHtml(String(r.guru_id))}">Lihat</button> `;
-      }
-      if (isAdmin) {
-        acts += `<button type="button" class="btn btn-success btn-sm" data-jm-up="${escapeHtml(String(r.guru_id))}">${r.tersedia ? 'Ganti' : 'Upload'}</button> `;
-        if (r.tersedia) {
-          acts += `<button type="button" class="btn btn-danger btn-sm" data-jm-del="${escapeHtml(String(r.guru_id))}">Hapus</button>`;
-        }
-      } else if (!r.tersedia) {
-        acts += '<span style="color:#999;font-size:11px">Belum diunggah</span>';
-      }
-      return `<tr>
-        <td>${i + 1}</td>
-        <td style="font-weight:600">${escapeHtml(r.nama || '—')}</td>
-        <td>${st}</td>
-        <td style="white-space:nowrap">${acts}</td>
-      </tr>`;
-    }).join('');
-  }
-
-  // Guru: jika hanya 1 baris dan tersedia, auto-tampilkan
-  const sess = getSession();
-  if (sess?.role === 'guru' && rows.length === 1 && rows[0].tersedia) {
-    showJadwalViewer(rows[0]);
+  const empty = document.getElementById('jmEmpty');
+  const viewer = document.getElementById('jmViewerWrap');
+  _jmUploadGuruId = gid || null;
+  if (btnDel) btnDel.style.display = (row && row.tersedia) ? '' : 'none';
+  if (row && row.tersedia && row.file_url) {
+    if (empty) empty.style.display = 'none';
+    showJadwalViewer(row);
+    if (meta) meta.textContent = (row.nama || '') + ' · tersedia';
+  } else {
+    if (viewer) viewer.style.display = 'none';
+    if (empty) {
+      empty.style.display = '';
+      empty.querySelector('h4') && (empty.querySelector('h4').textContent = 'Belum ada file');
+      empty.querySelector('p') && (empty.querySelector('p').textContent = 'Unggah jadwal PDF/JPG untuk guru ini.');
+    }
+    if (meta) meta.textContent = (row?.nama || 'Guru') + ' · belum diunggah';
   }
 }
 
@@ -15114,7 +15131,7 @@ async function showJadwalViewer(row) {
   const open = document.getElementById('jmOpenTab');
   if (!wrap || !prev || !row?.file_url) return;
   wrap.style.display = '';
-  if (title) title.textContent = `Jadwal: ${row.nama || ''}`;
+  if (title) title.textContent = `Jadwal: ${row.nama || 'Guru'}`;
   if (open) open.href = row.file_url;
   const mime = String(row.mime || '').toLowerCase();
   const url = row.file_url;
@@ -15128,48 +15145,30 @@ async function showJadwalViewer(row) {
     meta.textContent = [row.file_name, sz, row.updated_at ? ('diubah ' + String(row.updated_at).slice(0, 16).replace('T', ' ')) : '']
       .filter(Boolean).join(' · ');
   }
-  wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 document.getElementById('btnJmReload')?.addEventListener('click', () => loadJadwalMapelList());
-document.getElementById('jmQ')?.addEventListener('input', () => renderJadwalMapelTable());
-document.getElementById('jmCloseViewer')?.addEventListener('click', async () => {
-  const wrap = document.getElementById('jmViewerWrap');
-  if (wrap) wrap.style.display = 'none';
-  const prev = document.getElementById('jmPreview');
-  if (prev) prev.innerHTML = '';
+document.getElementById('jmGuruSelect')?.addEventListener('change', () => showJmForSelectedAdmin());
+document.getElementById('btnJmUpload')?.addEventListener('click', async () => {
+  if (getSession()?.role !== 'admin') return;
+  const gid = document.getElementById('jmGuruSelect')?.value || '';
+  if (!gid) { toast('Pilih guru dulu', 'err'); return; }
+  _jmUploadGuruId = gid;
+  const inp = document.getElementById('jmFileInput');
+  if (inp) { inp.value = ''; inp.click(); }
 });
-
-document.getElementById('tbodyJadwalMapel')?.addEventListener('click', async (e) => {
-  const view = e.target.closest('[data-jm-view]');
-  const up = e.target.closest('[data-jm-up]');
-  const del = e.target.closest('[data-jm-del]');
-  if (view) {
-    const id = view.getAttribute('data-jm-view');
-    const row = _jmRows.find(r => String(r.guru_id) === id);
-    if (row) showJadwalViewer(row);
-    return;
-  }
-  if (up) {
-    if (getSession()?.role !== 'admin') return;
-    _jmUploadGuruId = up.getAttribute('data-jm-up');
-    const inp = document.getElementById('jmFileInput');
-    if (inp) { inp.value = ''; inp.click(); }
-    return;
-  }
-  if (del) {
-    if (getSession()?.role !== 'admin') return;
-    const id = del.getAttribute('data-jm-del');
-    const row = _jmRows.find(r => String(r.guru_id) === id);
-    if (!await sisConfirm(`Hapus jadwal untuk ${row?.nama || 'guru ini'}?`)) return;
-    try {
-      await apiCall('hapus_jadwal_mapel', { guru_id: id });
-      toast('Jadwal dihapus', 'ok');
-      document.getElementById('jmViewerWrap') && (document.getElementById('jmViewerWrap').style.display = 'none');
-      await loadJadwalMapelList();
-    } catch (err) {
-      toast(errToText(err), 'err');
-    }
+document.getElementById('btnJmHapus')?.addEventListener('click', async () => {
+  if (getSession()?.role !== 'admin') return;
+  const gid = document.getElementById('jmGuruSelect')?.value || '';
+  const row = _jmRows.find(r => String(r.guru_id) === String(gid));
+  if (!gid) return;
+  if (!await sisConfirm(`Hapus jadwal untuk ${row?.nama || 'guru ini'}?`)) return;
+  try {
+    await apiCall('hapus_jadwal_mapel', { guru_id: gid });
+    toast('Jadwal dihapus', 'ok');
+    await loadJadwalMapelList();
+  } catch (err) {
+    toast(errToText(err), 'err');
   }
 });
 
@@ -15212,10 +15211,7 @@ document.getElementById('jmFileInput')?.addEventListener('change', async (e) => 
         'File dikompres otomatis untuk menghemat storage.<br><b>' +
         formatBytes(compressed.originalBytes) + ' → ' + formatBytes(compressed.bytes) + '</b>', 2800);
     }
-    _jmUploadGuruId = null;
     await loadJadwalMapelList();
-    const row = _jmRows.find(r => String(r.guru_id) === String(res.data?.guru_id || ''));
-    if (row?.tersedia) showJadwalViewer(row);
   } catch (err) {
     toast(errToText(err), 'err');
     showBigPopup('err', 'Upload Gagal', errToText(err), 0);
@@ -15233,28 +15229,46 @@ async function initJadwalMapelKelasPage() {
   const sess = getSession();
   const role = sess?.role || null;
   const toolbar = document.getElementById('jmkToolbarAdmin');
-  const tableWrap = document.getElementById('jmkTableWrap');
   const empty = document.getElementById('jmkSiswaEmpty');
   const viewer = document.getElementById('jmkViewerWrap');
+  const meta = document.getElementById('jmkMeta');
+  const hint = document.getElementById('jmkHint');
 
   if (role === 'siswa') {
     if (toolbar) toolbar.style.display = 'none';
-    if (tableWrap) tableWrap.style.display = 'none';
-    if (empty) empty.style.display = 'none';
-    if (viewer) viewer.style.display = 'none';
+    if (hint) hint.textContent = 'Jadwal kelas Anda ditampilkan di bawah (jika sudah diunggah admin).';
     await loadJadwalMapelKelasForSiswa();
     return;
   }
 
   if (role !== 'admin' && role !== 'guru') {
     if (toolbar) toolbar.style.display = 'none';
-    const tb = document.getElementById('tbodyJadwalMapelKelas');
-    if (tb) tb.innerHTML = '<tr><td colspan="4" style="padding:12px;color:#c62828;text-align:center">Login sebagai Admin, Guru, atau Siswa.</td></tr>';
+    if (viewer) viewer.style.display = 'none';
+    if (empty) {
+      empty.style.display = '';
+      empty.querySelector('h4') && (empty.querySelector('h4').textContent = 'Login diperlukan');
+      empty.querySelector('p') && (empty.querySelector('p').textContent = 'Login untuk melihat jadwal kelas.');
+    }
+    if (meta) meta.textContent = '';
     return;
   }
 
-  if (toolbar) toolbar.style.display = '';
-  if (tableWrap) tableWrap.style.display = '';
+  // Admin: kelola per kelas. Guru: lihat semua kelas (read-only via select) atau fokus kelas ampu
+  if (hint) {
+    hint.textContent = role === 'admin'
+      ? 'Pilih kelas lalu unggah/ganti file jadwal (PDF / JPG). Siswa hanya melihat jadwal kelasnya.'
+      : 'Pilih kelas untuk melihat jadwal. Hanya admin yang dapat mengunggah.';
+  }
+  if (toolbar) toolbar.style.display = 'flex';
+  // Guru: sembunyikan upload/hapus
+  const btnUp = document.getElementById('btnJmkUpload');
+  const btnDel = document.getElementById('btnJmkHapus');
+  if (role !== 'admin') {
+    if (btnUp) btnUp.style.display = 'none';
+    if (btnDel) btnDel.style.display = 'none';
+  } else {
+    if (btnUp) btnUp.style.display = '';
+  }
   if (empty) empty.style.display = 'none';
   await loadJadwalMapelKelasList();
 }
@@ -15263,90 +15277,84 @@ async function loadJadwalMapelKelasForSiswa() {
   const meta = document.getElementById('jmkMeta');
   const empty = document.getElementById('jmkSiswaEmpty');
   const viewer = document.getElementById('jmkViewerWrap');
-  if (meta) meta.textContent = 'Memuat jadwal kelas…';
+  const sess = getSession();
+  const kelas = String(sess?.user?.kelas || sess?.user?.nama_kelas || '').trim();
+  if (meta) meta.textContent = kelas ? ('Kelas ' + kelas + ' · memuat…') : 'Memuat…';
   try {
     const res = await apiCall('list_jadwal_mapel_kelas', {});
-    const rows = res.data || [];
-    const row = rows.find(r => r.tersedia) || rows[0];
-    if (meta) {
-      const k = row?.kelas || getSession()?.user?.kelas || '—';
-      meta.textContent = row?.tersedia
-        ? `Kelas ${k} · Jadwal tersedia`
-        : `Kelas ${k} · Jadwal belum diunggah`;
-    }
-    if (row?.tersedia && row.file_url) {
+    _jmkRows = res.data || [];
+    const row = _jmkRows.find(r =>
+      String(r.kelas || '').trim().toLowerCase() === kelas.toLowerCase()
+    );
+    if (row && row.tersedia && row.file_url) {
       if (empty) empty.style.display = 'none';
       showJadwalKelasViewer(row);
+      if (meta) meta.textContent = 'Jadwal kelas ' + (row.kelas || kelas);
     } else {
       if (viewer) viewer.style.display = 'none';
       if (empty) empty.style.display = '';
+      if (meta) meta.textContent = kelas
+        ? ('Kelas ' + kelas + ' · jadwal belum diunggah')
+        : 'Kelas tidak diketahui';
     }
   } catch (e) {
     if (meta) meta.textContent = errToText(e);
+    if (viewer) viewer.style.display = 'none';
     if (empty) {
       empty.style.display = '';
-      const h = empty.querySelector('h4');
-      if (h) h.textContent = 'Gagal memuat';
-      const p = empty.querySelector('p');
-      if (p) p.textContent = errToText(e);
+      empty.querySelector('h4') && (empty.querySelector('h4').textContent = 'Gagal memuat');
+      empty.querySelector('p') && (empty.querySelector('p').textContent = errToText(e));
     }
   }
 }
 
 async function loadJadwalMapelKelasList() {
-  const tb = document.getElementById('tbodyJadwalMapelKelas');
   const meta = document.getElementById('jmkMeta');
-  if (tb) tb.innerHTML = '<tr><td colspan="4" style="padding:12px;color:#888;text-align:center">Memuat…</td></tr>';
+  if (meta) meta.textContent = 'Memuat…';
   try {
     const res = await apiCall('list_jadwal_mapel_kelas', {});
     _jmkRows = res.data || [];
-    renderJadwalMapelKelasTable();
+    const sel = document.getElementById('jmkKelasSelect');
+    if (sel) {
+      const cur = sel.value;
+      const list = _jmkRows.slice().sort((a, b) => String(a.kelas || '').localeCompare(String(b.kelas || ''), 'id', { numeric: true }));
+      sel.innerHTML = list.map(r => {
+        const st = r.tersedia ? '✓' : '–';
+        return `<option value="${escapeHtml(String(r.kelas))}">${escapeHtml(r.kelas || '—')} (${st})</option>`;
+      }).join('') || '<option value="">— tidak ada kelas —</option>';
+      if (cur && list.some(r => String(r.kelas) === cur)) sel.value = cur;
+    }
+    showJmkForSelected();
   } catch (e) {
-    if (tb) tb.innerHTML = `<tr><td colspan="4" style="padding:12px;color:#c62828">${escapeHtml(errToText(e))}</td></tr>`;
     if (meta) meta.textContent = errToText(e);
   }
 }
 
-function renderJadwalMapelKelasTable() {
-  const tb = document.getElementById('tbodyJadwalMapelKelas');
+function showJmkForSelected() {
+  const sel = document.getElementById('jmkKelasSelect');
+  const kelas = sel?.value || '';
+  const row = _jmkRows.find(r => String(r.kelas) === String(kelas));
+  const btnDel = document.getElementById('btnJmkHapus');
   const meta = document.getElementById('jmkMeta');
-  const q = (document.getElementById('jmkQ')?.value || '').toLowerCase().trim();
-  let rows = _jmkRows.slice();
-  if (q) rows = rows.filter(r => String(r.kelas || '').toLowerCase().includes(q));
-  const ada = rows.filter(r => r.tersedia).length;
-  const belum = rows.length - ada;
-  if (meta) meta.textContent = `${rows.length} kelas · ${ada} tersedia · ${belum} belum`;
+  const empty = document.getElementById('jmkSiswaEmpty');
+  const viewer = document.getElementById('jmkViewerWrap');
   const isAdmin = getSession()?.role === 'admin';
-
-  if (!rows.length) {
-    if (tb) tb.innerHTML = '<tr><td colspan="4" style="padding:12px;color:#888;text-align:center">Belum ada data kelas. Isi di Mapel & Kelas.</td></tr>';
-    return;
-  }
-
-  if (tb) {
-    tb.innerHTML = rows.map((r, i) => {
-      const st = r.tersedia
-        ? '<span class="jmk-pill ok">Tersedia</span>'
-        : '<span class="jmk-pill no">Belum</span>';
-      let acts = '';
-      if (r.tersedia) {
-        acts += `<button type="button" class="btn btn-primary btn-sm" data-jmk-view="${escapeHtml(String(r.kelas))}">Lihat</button> `;
-      }
-      if (isAdmin) {
-        acts += `<button type="button" class="btn btn-success btn-sm" data-jmk-up="${escapeHtml(String(r.kelas))}">${r.tersedia ? 'Ganti' : 'Upload'}</button> `;
-        if (r.tersedia) {
-          acts += `<button type="button" class="btn btn-danger btn-sm" data-jmk-del="${escapeHtml(String(r.kelas))}">Hapus</button>`;
-        }
-      } else if (!r.tersedia) {
-        acts += '<span style="color:#999;font-size:11px">Belum diunggah</span>';
-      }
-      return `<tr>
-        <td>${i + 1}</td>
-        <td style="font-weight:600">${escapeHtml(r.kelas || '—')}</td>
-        <td>${st}</td>
-        <td style="white-space:nowrap">${acts}</td>
-      </tr>`;
-    }).join('');
+  _jmkUploadKelas = kelas || null;
+  if (btnDel) btnDel.style.display = (isAdmin && row && row.tersedia) ? '' : 'none';
+  if (row && row.tersedia && row.file_url) {
+    if (empty) empty.style.display = 'none';
+    showJadwalKelasViewer(row);
+    if (meta) meta.textContent = 'Kelas ' + (row.kelas || '') + ' · tersedia';
+  } else {
+    if (viewer) viewer.style.display = 'none';
+    if (empty) {
+      empty.style.display = '';
+      empty.querySelector('h4') && (empty.querySelector('h4').textContent = 'Belum ada file');
+      empty.querySelector('p') && (empty.querySelector('p').textContent = isAdmin
+        ? 'Unggah jadwal PDF/JPG untuk kelas ini.'
+        : 'Admin belum mengunggah jadwal kelas ini.');
+    }
+    if (meta) meta.textContent = (kelas ? ('Kelas ' + kelas) : 'Kelas') + ' · belum diunggah';
   }
 }
 
@@ -15372,48 +15380,33 @@ async function showJadwalKelasViewer(row) {
     meta.textContent = [row.file_name, sz, row.updated_at ? ('diubah ' + String(row.updated_at).slice(0, 16).replace('T', ' ')) : '']
       .filter(Boolean).join(' · ');
   }
-  wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-document.getElementById('btnJmkReload')?.addEventListener('click', () => loadJadwalMapelKelasList());
-document.getElementById('jmkQ')?.addEventListener('input', () => renderJadwalMapelKelasTable());
-document.getElementById('jmkCloseViewer')?.addEventListener('click', async () => {
-  const wrap = document.getElementById('jmkViewerWrap');
-  if (wrap) wrap.style.display = 'none';
-  const prev = document.getElementById('jmkPreview');
-  if (prev) prev.innerHTML = '';
+document.getElementById('btnJmkReload')?.addEventListener('click', async () => {
+  const role = getSession()?.role;
+  if (role === 'siswa') await loadJadwalMapelKelasForSiswa();
+  else await loadJadwalMapelKelasList();
 });
-
-document.getElementById('tbodyJadwalMapelKelas')?.addEventListener('click', async (e) => {
-  const view = e.target.closest('[data-jmk-view]');
-  const up = e.target.closest('[data-jmk-up]');
-  const del = e.target.closest('[data-jmk-del]');
-  if (view) {
-    const k = view.getAttribute('data-jmk-view');
-    const row = _jmkRows.find(r => String(r.kelas) === k);
-    if (row) showJadwalKelasViewer(row);
-    return;
-  }
-  if (up) {
-    if (getSession()?.role !== 'admin') return;
-    _jmkUploadKelas = up.getAttribute('data-jmk-up');
-    const inp = document.getElementById('jmkFileInput');
-    if (inp) { inp.value = ''; inp.click(); }
-    return;
-  }
-  if (del) {
-    if (getSession()?.role !== 'admin') return;
-    const k = del.getAttribute('data-jmk-del');
-    if (!await sisConfirm(`Hapus jadwal kelas ${k}?`)) return;
-    try {
-      await apiCall('hapus_jadwal_mapel_kelas', { kelas: k });
-      toast('Jadwal kelas dihapus', 'ok');
-      const vw = document.getElementById('jmkViewerWrap');
-      if (vw) vw.style.display = 'none';
-      await loadJadwalMapelKelasList();
-    } catch (err) {
-      toast(errToText(err), 'err');
-    }
+document.getElementById('jmkKelasSelect')?.addEventListener('change', () => showJmkForSelected());
+document.getElementById('btnJmkUpload')?.addEventListener('click', async () => {
+  if (getSession()?.role !== 'admin') return;
+  const kelas = document.getElementById('jmkKelasSelect')?.value || '';
+  if (!kelas) { toast('Pilih kelas dulu', 'err'); return; }
+  _jmkUploadKelas = kelas;
+  const inp = document.getElementById('jmkFileInput');
+  if (inp) { inp.value = ''; inp.click(); }
+});
+document.getElementById('btnJmkHapus')?.addEventListener('click', async () => {
+  if (getSession()?.role !== 'admin') return;
+  const kelas = document.getElementById('jmkKelasSelect')?.value || '';
+  if (!kelas) return;
+  if (!await sisConfirm(`Hapus jadwal kelas ${kelas}?`)) return;
+  try {
+    await apiCall('hapus_jadwal_mapel_kelas', { kelas });
+    toast('Jadwal dihapus', 'ok');
+    await loadJadwalMapelKelasList();
+  } catch (err) {
+    toast(errToText(err), 'err');
   }
 });
 
@@ -15456,10 +15449,7 @@ document.getElementById('jmkFileInput')?.addEventListener('change', async (e) =>
         'File dikompres otomatis untuk menghemat storage.<br><b>' +
         formatBytes(compressed.originalBytes) + ' → ' + formatBytes(compressed.bytes) + '</b>', 2800);
     }
-    _jmkUploadKelas = null;
     await loadJadwalMapelKelasList();
-    const row = _jmkRows.find(r => String(r.kelas) === String(res.data?.kelas || ''));
-    if (row?.tersedia) showJadwalKelasViewer(row);
   } catch (err) {
     toast(errToText(err), 'err');
     if (typeof showBigPopup === 'function') showBigPopup('err', 'Upload Gagal', errToText(err), 0);
@@ -15471,6 +15461,7 @@ document.getElementById('jmkFileInput')?.addEventListener('change', async (e) =>
 
 
 /* ===== Cari Data Siswa ===== */
+
 let _csSelectedNisn = '';
 let _csSuggestItems = [];
 
