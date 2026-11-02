@@ -14629,6 +14629,280 @@ document.getElementById('btnBatalLulusanMassal')?.addEventListener('click', asyn
 });
 
 
+
+/* ===== Kompres file jadwal (PDF/JPG) → target ~90 KB ===== */
+const JADWAL_TARGET_BYTES = 90 * 1024;   // 90 KB (rentang 80–100)
+const JADWAL_MAX_BYTES = 100 * 1024;     // batas atas
+const JADWAL_MIN_BYTES = 80 * 1024;
+
+function loadScriptOnce(src, globalCheck) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (globalCheck && globalCheck()) { resolve(true); return; }
+    } catch (_) {}
+    const existing = document.querySelector('script[data-src="' + src + '"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(true));
+      existing.addEventListener('error', () => reject(new Error('Gagal muat ' + src)));
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.dataset.src = src;
+    s.onload = () => resolve(true);
+    s.onerror = () => reject(new Error('Gagal muat skrip: ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+async function ensurePdfLibs() {
+  // pdf.js
+  if (!(window.pdfjsLib || window['pdfjs-dist/build/pdf'])) {
+    await loadScriptOnce(
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+      () => !!(window.pdfjsLib)
+    );
+  }
+  const pdfjs = window.pdfjsLib;
+  if (!pdfjs) throw new Error('pdf.js tidak tersedia');
+  try {
+    pdfjs.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  } catch (_) {}
+  // pdf-lib
+  if (!window.PDFLib) {
+    await loadScriptOnce(
+      'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js',
+      () => !!window.PDFLib
+    );
+  }
+  if (!window.PDFLib) throw new Error('pdf-lib tidak tersedia');
+  return { pdfjs, PDFLib: window.PDFLib };
+}
+
+function dataUrlByteLength(dataUrl) {
+  const s = String(dataUrl || '');
+  const i = s.indexOf(',');
+  const b64 = i >= 0 ? s.slice(i + 1) : s;
+  return Math.ceil(b64.length * 0.75);
+}
+
+function dataUrlToUint8Array(dataUrl) {
+  const s = String(dataUrl || '');
+  const i = s.indexOf(',');
+  const b64 = i >= 0 ? s.slice(i + 1) : s;
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let n = 0; n < bin.length; n++) arr[n] = bin.charCodeAt(n);
+  return arr;
+}
+
+/** Kompres gambar jadwal (JPG) ke target ~90KB, resolusi cukup terbaca */
+function compressJadwalImage(file, targetBytes = JADWAL_TARGET_BYTES) {
+  return new Promise((resolve, reject) => {
+    if (!file) return reject(new Error('File kosong'));
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Gagal membaca file'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Gambar tidak valid'));
+      img.onload = () => {
+        try {
+          let maxSide = 1400;
+          let quality = 0.82;
+          const minQ = 0.35;
+          const bytesOf = dataUrlByteLength;
+          let dataUrl = '';
+          let w = img.width || 1;
+          let h = img.height || 1;
+          let guard = 0;
+          while (guard < 24) {
+            const scale = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1));
+            w = Math.max(1, Math.round((img.width || 1) * scale));
+            h = Math.max(1, Math.round((img.height || 1) * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+            const sz = bytesOf(dataUrl);
+            if (sz <= targetBytes) break;
+            if (quality > minQ + 0.05) {
+              quality = Math.max(minQ, quality - 0.08);
+            } else if (maxSide > 600) {
+              maxSide = Math.round(maxSide * 0.82);
+              quality = Math.min(0.78, quality + 0.05);
+            } else {
+              quality = Math.max(0.28, quality - 0.05);
+              if (quality <= 0.28 && maxSide <= 600) break;
+            }
+            guard++;
+          }
+          resolve({
+            dataUrl,
+            bytes: dataUrlByteLength(dataUrl),
+            originalBytes: file.size,
+            mime: 'image/jpeg',
+            fileName: String(file.name || 'jadwal.jpg').replace(/\.[^.]+$/, '') + '.jpg',
+            compressed: dataUrlByteLength(dataUrl) < file.size,
+          });
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Render halaman PDF → JPEG → PDF baru terkompres (target ~90KB) */
+async function compressJadwalPdf(file, targetBytes = JADWAL_TARGET_BYTES) {
+  const originalBytes = file.size;
+  if (originalBytes > 0 && originalBytes <= JADWAL_MAX_BYTES) {
+    // sudah kecil — kirim apa adanya
+    const dataUrl = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => reject(new Error('Gagal baca PDF'));
+      fr.readAsDataURL(file);
+    });
+    return {
+      dataUrl,
+      bytes: originalBytes,
+      originalBytes,
+      mime: 'application/pdf',
+      fileName: file.name || 'jadwal.pdf',
+      compressed: false,
+    };
+  }
+
+  const { pdfjs, PDFLib } = await ensurePdfLibs();
+  const ab = await file.arrayBuffer();
+  const loadingTask = pdfjs.getDocument({ data: ab });
+  const pdf = await loadingTask.promise;
+  const numPages = Math.min(pdf.numPages || 1, 8); // jadwal jarang > 8 halaman
+
+  let scale = 1.15;
+  let quality = 0.72;
+  let best = null;
+
+  for (let attempt = 0; attempt < 14; attempt++) {
+    const pageImages = [];
+    for (let p = 1; p <= numPages; p++) {
+      const page = await pdf.getPage(p);
+      const viewport = page.getViewport({ scale });
+      // batasi lebar max ~1200 CSS px
+      const maxW = 1200;
+      let vp = viewport;
+      if (viewport.width > maxW) {
+        const s2 = (maxW / viewport.width) * scale;
+        vp = page.getViewport({ scale: s2 });
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.floor(vp.width));
+      canvas.height = Math.max(1, Math.floor(vp.height));
+      const ctx = canvas.getContext('2d', { alpha: false });
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      pageImages.push(dataUrl);
+    }
+
+    // Susun PDF baru dari JPEG
+    const doc = await PDFLib.PDFDocument.create();
+    for (const du of pageImages) {
+      const bytes = dataUrlToUint8Array(du);
+      const jpg = await doc.embedJpg(bytes);
+      const page = doc.addPage([jpg.width, jpg.height]);
+      page.drawImage(jpg, { x: 0, y: 0, width: jpg.width, height: jpg.height });
+    }
+    const pdfBytes = await doc.save({ useObjectStreams: true });
+    const size = pdfBytes.byteLength;
+
+    if (!best || size < best.bytes) {
+      // data URL
+      let binary = '';
+      const chunk = 0x8000;
+      for (let i = 0; i < pdfBytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, pdfBytes.subarray(i, i + chunk));
+      }
+      const dataUrl = 'data:application/pdf;base64,' + btoa(binary);
+      best = {
+        dataUrl,
+        bytes: size,
+        originalBytes,
+        mime: 'application/pdf',
+        fileName: String(file.name || 'jadwal.pdf').replace(/\.[^.]+$/, '') + '.pdf',
+        compressed: size < originalBytes,
+      };
+    }
+
+    if (size <= targetBytes) break;
+    // perkecil: quality dulu, lalu scale
+    if (quality > 0.42) {
+      quality = Math.max(0.38, quality - 0.08);
+    } else if (scale > 0.55) {
+      scale = Math.max(0.5, scale * 0.82);
+      quality = Math.min(0.7, quality + 0.06);
+    } else {
+      quality = Math.max(0.32, quality - 0.05);
+      if (quality <= 0.32 && scale <= 0.55) break;
+    }
+  }
+
+  if (!best) throw new Error('Gagal mengompres PDF');
+  return best;
+}
+
+/**
+ * Kompres otomatis file jadwal (PDF / JPG / JPEG) ke ±80–100 KB.
+ * Mengembalikan { dataUrl, bytes, originalBytes, mime, fileName, compressed }
+ */
+async function compressJadwalFile(file) {
+  if (!file) throw new Error('File kosong');
+  const name = String(file.name || '').toLowerCase();
+  const type = String(file.type || '').toLowerCase();
+  const isPdf = type === 'application/pdf' || name.endsWith('.pdf');
+  const isJpg = type === 'image/jpeg' || type === 'image/jpg' || /\.jpe?g$/.test(name);
+
+  if (!isPdf && !isJpg) {
+    throw new Error('Hanya PDF, JPG, atau JPEG');
+  }
+  if (file.size > 12 * 1024 * 1024) {
+    throw new Error('Ukuran file terlalu besar (max 12 MB sebelum kompres)');
+  }
+
+  // Sudah di bawah 100 KB → tidak perlu kompres
+  if (file.size > 0 && file.size <= JADWAL_MAX_BYTES) {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => reject(new Error('Gagal baca file'));
+      fr.readAsDataURL(file);
+    });
+    return {
+      dataUrl,
+      bytes: file.size,
+      originalBytes: file.size,
+      mime: isPdf ? 'application/pdf' : 'image/jpeg',
+      fileName: file.name || (isPdf ? 'jadwal.pdf' : 'jadwal.jpg'),
+      compressed: false,
+    };
+  }
+
+  if (isJpg) {
+    return await compressJadwalImage(file, JADWAL_TARGET_BYTES);
+  }
+  return await compressJadwalPdf(file, JADWAL_TARGET_BYTES);
+}
+
+
 /* ===== Jadwal Mapel ===== */
 let _jmRows = [];
 let _jmUploadGuruId = null;
@@ -14775,32 +15049,43 @@ document.getElementById('tbodyJadwalMapel')?.addEventListener('click', async (e)
 
 document.getElementById('jmFileInput')?.addEventListener('change', async (e) => {
   const file = e.target.files && e.target.files[0];
+  const inputEl = e.target;
   if (!file || !_jmUploadGuruId) return;
   const name = file.name || 'jadwal';
   const lower = name.toLowerCase();
   if (!(/\.(pdf|jpe?g)$/.test(lower) || file.type === 'application/pdf' || file.type === 'image/jpeg')) {
     toast('Hanya PDF, JPG, atau JPEG', 'err');
+    inputEl.value = '';
     return;
   }
-  if (file.size > 8 * 1024 * 1024) {
-    toast('Ukuran maksimal 8 MB', 'err');
+  if (file.size > 12 * 1024 * 1024) {
+    toast('Ukuran maksimal 12 MB (sebelum kompres otomatis)', 'err');
+    inputEl.value = '';
     return;
   }
   try {
-    toast('Mengunggah…', 'ok');
-    const dataUrl = await new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(fr.result);
-      fr.onerror = () => reject(new Error('Gagal baca file'));
-      fr.readAsDataURL(file);
-    });
+    toast('Mengompres file jadwal…', 'ok');
+    const compressed = await compressJadwalFile(file);
+    const info = compressed.compressed
+      ? (formatBytes(compressed.originalBytes) + ' → ' + formatBytes(compressed.bytes))
+      : formatBytes(compressed.bytes);
+    toast('Mengunggah… (' + info + ')', 'ok');
     const res = await apiCall('upload_jadwal_mapel', {
       guru_id: _jmUploadGuruId,
-      data_url: dataUrl,
-      file_name: name,
-      size_bytes: file.size,
+      data_url: compressed.dataUrl,
+      file_name: compressed.fileName || name,
+      size_bytes: compressed.bytes,
+      original_size: compressed.originalBytes,
+      compressed: !!compressed.compressed,
     });
-    toast(res.message || 'Tersimpan', 'ok');
+    const msg = (res.message || 'Tersimpan') +
+      (compressed.compressed ? (' · dikompres ' + formatBytes(compressed.originalBytes) + ' → ' + formatBytes(compressed.bytes)) : '');
+    toast(msg, 'ok');
+    if (typeof showBigPopup === 'function' && compressed.compressed) {
+      showBigPopup('ok', 'Jadwal Tersimpan',
+        'File dikompres otomatis untuk menghemat storage.<br><b>' +
+        formatBytes(compressed.originalBytes) + ' → ' + formatBytes(compressed.bytes) + '</b>', 2800);
+    }
     _jmUploadGuruId = null;
     await loadJadwalMapelList();
     const row = _jmRows.find(r => String(r.guru_id) === String(res.data?.guru_id || ''));
@@ -14808,6 +15093,8 @@ document.getElementById('jmFileInput')?.addEventListener('change', async (e) => 
   } catch (err) {
     toast(errToText(err), 'err');
     showBigPopup('err', 'Upload Gagal', errToText(err), 0);
+  } finally {
+    try { inputEl.value = ''; } catch (_) {}
   }
 });
 
@@ -15006,32 +15293,43 @@ document.getElementById('tbodyJadwalMapelKelas')?.addEventListener('click', asyn
 
 document.getElementById('jmkFileInput')?.addEventListener('change', async (e) => {
   const file = e.target.files && e.target.files[0];
+  const inputEl = e.target;
   if (!file || !_jmkUploadKelas) return;
   const name = file.name || 'jadwal-kelas';
   const lower = name.toLowerCase();
   if (!(/\.(pdf|jpe?g)$/.test(lower) || file.type === 'application/pdf' || file.type === 'image/jpeg')) {
     toast('Hanya PDF, JPG, atau JPEG', 'err');
+    inputEl.value = '';
     return;
   }
-  if (file.size > 8 * 1024 * 1024) {
-    toast('Ukuran maksimal 8 MB', 'err');
+  if (file.size > 12 * 1024 * 1024) {
+    toast('Ukuran maksimal 12 MB (sebelum kompres otomatis)', 'err');
+    inputEl.value = '';
     return;
   }
   try {
-    toast('Mengunggah…', 'ok');
-    const dataUrl = await new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(fr.result);
-      fr.onerror = () => reject(new Error('Gagal baca file'));
-      fr.readAsDataURL(file);
-    });
+    toast('Mengompres file jadwal…', 'ok');
+    const compressed = await compressJadwalFile(file);
+    const info = compressed.compressed
+      ? (formatBytes(compressed.originalBytes) + ' → ' + formatBytes(compressed.bytes))
+      : formatBytes(compressed.bytes);
+    toast('Mengunggah… (' + info + ')', 'ok');
     const res = await apiCall('upload_jadwal_mapel_kelas', {
       kelas: _jmkUploadKelas,
-      data_url: dataUrl,
-      file_name: name,
-      size_bytes: file.size,
+      data_url: compressed.dataUrl,
+      file_name: compressed.fileName || name,
+      size_bytes: compressed.bytes,
+      original_size: compressed.originalBytes,
+      compressed: !!compressed.compressed,
     });
-    toast(res.message || 'Tersimpan', 'ok');
+    const msg = (res.message || 'Tersimpan') +
+      (compressed.compressed ? (' · dikompres ' + formatBytes(compressed.originalBytes) + ' → ' + formatBytes(compressed.bytes)) : '');
+    toast(msg, 'ok');
+    if (typeof showBigPopup === 'function' && compressed.compressed) {
+      showBigPopup('ok', 'Jadwal Kelas Tersimpan',
+        'File dikompres otomatis untuk menghemat storage.<br><b>' +
+        formatBytes(compressed.originalBytes) + ' → ' + formatBytes(compressed.bytes) + '</b>', 2800);
+    }
     _jmkUploadKelas = null;
     await loadJadwalMapelKelasList();
     const row = _jmkRows.find(r => String(r.kelas) === String(res.data?.kelas || ''));
@@ -15039,6 +15337,8 @@ document.getElementById('jmkFileInput')?.addEventListener('change', async (e) =>
   } catch (err) {
     toast(errToText(err), 'err');
     if (typeof showBigPopup === 'function') showBigPopup('err', 'Upload Gagal', errToText(err), 0);
+  } finally {
+    try { inputEl.value = ''; } catch (_) {}
   }
 });
 
