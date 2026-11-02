@@ -2324,6 +2324,11 @@
   body:not(.dash-logged-in) #cardRekapSiswa,
   body:not(.dash-logged-in) #dashRekapHiddenMsg { display:none !important; }
   body.dash-logged-in #dashPublicView { display:none !important; }
+  /* Struktur Organisasi: tampil untuk SEMUA role login (admin/guru/siswa) — urutan DUK */
+  body.dash-logged-in #cardStrukturOrg { display:block !important; }
+  body.role-admin #cardStrukturOrg,
+  body.role-guru #cardStrukturOrg,
+  body.role-siswa #cardStrukturOrg { display:block !important; }
   /* Siswa: tidak perlu rekap kehadiran guru */
   body.role-siswa #panelRekapGuru,
   body.role-siswa #cardRekapGuru { display:none !important; }
@@ -2799,7 +2804,7 @@
       </div>
       <div class="dash-public-card dash-public-card-struktur">
         <div class="dash-public-stat-title">🏛️ Struktur Organisasi</div>
-        <div class="table-scroll struktur-scroll" style="max-height:280px;">
+        <div class="table-scroll struktur-scroll" style="max-height:none; overflow-y:visible;">
           <table class="struktur-table">
             <colgroup>
               <col class="col-str-no" style="width:18px" />
@@ -5655,29 +5660,102 @@ function rankStruktur(jab) {
   return 500;
 }
 
-function renderStrukturOrganisasi() {
-  const tb = document.getElementById('tbodyStrukturOrg');
-  if (!tb) return;
-  const rows = (store.guru || [])
+/** Guru aktif untuk Struktur Organisasi — urutan DUK (kecil = tinggi) */
+function getStrukturGuruRows(source) {
+  const list = Array.isArray(source) ? source : (store.guru || []);
+  return list
     .filter(g => {
       const st = String(g.status || 'Aktif').toLowerCase();
-      return st === 'aktif' || st === '' || st === 'active';
+      return st === 'aktif' || st === '' || st === 'active' || st === 'null';
     })
     .slice()
     .sort(sortByDuk);
-  if (!rows.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada data struktur (muat ulang jika masih kosong)</td></tr>';
-  } else {
-    tb.innerHTML = rows.map((g, i) => `
-    <tr>
-      <td class="col-str-no">${i + 1}</td>
-      <td class="col-str-nama">${escapeHtml(g.nama || '-')}</td>
-      <td class="col-str-jab">${escapeHtml(g.jabatan_struktur || '-')}</td>
-      <td class="col-str-fung">${escapeHtml(g.jabatan_fungsional || '-')}</td>
-    </tr>`).join('');
+}
+
+function buildStrukturRowsHtml(rows) {
+  if (!rows || !rows.length) {
+    return '<tr class="empty-row"><td colspan="4">Belum ada data struktur (muat ulang jika masih kosong)</td></tr>';
   }
-  // Selalu sinkron ke panel publik
-  syncStrukturToPublic();
+  return rows.map((g, i) =>
+    '<tr>' +
+    '<td class="col-str-no">' + (i + 1) + '</td>' +
+    '<td class="col-str-nama">' + escapeHtml(g.nama || '-') + '</td>' +
+    '<td class="col-str-jab">' + escapeHtml(g.jabatan_struktur || '-') + '</td>' +
+    '<td class="col-str-fung">' + escapeHtml(g.jabatan_fungsional || '-') + '</td>' +
+    '</tr>'
+  ).join('');
+}
+
+function fillStrukturTables(rows) {
+  const html = buildStrukturRowsHtml(rows);
+  const tb = document.getElementById('tbodyStrukturOrg');
+  const tbodyPub = document.getElementById('tbodyStrukturOrgPub');
+  if (tb) tb.innerHTML = html;
+  if (tbodyPub) {
+    tbodyPub.innerHTML = (!rows || !rows.length)
+      ? '<tr class="empty-row"><td colspan="4">Belum ada data guru</td></tr>'
+      : html;
+  }
+  // Pastikan kartu struktur terlihat untuk semua role login
+  try {
+    const card = document.getElementById('cardStrukturOrg');
+    const sess = (typeof getSession === 'function') ? getSession() : null;
+    if (card && sess && sess.token) {
+      card.style.display = '';
+      card.removeAttribute('hidden');
+    }
+  } catch (_) {}
+}
+
+/** Pastikan daftar guru struktur lengkap (bootstrap kadang ringkas untuk non-admin) */
+let _strukturFetchPromise = null;
+async function ensureStrukturGuruData() {
+  const cur = getStrukturGuruRows();
+  // Sudah cukup lengkap (≥3 atau sudah ada field duk)
+  const hasDuk = cur.some(g => g.duk != null && g.duk !== '');
+  if (cur.length >= 3 && hasDuk) return cur;
+  if (cur.length >= 8) return cur;
+  if (_strukturFetchPromise) return _strukturFetchPromise;
+  _strukturFetchPromise = (async () => {
+    try {
+      // list_guru: tersedia publik/semua role bila API mengizinkan
+      const res = await apiCall('list_guru', {});
+      const data = res.data || res.rows || res || [];
+      const arr = Array.isArray(data) ? data : [];
+      if (arr.length) {
+        // merge ke store tanpa menghapus field lain
+        const byId = new Map((store.guru || []).map(g => [String(g.id), g]));
+        arr.forEach(g => {
+          const id = String(g.id != null ? g.id : (g.nip || g.pin || g.nama || ''));
+          if (!id) return;
+          const prev = byId.get(id) || {};
+          byId.set(id, { ...prev, ...g });
+        });
+        store.guru = [...byId.values()];
+        try { if (typeof saveStore === 'function') saveStore(store); } catch (_) {}
+      }
+    } catch (e) {
+      console.warn('ensureStrukturGuruData list_guru', e);
+    } finally {
+      _strukturFetchPromise = null;
+    }
+    return getStrukturGuruRows();
+  })();
+  return _strukturFetchPromise;
+}
+
+function renderStrukturOrganisasi() {
+  const tb = document.getElementById('tbodyStrukturOrg');
+  if (!tb && !document.getElementById('tbodyStrukturOrgPub')) return;
+  // Render segera dari cache
+  const rowsNow = getStrukturGuruRows();
+  fillStrukturTables(rowsNow);
+  // Jika data kurang lengkap, lengkapi async lalu render ulang (semua dashboard)
+  if (rowsNow.length < 3 || !rowsNow.some(g => g.duk != null && g.duk !== '')) {
+    ensureStrukturGuruData().then((rows) => {
+      fillStrukturTables(rows || getStrukturGuruRows());
+    }).catch(() => {});
+  }
 }
 
 /** Salin legend stats + struktur ke panel dashboard publik (tamu) */
@@ -5701,26 +5779,7 @@ function syncDashboardPublicPanels() {
 
 function syncStrukturToPublic() {
   try {
-    const tbodyPub = document.getElementById('tbodyStrukturOrgPub');
-    const tbodyOrg = document.getElementById('tbodyStrukturOrg');
-    if (!tbodyPub) return;
-    // Render langsung dari store jika tbodyOrg kosong/memuat
-    const rows = (store.guru || [])
-      .filter(g => {
-        const st = String(g.status || 'Aktif').toLowerCase();
-        return st === 'aktif' || st === '' || st === 'active';
-      })
-      .slice()
-      .sort(sortByDuk);
-    if (!rows.length) {
-      tbodyPub.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada data guru</td></tr>';
-      return;
-    }
-    tbodyPub.innerHTML = rows.map((g, i) =>
-      '<tr><td class="col-str-no">' + (i + 1) + '</td><td class="col-str-nama">' + escapeHtml(g.nama || '-') +
-      '</td><td class="col-str-jab">' + escapeHtml(g.jabatan_struktur || '-') +
-      '</td><td class="col-str-fung">' + escapeHtml(g.jabatan_fungsional || '-') + '</td></tr>'
-    ).join('');
+    fillStrukturTables(getStrukturGuruRows());
   } catch (e) { console.warn('syncStrukturToPublic', e); }
 }
 
@@ -5969,6 +6028,14 @@ async function renderDashboard() {
   if (ts0 && /Memuat/i.test(ts0.textContent || '')) ts0.innerHTML = '<tr class="empty-row"><td colspan="8">—</td></tr>';
 
   try { renderStrukturOrganisasi(); } catch (e) { console.warn(e); }
+  // Struktur Organisasi lengkap (urutan DUK) untuk admin, guru, siswa, dan panel publik
+  try {
+    const cardStr = document.getElementById('cardStrukturOrg');
+    if (cardStr && sessRole) {
+      cardStr.style.display = '';
+      cardStr.hidden = false;
+    }
+  } catch (_) {}
 
   const today = todayStr();
   let liburHariIni = null;
