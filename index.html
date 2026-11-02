@@ -2317,9 +2317,9 @@
 
 
   /* ===== Dashboard publik (tamu) ===== */
-  #dashPublicView { display:none; margin-bottom:12px; width:100%; }
-  body:not(.dash-logged-in) #dashPublicView { display:block; }
-  /* Sembunyikan panel ganda untuk tamu (pakai dashPublicView saja) */
+  /* Dashboard atas unified (tamu & login) */
+  #dashTopUnified { display:block; margin-bottom:12px; width:100%; }
+  #dashPublicView { display:none !important; } /* legacy, diganti #dashTopUnified */
   body:not(.dash-logged-in) #panelRekapGuru,
   body:not(.dash-logged-in) #panelRekapSiswa,
   body:not(.dash-logged-in) #cardStrukturOrg,
@@ -2327,12 +2327,14 @@
   body:not(.dash-logged-in) #cardRekapGuru,
   body:not(.dash-logged-in) #cardRekapSiswa,
   body:not(.dash-logged-in) #dashRekapHiddenMsg { display:none !important; }
-  body.dash-logged-in #dashPublicView { display:none !important; }
-  /* Struktur Organisasi: tampil untuk SEMUA role login (admin/guru/siswa) — urutan DUK */
+  /* Struktur mobile login */
   body.dash-logged-in #cardStrukturOrg { display:block !important; }
   body.role-admin #cardStrukturOrg,
   body.role-guru #cardStrukturOrg,
   body.role-siswa #cardStrukturOrg { display:block !important; }
+  @media (min-width: 1024px) {
+    body.dash-logged-in #cardStrukturOrg { display:none !important; }
+  }
   /* Siswa: tidak perlu rekap kehadiran guru */
   body.role-siswa #panelRekapGuru,
   body.role-siswa #cardRekapGuru { display:none !important; }
@@ -2436,6 +2438,137 @@
     color: #0f172a;
     text-align: left;
   }
+
+
+  /* ===== DESKTOP LAYOUT (≥1024px) — HP tetap stack vertikal ===== */
+  .desktop-side { display: none; }
+  #dashUserCardUnderSchool { display: none; }
+  body.dash-logged-in #dashUserCardUnderSchool { display: block; }
+  #cardStrukturOrgDesktop { display: none; }
+
+  @media (min-width: 1024px) {
+    .content {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 16px;
+      align-items: start;
+      max-width: 1280px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 0 16px;
+    }
+    .content > .page { grid-column: 1; min-width: 0; }
+    .content > .desktop-side {
+      display: block;
+      grid-column: 2;
+      grid-row: 1;
+      position: sticky;
+      top: calc(var(--topbar-h) + 12px);
+      align-self: start;
+      max-height: calc(100vh - var(--topbar-h) - 24px);
+      overflow-y: auto;
+      z-index: 5;
+    }
+    /* Dashboard: full width internal grid, hide global side */
+    body.page-dashboard .content {
+      grid-template-columns: 1fr;
+      max-width: 1280px;
+    }
+    body.page-dashboard .content > .desktop-side { display: none !important; }
+    body.page-dashboard .content > .page#page-dashboard { grid-column: 1 / -1; }
+
+    /* 3 kolom: sekolah | stats | struktur */
+    #dashTopUnified {
+      display: grid !important;
+      grid-template-columns: minmax(220px, 0.95fr) minmax(260px, 1fr) minmax(280px, 1.15fr);
+      gap: 14px;
+      align-items: start;
+    }
+    body.dash-logged-in #panelRekapGuru,
+    body.dash-logged-in #panelRekapSiswa { display: none !important; }
+    body.dash-logged-in #cardStrukturOrg { display: none !important; }
+    #cardStrukturOrgDesktop { display: block !important; }
+  }
+
+  #dashTopUnified {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 12px;
+    width: 100%;
+  }
+  /* HP login: pertahankan layout lama (panel rekap guru/siswa), sembunyikan unified top */
+  @media (max-width: 1023px) {
+    body.dash-logged-in #dashTopUnified { display: none !important; }
+    body:not(.dash-logged-in) #dashTopUnified { display: flex; }
+  }
+  #dashTopUnified .dash-top-left {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  #dashTopUnified .dash-top-center {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #dashTopUnified .dash-top-right { min-width: 0; }
+  #dashTopUnified .dash-stats-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  @media (max-width: 1023px) {
+    #dashTopUnified .dash-stats-stack {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+  }
+  @media (max-width: 420px) {
+    #dashTopUnified .dash-stats-stack { grid-template-columns: 1fr; }
+  }
+
+  .desktop-side-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 10px rgba(15,23,42,.06);
+    border: 1px solid #e8eef5;
+    margin-bottom: 12px;
+  }
+  .desktop-side-card .ds-title {
+    font-size: 12px; font-weight: 700; color: #1565c0;
+    margin-bottom: 8px; text-transform: uppercase; letter-spacing: .3px;
+  }
+  .desktop-side-card .ds-logo {
+    width: 72px; height: 72px; margin: 0 auto 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .desktop-side-card .ds-logo img {
+    width: 100%; height: 100%; object-fit: contain; display: block;
+  }
+  .desktop-side-card .ds-name {
+    text-align: center; font-weight: 800; font-size: 13px;
+    color: #0f172a; margin-bottom: 8px; line-height: 1.3;
+  }
+  .desktop-side-card .ds-row {
+    display: flex; gap: 6px; font-size: 11.5px; margin: 3px 0; color: #334155;
+  }
+  .desktop-side-card .ds-row .lbl { font-weight: 700; color: #64748b; min-width: 72px; flex-shrink: 0; }
+  .desktop-side-card .ds-user-photo {
+    width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 8px;
+    background: linear-gradient(135deg,#1565c0,#1e88e5); color:#fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 18px; overflow: hidden;
+  }
+  .desktop-side-card .ds-user-photo img {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;
+  }
+  .desktop-side-card .ds-user-name {
+    text-align: center; font-weight: 700; font-size: 13px; margin-bottom: 6px;
+  }
+  body:not(.dash-logged-in) #desktopSideUser { display: none; }
 
   /* ===== Override logo topbar (wajib di akhir) ===== */
   .logo-sekolah,
@@ -2766,9 +2899,9 @@
   <div class="page active" id="page-dashboard">
 
 
-  <!-- Tampilan publik (belum login) -->
-  <div id="dashPublicView">
-    <div class="dash-public-grid">
+  <!-- Dashboard atas unified: kiri sekolah(+user), tengah stats, kanan struktur -->
+  <div id="dashTopUnified">
+    <div class="dash-top-left">
       <div class="dash-public-card" id="dashPublicSchool">
         <div class="dash-public-logo" id="dashPublicLogo"><span style="font-size:11px;color:#94a3b8;">Logo</span></div>
         <div class="dash-public-school-name" id="dashPublicSchoolName">—</div>
@@ -2788,7 +2921,16 @@
         </div>
         <div class="dash-public-hint">Dari menu <b>Data Sekolah</b></div>
       </div>
-      <div class="dash-public-stats-row">
+      <div class="dash-public-card" id="dashUserCardUnderSchool">
+        <div class="dash-avatar user" id="dashUserPhotoClone" style="margin:0 auto 8px">👤</div>
+        <div class="dash-name" id="dashUserNameClone" style="text-align:center">—</div>
+        <div class="dash-detail" id="dashUserDetailClone" style="text-align:left">
+          <p><b>Status</b> <span>: —</span></p>
+        </div>
+      </div>
+    </div>
+    <div class="dash-top-center">
+      <div class="dash-stats-stack">
         <div class="dash-public-card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <div class="dash-public-stat-title">Rekap Guru</div>
@@ -2804,24 +2946,28 @@
           <div id="dashStatsSiswaPub" class="dash-stats"></div>
         </div>
       </div>
-      <div class="dash-public-card dash-public-card-struktur">
+    </div>
+    <div class="dash-top-right">
+      <div class="dash-public-card" id="cardStrukturOrgDesktop">
         <div class="dash-public-stat-title">🏛️ Struktur Organisasi</div>
-        <div class="table-scroll struktur-scroll" style="max-height:none; overflow-y:visible;">
-          <table class="struktur-table">
+        <div class="table-scroll struktur-scroll">
+          <table class="struktur-table" id="tableStrukturOrgPub">
             <colgroup>
               <col class="col-str-no" style="width:18px" />
               <col class="col-str-nama" />
               <col class="col-str-jab" />
               <col class="col-str-fung" />
             </colgroup>
-            <thead><tr>
-              <th class="col-str-no">#</th>
-              <th class="col-str-nama">Nama</th>
-              <th class="col-str-jab">Jab. Struktur</th>
-              <th class="col-str-fung">Jab. Fungsional</th>
-            </tr></thead>
+            <thead>
+              <tr>
+                <th class="col-str-no">#</th>
+                <th class="col-str-nama">Nama</th>
+                <th class="col-str-jab">Jab. Struktur</th>
+                <th class="col-str-fung">Jab. Fungsional</th>
+              </tr>
+            </thead>
             <tbody id="tbodyStrukturOrgPub">
-              <tr class="empty-row"><td colspan="4">Memuat…</td></tr>
+              <tr class="empty-row"><td colspan="4">Memuat data…</td></tr>
             </tbody>
           </table>
         </div>
@@ -2829,7 +2975,7 @@
     </div>
   </div>
 
-  <!-- REKAP GURU -->
+  <!-- REKAP -->
   <div class="dash-panel" id="panelRekapGuru">
     <div class="dash-body">
       <div class="dash-left">
@@ -4653,6 +4799,26 @@
     <div class="card"><h3 id="placeholderTitle">Halaman</h3><p style="color:#888;font-size:13px">Fitur ini akan dilengkapi kemudian.</p></div>
   </div>
 
+
+  <!-- Panel kanan desktop: info sekolah + user (halaman non-dashboard) -->
+  <aside class="desktop-side" id="desktopSide" aria-label="Info sekolah dan pengguna">
+    <div class="desktop-side-card" id="desktopSideSchool">
+      <div class="ds-title">Data Sekolah</div>
+      <div class="ds-logo" id="dsLogo">S</div>
+      <div class="ds-name" id="dsSchoolName">SMP NEGERI 1 SOBANG</div>
+      <div class="ds-row"><span class="lbl">NSS</span><span id="dsNss">—</span></div>
+      <div class="ds-row"><span class="lbl">NPSN</span><span id="dsNpsn">—</span></div>
+      <div class="ds-row"><span class="lbl">Berdiri</span><span id="dsTahun">—</span></div>
+      <div class="ds-row"><span class="lbl">Alamat</span><span id="dsAlamat">—</span></div>
+    </div>
+    <div class="desktop-side-card" id="desktopSideUser">
+      <div class="ds-title">Pengguna</div>
+      <div class="ds-user-photo" id="dsUserPhoto">👤</div>
+      <div class="ds-user-name" id="dsUserName">—</div>
+      <div id="dsUserDetail" style="font-size:11.5px;color:#455a64;line-height:1.45"></div>
+    </div>
+  </aside>
+
 </main>
 
 <!-- Exit confirm -->
@@ -5086,6 +5252,41 @@ function initialsFromName(nama) {
   return (parts[0][0] + (parts[1] ? parts[1][0] : '') + (parts[2] ? parts[2][0] : '')).toUpperCase().slice(0, 3);
 }
 
+
+/** Sinkron kartu user (dashboard bawah sekolah + panel kanan desktop) */
+function syncDesktopUserCards(session) {
+  try {
+    const photoSrc = document.getElementById('userPhoto');
+    const nameSrc = document.getElementById('userDisplayName');
+    const detailSrc = document.getElementById('userDetail');
+    const photoHtml = photoSrc ? photoSrc.innerHTML : '👤';
+    const nameTxt = nameSrc ? nameSrc.textContent : '—';
+    const detailHtml = detailSrc ? detailSrc.innerHTML : '';
+
+    const clonePhoto = document.getElementById('dashUserPhotoClone');
+    const cloneName = document.getElementById('dashUserNameClone');
+    const cloneDetail = document.getElementById('dashUserDetailClone');
+    if (clonePhoto) {
+      clonePhoto.innerHTML = photoHtml;
+      clonePhoto.className = photoSrc ? photoSrc.className : 'dash-avatar user';
+    }
+    if (cloneName) cloneName.textContent = nameTxt;
+    if (cloneDetail) cloneDetail.innerHTML = detailHtml;
+
+    const dsPhoto = document.getElementById('dsUserPhoto');
+    const dsName = document.getElementById('dsUserName');
+    const dsDetail = document.getElementById('dsUserDetail');
+    if (dsPhoto) {
+      dsPhoto.innerHTML = photoHtml;
+      if (photoSrc && photoSrc.classList.contains('user')) {
+        /* keep circle style */
+      }
+    }
+    if (dsName) dsName.textContent = session ? nameTxt : 'Tamu';
+    if (dsDetail) dsDetail.innerHTML = detailHtml || '<p style="text-align:center;color:#888">Belum login</p>';
+  } catch (e) { console.warn('syncDesktopUserCards', e); }
+}
+
 function renderUserUI(session) {
   const topName = document.getElementById('topUserName');
   const avatar = document.getElementById('avatarInitial');
@@ -5121,6 +5322,7 @@ function renderUserUI(session) {
     document.body.classList.remove('dash-logged-in');
     document.body.classList.remove('role-siswa', 'role-guru', 'role-admin');
     applyRoleMenus(null);
+    try { syncDesktopUserCards(null); } catch (_) {}
     return;
   }
 
@@ -5194,6 +5396,7 @@ function renderUserUI(session) {
   }
 
   applyRoleMenus(role);
+  try { syncDesktopUserCards(session); } catch (_) {}
 
   if (supabaseClient && session.token) {
     try { supabaseClient.realtime.setAuth(session.token); } catch (_) {}
@@ -5532,7 +5735,8 @@ document.getElementById('btnLogout').addEventListener('click', async (e) => {
     saveStore(store);
   } catch (_) {}
   renderUserUI(null);
-  navigate('dashboard');
+  try { document.body.classList.add('page-dashboard'); } catch(_){}
+navigate('dashboard');
   tutupSidebar();
   showBigPopup('ok', 'Logout Berhasil', 'Anda telah keluar dari sistem.<br>Silakan login kembali untuk mengakses fitur.', 2800);
   // Muat ulang data publik (struktur, jumlah) tanpa sesi
@@ -6247,6 +6451,7 @@ async function renderDashboard() {
   try { syncDashboardPublicPanels(); } catch (_) {}
   try { renderUserUI(getSession()); } catch (_) {}
   try { applySekolahToUI(); } catch (_) {}
+  try { syncDesktopUserCards(getSession()); } catch (_) {}
 }
 
 /* ----- Navigation ----- */
@@ -6426,6 +6631,9 @@ function navigate(page, opts = {}) {
 
   const prev = navCurrent;
   navCurrent = target;
+  try {
+    document.body.classList.toggle('page-dashboard', target === 'dashboard');
+  } catch (_) {}
 
   try {
     sessionStorage.setItem('sis_last_page', target);
@@ -9664,6 +9872,21 @@ document.getElementById('upFileInput')?.addEventListener('change', async (e) => 
 
 /* ===== Data Sekolah ===== */
 function applySekolahToUI() {
+  try {
+    const s = store.sekolah || {};
+    const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v || '—'; };
+    setT('dsSchoolName', s.nama || 'SMP NEGERI 1 SOBANG');
+    setT('dsNss', s.nss);
+    setT('dsNpsn', s.npsn);
+    setT('dsTahun', s.tahun_berdiri);
+    setT('dsAlamat', s.alamat);
+    const logoBox = document.getElementById('dsLogo');
+    if (logoBox) {
+      if (s.logo_url) logoBox.innerHTML = '<img src="' + String(s.logo_url).replace(/"/g, '&quot;') + '" alt="Logo" />';
+      else logoBox.textContent = 'S';
+    }
+  } catch (_) {}
+
   const s = store.sekolah || {};
   const nama = s.nama || 'SMP NEGERI 1 SOBANG';
   document.querySelectorAll('.nama-sekolah').forEach(el => { el.textContent = nama; });
