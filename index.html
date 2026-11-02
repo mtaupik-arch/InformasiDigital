@@ -2004,9 +2004,10 @@
     background:#1565c0; color:#fff; border-color:#1565c0;
   }
   .izin-suggest {
-    position:absolute; left:0; right:0; top:100%; z-index:80;
+    position:absolute; left:0; right:0; top:100%; z-index:300;
     background:#fff; border:1px solid #cfd8dc; border-radius:6px;
-    max-height:220px; overflow:auto; box-shadow:0 6px 16px rgba(0,0,0,.12);
+    max-height:260px; overflow:auto; box-shadow:0 8px 20px rgba(0,0,0,.15);
+    margin-top:2px;
   }
   .izin-suggest-item {
     padding:9px 12px; cursor:pointer; font-size:12.5px;
@@ -2014,6 +2015,9 @@
   }
   .izin-suggest-item:hover, .izin-suggest-item.active { background:#e3f2fd; }
   .izin-suggest-item small { color:#888; display:block; margin-top:2px; }
+  /* data-card global overflow:hidden memotong dropdown saran */
+  #page-input-izin .data-card { overflow: visible !important; }
+  #page-input-izin .form-group.full { position: relative; z-index: 5; }
 
   /* Mapel & Kelas */
   .mk-switch {
@@ -9118,10 +9122,17 @@ async function initInputIzinPage() {
   if (hid) hid.value = '';
   const box = document.getElementById('izinSuggest');
   if (box) { box.style.display = 'none'; box.innerHTML = ''; }
-  // Pastikan daftar siswa tersedia untuk preview
+  const sel = document.getElementById('izinSelected');
+  if (sel) { sel.style.display = 'none'; sel.innerHTML = ''; }
+  // Pastikan daftar siswa/guru tersedia untuk auto-preview nama (≥2 huruf)
   try {
-    if (!(store.siswa || []).length) await refreshStoreFromDb();
-  } catch (_) {}
+    await ensureIzinSearchData('siswa');
+    if (isAdmin) await ensureIzinSearchData('guru');
+  } catch (_) {
+    try {
+      if (!(store.siswa || []).length) await refreshStoreFromDb();
+    } catch (__) {}
+  }
 }
 
 document.getElementById('izinRole')?.addEventListener('change', () => {
@@ -9132,34 +9143,89 @@ document.getElementById('izinRole')?.addEventListener('change', () => {
   const sel = document.getElementById('izinSelected');
   if (role === 'guru') {
     if (lab) lab.textContent = 'Cari Nama / PIN / NIP';
-    if (inp) { inp.placeholder = 'Ketik nama, PIN, atau NIP…'; inp.value = ''; }
+    if (inp) { inp.placeholder = 'Ketik minimal 2 huruf nama…'; inp.value = ''; }
   } else {
     if (lab) lab.textContent = 'Cari Nama / NISN';
-    if (inp) { inp.placeholder = 'Ketik nama atau NISN…'; inp.value = ''; }
+    if (inp) { inp.placeholder = 'Ketik minimal 2 huruf nama…'; inp.value = ''; }
   }
   if (hid) hid.value = '';
   if (sel) { sel.style.display = 'none'; sel.innerHTML = ''; }
-  document.getElementById('izinSuggest').style.display = 'none';
+  const sg = document.getElementById('izinSuggest');
+  if (sg) { sg.style.display = 'none'; sg.innerHTML = ''; }
 });
 
-document.getElementById('izinKode')?.addEventListener('input', () => {
+/** Muat data master bila kosong agar preview nama bisa tampil */
+async function ensureIzinSearchData(role) {
+  try {
+    if (role === 'guru') {
+      if ((store.guru || []).length) return;
+      try {
+        const res = await apiCall('list_guru', {});
+        if (res?.data && Array.isArray(res.data)) {
+          store.guru = res.data;
+          try { saveStore(store); } catch (_) {}
+          return;
+        }
+      } catch (_) {}
+      try { await refreshStoreFromDb(); } catch (_) {}
+      return;
+    }
+    if ((store.siswa || []).length) return;
+    try {
+      const res = await apiCall('list_siswa', {});
+      if (res?.data && Array.isArray(res.data)) {
+        store.siswa = res.data;
+        try { saveStore(store); } catch (_) {}
+        return;
+      }
+    } catch (_) {}
+    try { await refreshStoreFromDb(); } catch (_) {}
+  } catch (e) {
+    console.warn('ensureIzinSearchData', e);
+  }
+}
+
+let _izinKodeTimer = null;
+async function runIzinKodeSuggest() {
   const role = document.getElementById('izinRole')?.value || 'siswa';
   const q = document.getElementById('izinKode')?.value || '';
-  document.getElementById('izinKodeResolved').value = '';
+  const hid = document.getElementById('izinKodeResolved');
+  if (hid) hid.value = '';
+  const needle = String(q || '').trim();
+  if (needle.length >= 2) {
+    await ensureIzinSearchData(role);
+  }
   const items = izinSearchList(q, role);
   showIzinSuggest(items, role, q);
+}
+
+document.getElementById('izinKode')?.addEventListener('input', () => {
+  clearTimeout(_izinKodeTimer);
+  const q = document.getElementById('izinKode')?.value || '';
+  // Preview langsung saat ≥2 karakter (debounce singkat biar tidak lag)
+  if (String(q).trim().length < 2) {
+    showIzinSuggest([], document.getElementById('izinRole')?.value || 'siswa', q);
+    return;
+  }
+  _izinKodeTimer = setTimeout(() => { runIzinKodeSuggest(); }, 120);
 });
 document.getElementById('izinKode')?.addEventListener('blur', () => {
   setTimeout(() => {
     const box = document.getElementById('izinSuggest');
     if (box) box.style.display = 'none';
-  }, 180);
+  }, 220);
 });
 document.getElementById('izinKode')?.addEventListener('focus', () => {
   const role = document.getElementById('izinRole')?.value || 'siswa';
   const q = document.getElementById('izinKode')?.value || '';
   if (q && !document.getElementById('izinKodeResolved')?.value) {
-    showIzinSuggest(izinSearchList(q, role), role, q);
+    runIzinKodeSuggest();
+  }
+});
+document.getElementById('izinKode')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const box = document.getElementById('izinSuggest');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
   }
 });
 
