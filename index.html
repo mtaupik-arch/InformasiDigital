@@ -3456,46 +3456,88 @@
       <div style="background:#1565c0;color:#fff;padding:10px 14px;border-radius:6px;font-weight:700;font-size:14px;margin-bottom:16px;display:inline-block">
         Data Sekolah
       </div>
-      <div class="form-grid" id="formSekolah">
-        <div class="form-group full">
-          <label>Nama Sekolah</label>
+      <style>
+        #formSekolah.sek-form-aligned { display:flex; flex-direction:column; gap:10px; }
+        #formSekolah.sek-form-aligned .sek-row {
+          display:grid; grid-template-columns: 120px 1fr; gap:10px 12px; align-items:center;
+        }
+        #formSekolah.sek-form-aligned .sek-row label {
+          margin:0; font-size:13px; font-weight:600; color:#333; text-align:left;
+        }
+        #formSekolah.sek-form-aligned .sek-row input,
+        #formSekolah.sek-form-aligned .sek-row textarea {
+          width:100%; padding:8px 10px; border:1.5px solid #1a237e; border-radius:2px;
+          font:inherit; font-size:13px; background:#fff; box-sizing:border-box;
+        }
+        #formSekolah.sek-form-aligned .sek-row.sek-area { align-items:start; }
+        #formSekolah.sek-form-aligned .sek-row.sek-area label { padding-top:8px; }
+        #formSekolah.sek-form-aligned .sek-row.sek-area textarea { min-height:64px; resize:vertical; }
+        .sek-upload-row {
+          display:flex; gap:16px; flex-wrap:wrap; margin-top:18px; justify-content:flex-start;
+        }
+        .sek-upload-box { flex:0 0 auto; width:120px; text-align:center; }
+        .sek-upload-box .sek-btn-label {
+          display:block; background:#0d47a1; color:#fff; font-size:12px; font-weight:700;
+          padding:8px 6px; border-radius:4px; margin-bottom:8px; cursor:pointer;
+        }
+        .sek-upload-box .sek-preview {
+          width:100px; height:100px; margin:0 auto; border:2px solid #90caf9; border-radius:12px;
+          display:flex; align-items:center; justify-content:center; overflow:hidden;
+          background:#fafafa; color:#90a4ae; font-size:18px;
+        }
+        .sek-upload-box .sek-preview img { max-width:100%; max-height:100%; object-fit:contain; }
+        .sek-upload-box input[type=file] { display:none; }
+        @media (max-width:480px) {
+          #formSekolah.sek-form-aligned .sek-row { grid-template-columns: 1fr; gap:4px; }
+          #formSekolah.sek-form-aligned .sek-row.sek-area label { padding-top:0; }
+          .sek-upload-box { width:100px; }
+        }
+      </style>
+      <div class="sek-form-aligned" id="formSekolah">
+        <div class="sek-row">
+          <label for="sekNama">Nama Sekolah</label>
           <input type="text" id="sekNama" placeholder="SMP NEGERI 1 SOBANG" />
         </div>
-        <div class="form-group">
-          <label>NSS</label>
+        <div class="sek-row">
+          <label for="sekNss">NSS</label>
           <input type="text" id="sekNss" placeholder="NSS" />
         </div>
-        <div class="form-group">
-          <label>NPSN</label>
+        <div class="sek-row">
+          <label for="sekNpsn">NPSN</label>
           <input type="text" id="sekNpsn" placeholder="NPSN" />
         </div>
-        <div class="form-group">
-          <label>Tahun Berdiri</label>
+        <div class="sek-row">
+          <label for="sekTahun">Tahun Berdiri</label>
           <input type="text" id="sekTahun" placeholder="1980" />
         </div>
-        <div class="form-group full">
-          <label>Alamat</label>
+        <div class="sek-row">
+          <label for="sekAlamat">Alamat</label>
           <input type="text" id="sekAlamat" placeholder="Jl. …" />
         </div>
-        <div class="form-group full">
-          <label>Visi</label>
-          <textarea id="sekVisi" rows="3" placeholder="Visi sekolah" style="width:100%;padding:8px 10px;border:1.5px solid #d0d7e2;border-radius:8px;resize:vertical;font:inherit;"></textarea>
+        <div class="sek-row sek-area">
+          <label for="sekVisi">Visi</label>
+          <textarea id="sekVisi" rows="3" placeholder="Visi sekolah"></textarea>
         </div>
-        <div class="form-group full">
-          <label>Motto</label>
-          <textarea id="sekMotto" rows="2" placeholder="Motto sekolah" style="width:100%;padding:8px 10px;border:1.5px solid #d0d7e2;border-radius:8px;resize:vertical;font:inherit;"></textarea>
+        <div class="sek-row sek-area">
+          <label for="sekMotto">Motto</label>
+          <textarea id="sekMotto" rows="2" placeholder="Motto sekolah"></textarea>
         </div>
       </div>
-      <div class="sek-upload-row" style="display:flex;gap:20px;flex-wrap:wrap;margin-top:16px">
+      <div class="sek-upload-row">
         <div class="sek-upload-box">
-          <div style="font-size:12px;font-weight:600;margin-bottom:6px">Upload Logo</div>
+          <label class="sek-btn-label" for="sekLogoFile">Logo</label>
           <div class="sek-preview" id="sekLogoPreview">—</div>
-          <input type="file" id="sekLogoFile" accept="image/*" style="font-size:12px;margin-top:6px;max-width:160px" />
+          <input type="file" id="sekLogoFile" accept="image/*" />
         </div>
         <div class="sek-upload-box">
-          <div style="font-size:12px;font-weight:600;margin-bottom:6px">Upload TTD QR</div>
+          <label class="sek-btn-label" for="sekTtdFile">TTD QR</label>
           <div class="sek-preview" id="sekTtdPreview">—</div>
-          <input type="file" id="sekTtdFile" accept="image/*" style="font-size:12px;margin-top:6px;max-width:160px" />
+          <input type="file" id="sekTtdFile" accept="image/*" />
+        </div>
+        <div class="sek-upload-box">
+          <label class="sek-btn-label" for="sekValidasiFile">Validasi QR</label>
+          <div class="sek-preview" id="sekValidasiPreview">—</div>
+          <input type="file" id="sekValidasiFile" accept="image/*" />
         </div>
       </div>
       <div style="margin-top:18px">
@@ -5796,14 +5838,26 @@ function syncDashboardPublicPanels() {
     const statsSiswa = document.getElementById('statsSiswa');
     const gPubBox = document.getElementById('dashStatsGuruPub');
     const sPubBox = document.getElementById('dashStatsSiswaPub');
-    if (gPubBox && statsGuru && statsGuru.innerHTML) gPubBox.innerHTML = statsGuru.innerHTML;
-    if (sPubBox && statsSiswa && statsSiswa.innerHTML) sPubBox.innerHTML = statsSiswa.innerHTML;
+    let sesiList = [];
+    try { sesiList = getSesiList(); } catch (_) { sesiList = []; }
+    const emptyHtml = (typeof buildEmptySesiStatsHtml === 'function')
+      ? buildEmptySesiStatsHtml(sesiList) : '';
+    if (gPubBox) {
+      const html = (statsGuru && statsGuru.innerHTML && statsGuru.innerHTML.trim())
+        ? statsGuru.innerHTML : emptyHtml;
+      if (html) gPubBox.innerHTML = html;
+    }
+    if (sPubBox) {
+      const html = (statsSiswa && statsSiswa.innerHTML && statsSiswa.innerHTML.trim())
+        ? statsSiswa.innerHTML : emptyHtml;
+      if (html) sPubBox.innerHTML = html;
+    }
     const gPub = document.getElementById('dashTotalGuruPub');
     const sPub = document.getElementById('dashTotalSiswaPub');
     const countGuru = document.getElementById('countGuru');
     const countSiswa = document.getElementById('countSiswa');
-    if (gPub && countGuru) gPub.textContent = countGuru.textContent || '0';
-    if (sPub && countSiswa) sPub.textContent = countSiswa.textContent || '0';
+    if (gPub) gPub.textContent = (countGuru && countGuru.textContent) ? countGuru.textContent : (gPub.textContent || '0');
+    if (sPub) sPub.textContent = (countSiswa && countSiswa.textContent) ? countSiswa.textContent : (sPub.textContent || '0');
     syncStrukturToPublic();
   } catch (e) { console.warn('syncDashboardPublicPanels', e); }
 }
@@ -6134,39 +6188,27 @@ async function renderDashboard() {
     }
   }
 
-  // --- Legend status ---
-  if (hideDashRekap || liburHariIni) {
-    // Semua "-" (seperti index-3 saat libur / belum sesi)
-    if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
-    if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
-    try { syncDashboardPublicPanels(); } catch (_) {}
-    try { renderUserUI(getSession()); } catch (_) {}
-    try { applySekolahToUI(); } catch (_) {}
-    return;
-  }
-
-  // --- Hari kerja + jam sesi aktif: muat absensi ---
+  // --- Muat absensi & isi legend (selalu, termasuk tampilan tamu) ---
   let absenRows = [];
+  let serverLibur = false;
+  let serverLiburKet = '';
   try {
     const logRes = await apiCall('list_absen_hari_ini', {});
     if (logRes && logRes.libur === true) {
-      // Server bilang libur — override tampilan
-      const ket = logRes.libur_keterangan || 'Hari Libur';
-      const tglStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      serverLibur = true;
+      serverLiburKet = logRes.libur_keterangan || 'Hari Libur';
       if (chipWrap) {
-        chipWrap.innerHTML = buildDashLiburChipHtml(liburHariIni || { keterangan: ket });
+        chipWrap.innerHTML = buildDashLiburChipHtml(liburHariIni || { keterangan: serverLiburKet });
       }
       if (rekapWrap) rekapWrap.style.display = 'none';
       if (cardGuru) cardGuru.style.display = 'none';
       if (cardSiswa) cardSiswa.style.display = 'none';
       if (rekapMsg) {
         rekapMsg.style.display = 'block';
-        rekapMsg.innerHTML = '📅 <b>' + escapeHtml(ket) + '</b><br>Tabel rekap kehadiran disembunyikan karena hari ini libur.';
+        rekapMsg.innerHTML = '📅 <b>' + escapeHtml(serverLiburKet) + '</b><br>Tabel rekap kehadiran disembunyikan karena hari ini libur.';
       }
-      if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
-      if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
-      try { syncDashboardPublicPanels(); } catch (_) {}
-      return;
+      hideDashRekap = true;
+      hideReason = 'libur';
     }
     if (Array.isArray(logRes && logRes.data)) {
       absenRows = logRes.data;
@@ -6175,20 +6217,33 @@ async function renderDashboard() {
   } catch (e) {
     console.warn('list_absen_hari_ini', e);
     try {
+      const today = (typeof todayStr === 'function') ? todayStr() : new Date().toISOString().slice(0, 10);
       absenRows = loadAbsenLog().filter(r => !r.tanggal || String(r.tanggal).slice(0, 10) === today);
     } catch (_) { absenRows = []; }
   }
 
-  if (statsSiswa) statsSiswa.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'siswa');
-  if (!hideGuruRekap) {
-    if (statsGuru) statsGuru.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'guru');
-    try { renderRekapKehadiran('guru', sesiList, absenRows); } catch (e) { console.warn(e); }
+  // Legend: isi angka nyata (bukan dikosongkan) — tamu & semua role
+  // Saat libur: tampilkan template "-" ; selain itu hitung dari absensi
+  if (serverLibur || liburHariIni) {
+    if (statsGuru) statsGuru.innerHTML = buildEmptySesiStatsHtml(sesiList);
+    if (statsSiswa) statsSiswa.innerHTML = buildEmptySesiStatsHtml(sesiList);
   } else {
-    if (statsGuru) statsGuru.innerHTML = '';
-    if (cardGuru) cardGuru.style.display = 'none';
-    if (panelGuru) panelGuru.style.display = 'none';
+    if (statsSiswa) statsSiswa.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'siswa');
+    // Guru legend selalu dihitung agar panel publik / admin terisi
+    if (statsGuru) statsGuru.innerHTML = buildSesiStatsHtml(sesiList, absenRows, 'guru');
   }
-  try { renderRekapKehadiran('siswa', sesiList, absenRows); } catch (e) { console.warn(e); }
+
+  // Tabel rekap detail (boleh disembunyikan; legend tetap tampil)
+  if (!hideDashRekap && !serverLibur) {
+    if (!hideGuruRekap) {
+      try { renderRekapKehadiran('guru', sesiList, absenRows); } catch (e) { console.warn(e); }
+    } else {
+      if (cardGuru) cardGuru.style.display = 'none';
+      if (panelGuru) panelGuru.style.display = 'none';
+    }
+    try { renderRekapKehadiran('siswa', sesiList, absenRows); } catch (e) { console.warn(e); }
+  }
+
   try { syncDashboardPublicPanels(); } catch (_) {}
   try { renderUserUI(getSession()); } catch (_) {}
   try { applySekolahToUI(); } catch (_) {}
@@ -10222,6 +10277,13 @@ async function initDataSekolahPage() {
   set('sekMotto', s.motto);
   setSekPreview('sekLogoPreview', s.logo_url);
   setSekPreview('sekTtdPreview', s.ttd_qr_url);
+  setSekPreview('sekValidasiPreview', s.validasi_qr_url);
+  const logoPrev = document.getElementById('sekLogoPreview');
+  const ttdPrev = document.getElementById('sekTtdPreview');
+  const valPrev = document.getElementById('sekValidasiPreview');
+  if (logoPrev && s.logo_url) logoPrev.dataset.url = s.logo_url;
+  if (ttdPrev && s.ttd_qr_url) ttdPrev.dataset.url = s.ttd_qr_url;
+  if (valPrev && s.validasi_qr_url) valPrev.dataset.url = s.validasi_qr_url;
 }
 
 document.getElementById('sekLogoFile')?.addEventListener('change', async (e) => {
@@ -10243,10 +10305,19 @@ document.getElementById('sekTtdFile')?.addEventListener('change', async (e) => {
   setSekPreview('sekTtdPreview', url);
   document.getElementById('sekTtdPreview').dataset.url = url;
 });
+document.getElementById('sekValidasiFile')?.addEventListener('change', async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  const url = await fileToDataUrl(f, 400);
+  setSekPreview('sekValidasiPreview', url);
+  const prev = document.getElementById('sekValidasiPreview');
+  if (prev) prev.dataset.url = url;
+});
 document.getElementById('btnSimpanSekolah')?.addEventListener('click', async () => {
   const msg = document.getElementById('sekolahMsg');
   const logoEl = document.getElementById('sekLogoPreview');
   const ttdEl = document.getElementById('sekTtdPreview');
+  const valEl = document.getElementById('sekValidasiPreview');
   const row = {
     nama: document.getElementById('sekNama')?.value?.trim() || '',
     nss: document.getElementById('sekNss')?.value?.trim() || '',
@@ -10257,6 +10328,7 @@ document.getElementById('btnSimpanSekolah')?.addEventListener('click', async () 
     motto: document.getElementById('sekMotto')?.value?.trim() || '',
     logo_url: logoEl?.dataset?.url || store.sekolah?.logo_url || '',
     ttd_qr_url: ttdEl?.dataset?.url || store.sekolah?.ttd_qr_url || '',
+    validasi_qr_url: valEl?.dataset?.url || store.sekolah?.validasi_qr_url || '',
   };
   if (!row.nama) { toast('Nama sekolah wajib', 'err'); return; }
   try {
