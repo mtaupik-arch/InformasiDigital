@@ -3793,29 +3793,27 @@
       <p id="pinSelfMsg" style="font-size:12px;margin-top:10px;color:#666"></p>
     </div>
 
-    <!-- Reset PIN Guru (admin) -->
-    <div class="card" id="pinPanelGuru" style="max-width:480px;display:none">
-      <h3 style="font-size:14px;margin-bottom:12px">Reset PIN Guru (Admin)</h3>
-      <div class="form-group" style="margin-bottom:10px">
-        <label>Cari Guru</label>
-        <input type="text" id="pinGuruQ" placeholder="Nama / NIP / PIN…" autocomplete="off"
-          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:13px" />
-        <select id="pinGuruSelect" size="6" style="width:100%;margin-top:6px;border:1px solid #e0e0e0;border-radius:8px;font-size:12px;padding:4px">
-          <option value="">— ketik untuk mencari —</option>
-        </select>
+    <!-- Reset PIN Guru (admin) — tabel DUK · Nama · NIP · Aksi -->
+    <div class="card" id="pinPanelGuru" style="display:none;max-width:720px">
+      <h3 style="font-size:14px;margin-bottom:8px">Reset PIN Guru (Admin)</h3>
+      <p style="font-size:12px;color:#666;margin:0 0 10px;line-height:1.4">
+        Pilih <b>Reset PIN</b> pada baris guru. Cukup tentukan PIN baru 6 digit (tanpa PIN lama guru).
+      </p>
+      <div class="table-scroll" style="border:1px solid #e8eef5;border-radius:8px;overflow:auto">
+        <table class="data-table" id="tablePinGuru" style="min-width:0;width:100%">
+          <thead>
+            <tr>
+              <th style="width:56px;text-align:center">DUK</th>
+              <th>Nama</th>
+              <th style="width:120px">NIP</th>
+              <th style="width:110px;text-align:center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyPinGuru">
+            <tr class="empty-row"><td colspan="4" style="text-align:center;padding:14px;color:#888">Memuat…</td></tr>
+          </tbody>
+        </table>
       </div>
-      <p style="font-size:12px;color:#666;margin:0 0 12px">Sebagai admin, cukup tentukan PIN baru guru (tanpa PIN lama guru).</p>
-      <div class="form-group" style="margin-bottom:10px">
-        <label>PIN Baru Guru</label>
-        <input type="password" id="pinGuruNew" inputmode="numeric" maxlength="6" placeholder="6 digit"
-          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:14px;letter-spacing:2px" />
-      </div>
-      <div class="form-group" style="margin-bottom:14px">
-        <label>Ulangi PIN Baru Guru</label>
-        <input type="password" id="pinGuruNew2" inputmode="numeric" maxlength="6" placeholder="Ulangi"
-          style="width:100%;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;font-size:14px;letter-spacing:2px" />
-      </div>
-      <button type="button" class="btn btn-primary" id="btnResetPinGuru" style="width:100%;padding:12px">Reset PIN Guru</button>
       <p id="pinGuruMsg" style="font-size:12px;margin-top:10px;color:#666"></p>
     </div>
   </div>
@@ -11511,32 +11509,114 @@ function switchPinTab(tab) {
   const tg = document.getElementById('pinTabGuru');
   if (tg) tg.style.display = isAdmin ? '' : 'none';
 }
-function fillPinGuruSelect(q) {
-  const sel = document.getElementById('pinGuruSelect');
-  if (!sel) return;
-  const qq = String(q || '').toLowerCase().trim();
-  let list = (store.guru || []).slice().sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
-  if (qq) {
-    list = list.filter(g => {
-      const hay = ((g.nama || '') + ' ' + (g.nip || '') + ' ' + (g.pin || '')).toLowerCase();
-      return hay.includes(qq);
-    });
+function renderPinGuruTable() {
+  const tb = document.getElementById('tbodyPinGuru');
+  if (!tb) return;
+  const list = (store.guru || [])
+    .filter(g => {
+      const st = String(g.status || 'Aktif').toLowerCase();
+      return st === 'aktif' || st === '' || st === 'active' || st === 'null';
+    })
+    .slice()
+    .sort(typeof sortByDuk === 'function'
+      ? sortByDuk
+      : (a, b) => {
+          const da = Number(a.duk), db = Number(b.duk);
+          if (!isNaN(da) && !isNaN(db) && da !== db) return da - db;
+          return String(a.nama || '').localeCompare(String(b.nama || ''), 'id');
+        });
+  if (!list.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="4" style="text-align:center;padding:14px;color:#888">Belum ada data guru</td></tr>';
+    return;
   }
-  list = list.slice(0, 40);
-  sel.innerHTML = list.length
-    ? list.map(g => `<option value="${escapeHtml(String(g.id))}">${escapeHtml(g.nama || '')}${g.nip ? ' · NIP ' + escapeHtml(g.nip) : ''}</option>`).join('')
-    : '<option value="">— tidak ada —</option>';
+  tb.innerHTML = list.map((g, i) => {
+    const duk = (g.duk != null && g.duk !== '') ? String(g.duk) : String(i + 1);
+    return `<tr data-guru-id="${escapeHtml(String(g.id))}">
+      <td style="text-align:center;font-variant-numeric:tabular-nums">${escapeHtml(duk)}</td>
+      <td style="font-weight:600;color:#1a237e">${escapeHtml(g.nama || '—')}</td>
+      <td style="font-size:11px">${escapeHtml(g.nip || '—')}</td>
+      <td style="text-align:center;white-space:nowrap">
+        <button type="button" class="btn btn-primary btn-sm btn-reset-pin-guru"
+          data-id="${escapeHtml(String(g.id))}"
+          data-nama="${escapeHtml(g.nama || '')}">🔑 Reset PIN</button>
+      </td>
+    </tr>`;
+  }).join('');
 }
+
+/** Kompatibilitas nama lama */
+function fillPinGuruSelect() {
+  renderPinGuruTable();
+}
+
+async function doResetPinGuru(guruId, nama) {
+  if (!guruId) { toast('Guru tidak valid', 'err'); return; }
+  const label = nama ? String(nama) : 'guru ini';
+  const n1 = await sisPrompt('PIN baru untuk ' + label + ' (6 digit):', '', 'Reset PIN Guru');
+  if (n1 == null) return;
+  const pin1 = String(n1).replace(/\D/g, '').slice(0, 6);
+  if (pin1.length !== 6) {
+    toast('PIN harus 6 digit angka', 'err');
+    return;
+  }
+  const n2 = await sisPrompt('Ulangi PIN baru (6 digit):', '', 'Konfirmasi PIN');
+  if (n2 == null) return;
+  const pin2 = String(n2).replace(/\D/g, '').slice(0, 6);
+  if (pin1 !== pin2) {
+    toast('PIN tidak sama', 'err');
+    return;
+  }
+  const ok = await sisConfirm('Reset PIN guru\n' + label + '\nmenjadi ' + pin1 + ' ?', 'Konfirmasi Reset PIN');
+  if (!ok) return;
+  const msg = document.getElementById('pinGuruMsg');
+  try {
+    const res = await apiCall('change_pin', {
+      target: 'guru', guru_id: guruId, new_pin: pin1,
+    });
+    if (msg) msg.textContent = res.message || ('PIN ' + label + ' direset');
+    toast(res.message || 'PIN guru direset', 'ok');
+    showBigPopup('ok', 'PIN Guru Direset',
+      (res.message || 'PIN berhasil diganti.') + '<br><b>' + escapeHtml(label) + '</b>', 2500);
+    try {
+      const g = await apiCall('list_guru', {});
+      if (g?.data) { store.guru = g.data; saveStore(store); }
+    } catch (_) {}
+    renderPinGuruTable();
+  } catch (e) {
+    if (msg) msg.textContent = errToText(e);
+    toast(errToText(e), 'err');
+    showBigPopup('err', 'Gagal Reset PIN', errToText(e), 0);
+  }
+}
+
 function initResetPinPage() {
   switchPinTab('self');
-  ['pinOld','pinNew','pinNew2','pinGuruNew','pinGuruNew2'].forEach(id => onlyDigit6(document.getElementById(id)));
-  fillPinGuruSelect('');
+  ['pinOld','pinNew','pinNew2'].forEach(id => onlyDigit6(document.getElementById(id)));
+  renderPinGuruTable();
+  // pastikan data guru terbaru
+  (async () => {
+    try {
+      if (!(store.guru || []).length) {
+        const g = await apiCall('list_guru', {});
+        if (g?.data) { store.guru = g.data; saveStore(store); }
+      }
+    } catch (_) {}
+    renderPinGuruTable();
+  })();
 }
 document.getElementById('pinTabs')?.addEventListener('click', async (e) => {
   const b = e.target.closest('.rekap-tab');
-  if (b) switchPinTab(b.getAttribute('data-pin-tab'));
+  if (b) {
+    switchPinTab(b.getAttribute('data-pin-tab'));
+    if (b.getAttribute('data-pin-tab') === 'guru') renderPinGuruTable();
+  }
 });
-document.getElementById('pinGuruQ')?.addEventListener('input', (e) => fillPinGuruSelect(e.target.value));
+document.getElementById('tbodyPinGuru')?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.btn-reset-pin-guru');
+  if (!btn) return;
+  e.preventDefault();
+  await doResetPinGuru(btn.getAttribute('data-id'), btn.getAttribute('data-nama') || '');
+});
 
 document.getElementById('btnUbahPinSelf')?.addEventListener('click', async () => {
   const oldP = document.getElementById('pinOld')?.value || '';
@@ -11574,32 +11654,8 @@ document.getElementById('btnUbahPinSelf')?.addEventListener('click', async () =>
   }
 });
 
-document.getElementById('btnResetPinGuru')?.addEventListener('click', async () => {
-  const guruId = document.getElementById('pinGuruSelect')?.value || '';
-  const n1 = document.getElementById('pinGuruNew')?.value || '';
-  const n2 = document.getElementById('pinGuruNew2')?.value || '';
-  const msg = document.getElementById('pinGuruMsg');
-  if (!guruId) { toast('Pilih guru', 'err'); return; }
-  if (n1.length !== 6 || n1 !== n2) { toast('PIN baru guru harus 6 digit & sama', 'err'); return; }
-  try {
-    const res = await apiCall('change_pin', {
-      target: 'guru', guru_id: guruId, new_pin: n1,
-    });
-    if (msg) msg.textContent = res.message || 'PIN guru direset';
-    toast(res.message || 'PIN guru direset', 'ok');
-    showBigPopup('ok', 'PIN Guru Direset', res.message || 'PIN guru berhasil diganti.', 2500);
-    // refresh store guru
-    try {
-      const g = await apiCall('list_guru', {});
-      if (g?.data) { store.guru = g.data; saveStore(store); fillPinGuruSelect(document.getElementById('pinGuruQ')?.value || ''); }
-    } catch (_) {}
-    ['pinGuruNew','pinGuruNew2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  } catch (e) {
-    if (msg) msg.textContent = errToText(e);
-    toast(errToText(e), 'err');
-    showBigPopup('err', 'Gagal Reset PIN', errToText(e), 0);
-  }
-});
+/* btnResetPinGuru diganti aksi per-baris di tabel */
+
 
 
 /* ===== Auto-refresh status sesi (tanpa reload penuh) ===== */
