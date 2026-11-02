@@ -6532,6 +6532,12 @@ let navCurrent = 'dashboard';
 let navReady = false;
 let navTrapArmed = false;
 
+// Trap dini (sebelum init selesai) — cegah Back HP menutup tab saat masih loading / mode tamu
+try {
+  history.replaceState({ sis: true, page: 'dashboard', trap: false }, '', '#dashboard');
+  history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
+} catch (_) {}
+
 function resolveNavTarget(page) {
   const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','profil-saya','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal','download-absensi','backup-data'];
   let target = known.includes(page) ? page : 'placeholder';
@@ -6592,16 +6598,30 @@ function closeTopOverlay() {
 /** Perangkap history; ignore popstate semu segera setelah push sendiri */
 let navSuppressPopUntil = 0;
 let _exitTrapPushed = false;
+let _exitConfirmOpen = false;
+
+function sisAtAppRoot() {
+  try {
+    if ((navCurrent || 'dashboard') !== 'dashboard') return false;
+    if (!navStack || navStack.length <= 1) return true;
+    // stack hanya berisi dashboard berulang
+    return navStack.every(p => p === 'dashboard');
+  } catch (_) {
+    return true;
+  }
+}
+
+/** Pasang 2 entry history di akar agar Back HP selalu tertangkap (Chrome Android + tamu) */
 function armBackTrap() {
   try {
-    navSuppressPopUntil = Date.now() + 250;
+    navSuppressPopUntil = Date.now() + 400;
     navTrapArmed = true;
     const page = navCurrent || 'dashboard';
-    // Sinkronkan state halaman saat ini
-    history.replaceState({ sis: true, page: page, trap: false }, '', '#' + page);
-    // Di akar (dashboard / stack 1 level): selalu pasang 1 entry trap
-    // agar Back HP tertangkap JS — berlaku untuk tamu maupun sudah login
-    if (page === 'dashboard' && (navStack.length <= 1)) {
+    const url = '#' + page;
+    history.replaceState({ sis: true, page: page, trap: false }, '', url);
+    if (sisAtAppRoot()) {
+      // Dua lapis trap: Back pertama & kedua tetap dipegang JS
+      history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
       history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
       _exitTrapPushed = true;
     } else {
@@ -6610,14 +6630,25 @@ function armBackTrap() {
   } catch (_) {}
 }
 
-/** Pastikan trap aktif (dipanggil ulang saat pageshow / setelah login ditutup) */
 function ensureBackTrap() {
   try {
-    if (!navReady) return;
-    const page = navCurrent || 'dashboard';
-    if (page === 'dashboard' && (navStack.length <= 1)) {
-      armBackTrap();
+    if (!navReady) {
+      // Meski belum ready, tetap coba pasang trap dasar
+      try {
+        history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
+      } catch (_) {}
+      return;
     }
+    if (sisAtAppRoot()) armBackTrap();
+  } catch (_) {}
+}
+
+/** Re-push trap tanpa menumpuk berlebihan */
+function repushExitTrap() {
+  try {
+    navSuppressPopUntil = Date.now() + 400;
+    history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
+    _exitTrapPushed = true;
   } catch (_) {}
 }
 
@@ -6795,9 +6826,11 @@ function sisGetRuntimeEnv() {
 }
 
 async function showExitConfirm() {
+  _exitConfirmOpen = true;
   const ov = document.getElementById('exitOverlay');
   if (!ov) {
     const ok = await sisConfirm('Yakin ingin menutup aplikasi?');
+    _exitConfirmOpen = false;
     if (ok) doExitApp();
     else {
       navStack = ['dashboard'];
@@ -6807,9 +6840,12 @@ async function showExitConfirm() {
     return;
   }
   ov.classList.add('show');
+  // Pastikan tetap ada trap di belakang dialog
+  try { repushExitTrap(); } catch (_) {}
 }
 
 function hideExitConfirm() {
+  _exitConfirmOpen = false;
   document.getElementById('exitOverlay')?.classList.remove('show');
 }
 
@@ -6906,8 +6942,9 @@ function showAppClosedScreen(env) {
 document.getElementById('exitBtnCancel')?.addEventListener('click', async () => {
   hideExitConfirm();
   navStack = ['dashboard'];
-  navigate('dashboard', { fromBack: true, noScroll: true });
-  armBackTrap();
+  navCurrent = 'dashboard';
+  try { navigate('dashboard', { fromBack: true, noScroll: true }); } catch (_) {}
+  try { armBackTrap(); } catch (_) {}
 });
 document.getElementById('exitBtnOk')?.addEventListener('click', async () => {
   doExitApp();
@@ -6921,34 +6958,49 @@ document.getElementById('exitOverlay')?.addEventListener('click', async (e) => {
 
 
 window.addEventListener('popstate', function onSisPopState(e) {
-  if (!navReady) return;
-  if (Date.now() < navSuppressPopUntil) {
-    // Abaikan popstate semu akibat pushState/replaceState kita sendiri
-    return;
-  }
+  // Selalu cegah browser meninggalkan halaman saat di akar aplikasi
   const st = e && e.state;
 
-  // Trap exit di dashboard: user tekan Back HP
-  if (st && st.sis && st.trap) {
-    // Kembalikan trap entry, tampilkan konfirmasi keluar
-    try {
-      navSuppressPopUntil = Date.now() + 200;
-      history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
-      _exitTrapPushed = true;
-    } catch (_) {}
+  // Saat dialog keluar sudah terbuka: jangan biarkan history "lolos"
+  try {
+    const ov = document.getElementById('exitOverlay');
+    if (ov && ov.classList.contains('show')) {
+      repushExitTrap();
+      return;
+    }
+  } catch (_) {}
+
+  if (Date.now() < navSuppressPopUntil) {
+    return;
+  }
+
+  // Belum siap: tetap tahan di halaman
+  if (!navReady) {
+    repushExitTrap();
+    return;
+  }
+
+  // Trap flag atau di akar aplikasi (tamu maupun login)
+  const isTrap = !!(st && st.sis && st.trap);
+  const atRoot = sisAtAppRoot();
+  const pageFromState = (st && st.sis && st.page) ? String(st.page) : '';
+
+  if (isTrap || (atRoot && (!st || !st.sis || pageFromState === 'dashboard' || pageFromState === 'closed' || pageFromState === ''))) {
+    repushExitTrap();
     showExitConfirm();
     return;
   }
 
-  // State halaman normal dari history
+  // State halaman normal dari history (bukan akar)
   if (st && st.sis && st.page) {
     const page = String(st.page);
-    if (page === 'dashboard' && (navCurrent === 'dashboard' || navStack.length <= 1)) {
-      // Back ke akar → konfirmasi keluar (bukan navigasi ulang)
-      try {
-        navSuppressPopUntil = Date.now() + 200;
-        history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
-      } catch (_) {}
+    if (page === 'dashboard' && atRoot) {
+      repushExitTrap();
+      showExitConfirm();
+      return;
+    }
+    if (page === 'closed') {
+      repushExitTrap();
       showExitConfirm();
       return;
     }
@@ -6960,16 +7012,11 @@ window.addEventListener('popstate', function onSisPopState(e) {
     return;
   }
 
-  // Hash fallback (abaikan hash kosong / # saja — sering dari href="#")
+  // Hash fallback
   const hashPage = (location.hash || '').replace(/^#/, '').trim();
   if (!hashPage || hashPage === '#' || hashPage === 'closed') {
-    // Back ke luar / state kosong (sering di mode tamu) → tangkap sebagai keluar
-    if ((navCurrent === 'dashboard' || navStack.length <= 1) && hashPage !== 'closed') {
-      try {
-        navSuppressPopUntil = Date.now() + 250;
-        history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
-        _exitTrapPushed = true;
-      } catch (_) {}
+    if (atRoot || (navCurrent === 'dashboard')) {
+      repushExitTrap();
       showExitConfirm();
       return;
     }
@@ -20186,14 +20233,28 @@ document.getElementById('btnBackupRestore')?.addEventListener('click', async () 
     // 2) Tentukan halaman awal dari hash / session (refresh tetap di halaman sama)
     const fromHash = (location.hash || '').replace(/^#/, '');
     const fromStore = sessionStorage.getItem('sis_last_page') || '';
+    // Mode tamu: jangan warisi stack/halaman dari sesi login sebelumnya
+    const _bootSess = (typeof getSession === 'function') ? getSession() : null;
     let startPage = fromHash || fromStore || 'dashboard';
-    try {
-      const raw = sessionStorage.getItem('sis_nav_stack');
-      if (raw) {
-        const arr = JSON.parse(raw);
-        if (Array.isArray(arr) && arr.length) navStack = arr.map(String);
-      }
-    } catch (_) {}
+    if (!_bootSess || !_bootSess.token) {
+      startPage = (fromHash && fromHash !== 'closed') ? fromHash : 'dashboard';
+      // Batasi tamu ke halaman publik yang aman
+      const guestOk = new Set(['dashboard','pengumuman-lulus','validasi-lulusan','syarat-naik','jadwal-mapel','jadwal-mapel-kelas','cari-siswa']);
+      if (!guestOk.has(startPage)) startPage = 'dashboard';
+      navStack = ['dashboard'];
+      try {
+        sessionStorage.setItem('sis_nav_stack', JSON.stringify(['dashboard']));
+        sessionStorage.setItem('sis_last_page', startPage === 'dashboard' ? 'dashboard' : startPage);
+      } catch (_) {}
+    } else {
+      try {
+        const raw = sessionStorage.getItem('sis_nav_stack');
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr) && arr.length) navStack = arr.map(String);
+        }
+      } catch (_) {}
+    }
     if (!navStack.length) navStack = ['dashboard'];
     if (navStack[navStack.length - 1] !== startPage) {
       if (startPage === 'dashboard') navStack = ['dashboard'];
