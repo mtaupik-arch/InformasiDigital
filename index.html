@@ -5515,6 +5515,15 @@ function openLogin() {
 }
 function closeLogin() {
   loginOverlay.classList.remove('active');
+  loginOverlay.style.display = '';
+  // Mode tamu: pastikan trap Back aktif agar konfirmasi keluar muncul
+  try {
+    if (navReady) ensureBackTrap();
+    else {
+      navReady = true;
+      armBackTrap();
+    }
+  } catch (_) {}
 }
 
 document.getElementById('btnOpenLogin').addEventListener('click', openLogin);
@@ -6541,6 +6550,7 @@ function closeTopOverlay() {
   if (login && (login.classList.contains('active') || login.style.display === 'flex')) {
     login.classList.remove('active');
     login.style.display = 'none';
+    try { ensureBackTrap(); } catch (_) {}
     return true;
   }
   // Dialog kustom: resolve promise agar pemanggil tidak menggantung
@@ -6584,17 +6594,29 @@ let navSuppressPopUntil = 0;
 let _exitTrapPushed = false;
 function armBackTrap() {
   try {
-    navSuppressPopUntil = Date.now() + 200;
+    navSuppressPopUntil = Date.now() + 250;
     navTrapArmed = true;
     const page = navCurrent || 'dashboard';
-    // Selalu sinkronkan state halaman saat ini (bukan trap)
+    // Sinkronkan state halaman saat ini
     history.replaceState({ sis: true, page: page, trap: false }, '', '#' + page);
-    // Di dashboard (akar): push 1 entry ekstra agar tombol Back HP tertangkap JS
+    // Di akar (dashboard / stack 1 level): selalu pasang 1 entry trap
+    // agar Back HP tertangkap JS — berlaku untuk tamu maupun sudah login
     if (page === 'dashboard' && (navStack.length <= 1)) {
       history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
       _exitTrapPushed = true;
     } else {
       _exitTrapPushed = false;
+    }
+  } catch (_) {}
+}
+
+/** Pastikan trap aktif (dipanggil ulang saat pageshow / setelah login ditutup) */
+function ensureBackTrap() {
+  try {
+    if (!navReady) return;
+    const page = navCurrent || 'dashboard';
+    if (page === 'dashboard' && (navStack.length <= 1)) {
+      armBackTrap();
     }
   } catch (_) {}
 }
@@ -6940,8 +6962,17 @@ window.addEventListener('popstate', function onSisPopState(e) {
 
   // Hash fallback (abaikan hash kosong / # saja — sering dari href="#")
   const hashPage = (location.hash || '').replace(/^#/, '').trim();
-  if (!hashPage || hashPage === '#') {
-    // Jangan treat sebagai keluar; kembalikan ke halaman saat ini
+  if (!hashPage || hashPage === '#' || hashPage === 'closed') {
+    // Back ke luar / state kosong (sering di mode tamu) → tangkap sebagai keluar
+    if ((navCurrent === 'dashboard' || navStack.length <= 1) && hashPage !== 'closed') {
+      try {
+        navSuppressPopUntil = Date.now() + 250;
+        history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
+        _exitTrapPushed = true;
+      } catch (_) {}
+      showExitConfirm();
+      return;
+    }
     try {
       navSuppressPopUntil = Date.now() + 200;
       history.replaceState({ sis: true, page: navCurrent || 'dashboard', trap: false }, '', '#' + (navCurrent || 'dashboard'));
@@ -6954,6 +6985,16 @@ window.addEventListener('popstate', function onSisPopState(e) {
     return;
   }
   handleAppBack();
+});
+
+// Re-arm trap saat halaman ditampilkan lagi (penting untuk mode tamu / PWA)
+window.addEventListener('pageshow', function () {
+  try { ensureBackTrap(); } catch (_) {}
+});
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible') {
+    try { ensureBackTrap(); } catch (_) {}
+  }
 });
 
 document.querySelectorAll('.submenu a[data-page]').forEach(a => {
@@ -20161,6 +20202,13 @@ document.getElementById('btnBackupRestore')?.addEventListener('click', async () 
     try {
       navigate(startPage, { fromHash: true, init: true, noScroll: true });
     } catch (e) { console.warn('navigate early', e); }
+
+    // Arm trap SEGERA (sebelum bootstrap) — penting mode tamu:
+    // agar Back HP tidak langsung keluar browser sebelum data selesai dimuat
+    try {
+      navReady = true;
+      armBackTrap();
+    } catch (_) {}
 
     // 3) Bootstrap DB (timeout agar tidak stuck "Memuat…")
     try {
