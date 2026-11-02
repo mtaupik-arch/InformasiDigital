@@ -4818,46 +4818,73 @@ const LOGIN_FN_URL = SUPABASE_URL + '/functions/v1/login';
 const API_FN_URL = SUPABASE_URL + '/functions/v1/api';
 
 /** Panggil Edge Function api (database) */
-async function apiCall(action, payload = {}) {
+async function apiCall(action, payload = {}, opts = {}) {
   const session = getSession();
   const body = { action, ...payload, token: session?.token || null };
-  let res;
-  try {
-    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(() => ctrl.abort(), 20000) : null;
+  const act = String(action || '');
+  // Ujian / absensi massal: timeout lebih longgar + retry
+  const isHeavy = /ujian|jawaban|lembar|mulai_ujian|selesai_ujian|simpan_jawaban|list_ujian|bootstrap|list_absen|bank_soal/i.test(act);
+  const timeoutMs = opts.timeoutMs != null ? Number(opts.timeoutMs)
+    : (isHeavy ? 60000 : 20000);
+  const maxTry = opts.retries != null ? Number(opts.retries) : (isHeavy ? 3 : 1);
+  let lastErr = null;
+  let res = null;
+  let data = null;
+
+  for (let attempt = 1; attempt <= maxTry; attempt++) {
     try {
-      res = await fetch(API_FN_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-          'apikey': SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify(body),
-        signal: ctrl ? ctrl.signal : undefined,
-      });
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-  } catch (netErr) {
-    const aborted = netErr && (netErr.name === 'AbortError' || /abort/i.test(String(netErr.message || '')));
-    throw new Error(
-      aborted
-        ? 'Koneksi ke server timeout (20 dtk). Cek internet / Edge Function api.'
-        : ('Gagal terhubung ke Edge Function api. Cek: (1) function api sudah deploy, ' +
-           '(2) Verify JWT = OFF, (3) koneksi internet. Detail: ' + (netErr.message || 'Failed to fetch'))
-    );
-  }
-  let data;
-  try { data = await res.json(); } catch {
-    throw new Error('Function api merespons non-JSON (HTTP ' + res.status + '). Kemungkinan kode function error saat deploy.');
-  }
-  if (!res.ok || data.status === 'error') {
-    // Session tidak valid / tidak berwenang — bersihkan session lokal
-    if (res.status === 401 || res.status === 403 ||
-        /token|unauthorized|tidak berwenang|belum login|sesi|session/i.test(String(data?.message || data?.error || ''))) {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
       try {
-        if (res.status === 401 || /token|belum login|sesi|session|unauthorized/i.test(String(data?.message || data?.error || ''))) {
+        res = await fetch(API_FN_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify(body),
+          signal: ctrl ? ctrl.signal : undefined,
+        });
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+      try { data = await res.json(); } catch {
+        throw new Error('Function api merespons non-JSON (HTTP ' + res.status + '). Kemungkinan kode function error saat deploy.');
+      }
+      // Retry transient 5xx / overload
+      if (res.status >= 500 && attempt < maxTry) {
+        await new Promise(r => setTimeout(r, 400 * attempt * attempt));
+        continue;
+      }
+      break;
+    } catch (netErr) {
+      lastErr = netErr;
+      const aborted = netErr && (netErr.name === 'AbortError' || /abort/i.test(String(netErr.message || '')));
+      if (attempt < maxTry) {
+        await new Promise(r => setTimeout(r, 500 * attempt * attempt));
+        continue;
+      }
+      throw new Error(
+        aborted
+          ? ('Koneksi ke server timeout (' + Math.round(timeoutMs / 1000) + ' dtk). Coba lagi / cek internet.')
+          : ('Gagal terhubung ke Edge Function api. Cek: (1) function api sudah deploy, ' +
+             '(2) Verify JWT = OFF, (3) koneksi internet. Detail: ' + (netErr.message || 'Failed to fetch'))
+      );
+    }
+  }
+
+  if (!res || !data) {
+    throw lastErr || new Error('Tidak ada respons server');
+  }
+
+  if (!res.ok || data.status === 'error') {
+    const msg = String(data?.message || data?.error || '');
+    // Jangan logout otomatis untuk penolakan bisnis ujian/absen
+    const businessDeny = /ujian|jawaban|attempt|izin|sudah|belum|paket|kelas|ditutup|selesai|kunci|waktu|libur|scan ditolak|duplikat/i.test(msg);
+    if ((res.status === 401 || res.status === 403) && !businessDeny) {
+      try {
+        if (res.status === 401 || /token|belum login|sesi tidak valid|session|unauthorized/i.test(msg)) {
           clearSession();
           try { renderUserUI(null); } catch (_) {}
         }
@@ -13517,12 +13544,62 @@ async function ujSimpanJawabanKeServer(opts) {
 
 
 let _ujAutosaveTimer = null;
+let _ujHeartbeat = null;
+let _ujServerSaveTimer = null;
+let _ujServerSaveInFlight = false;
+let _ujServerSaveQueued = false;
+let _ujLastServerSaveAt = 0;
+
 function ujScheduleDraftSave() {
   if (_ujState?.readonly) return;
   clearTimeout(_ujAutosaveTimer);
   _ujAutosaveTimer = setTimeout(() => {
     try { ujSaveDraftLocal(collectUjAnswers()); } catch (_) {}
   }, 400);
+  // Jadwalkan autosave server (debounce 8 dtk, minimal jeda 25 dtk antar sukses)
+  clearTimeout(_ujServerSaveTimer);
+  _ujServerSaveTimer = setTimeout(() => { ujAutosaveServer().catch(() => {}); }, 8000);
+}
+
+async function ujAutosaveServer() {
+  if (!_ujState?.ruangId || _ujState.readonly) return;
+  if (_ujServerSaveInFlight) { _ujServerSaveQueued = true; return; }
+  const now = Date.now();
+  if (now - _ujLastServerSaveAt < 25000) return; // throttle
+  _ujServerSaveInFlight = true;
+  try {
+    const answers = collectUjAnswers();
+    ujSaveDraftLocal(answers);
+    const filled = answers.filter(a => String(a.jawaban || '').trim() !== '');
+    if (!filled.length) return;
+    await apiCall('simpan_jawaban_ujian', {
+      ruang_id: _ujState.ruangId,
+      bank_soal_id: _ujState.bankId || undefined,
+      answers: filled,
+    }, { timeoutMs: 60000, retries: 2 });
+    _ujLastServerSaveAt = Date.now();
+  } catch (e) {
+    console.warn('ujAutosaveServer', e);
+  } finally {
+    _ujServerSaveInFlight = false;
+    if (_ujServerSaveQueued) {
+      _ujServerSaveQueued = false;
+      setTimeout(() => { ujAutosaveServer().catch(() => {}); }, 3000);
+    }
+  }
+}
+
+/** Simpan + kumpulkan pakai antrean agar tidak bentrok request */
+async function ujSimpanWithLock(fn) {
+  while (_ujServerSaveInFlight) {
+    await new Promise(r => setTimeout(r, 200));
+  }
+  _ujServerSaveInFlight = true;
+  try {
+    return await fn();
+  } finally {
+    _ujServerSaveInFlight = false;
+  }
 }
 
 async function ujSimpanJawabanKeServer(opts) {
@@ -13646,6 +13723,13 @@ async function ujOpenLembar(bankId, opts = {}) {
       } catch (_) {}
     } else {
       try { ujBindAutosave(); } catch (_) {}
+      try {
+        if (_ujHeartbeat) clearInterval(_ujHeartbeat);
+        _ujHeartbeat = setInterval(() => {
+          if (!_ujState?.ruangId || _ujState.readonly) return;
+          ujAutosaveServer().catch(() => {});
+        }, 45000);
+      } catch (_) {}
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
@@ -13764,6 +13848,7 @@ document.getElementById('btnUjKembali')?.addEventListener('click', async () => {
       try { await ujSimpanJawabanKeServer({ silent: true }); } catch (_) {}
     }
   } catch (_) {}
+  try { if (_ujHeartbeat) { clearInterval(_ujHeartbeat); _ujHeartbeat = null; } } catch (_) {}
   document.getElementById('ujLembarWrap').style.display = 'none';
   document.getElementById('ujListWrap').style.display = '';
   initTugasUjianPage();
@@ -13803,16 +13888,23 @@ document.getElementById('btnUjSimpan')?.addEventListener('click', async () => {
 });
 
 
-// Cadangan jawaban saat HP/tab ditutup / back browser
+// Cadangan jawaban saat HP/tab ditutup / back browser / ganti tab
 window.addEventListener('pagehide', async () => {
   try {
-    if (_ujState?.ruangId && !_ujState.readonly) ujSaveDraftLocal(collectUjAnswers());
+    if (_ujState?.ruangId && !_ujState.readonly) {
+      ujSaveDraftLocal(collectUjAnswers());
+      // beacon-style best effort (jangan await lama)
+      try { ujAutosaveServer(); } catch (_) {}
+    }
   } catch (_) {}
 });
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'hidden') {
     try {
-      if (_ujState?.ruangId && !_ujState.readonly) ujSaveDraftLocal(collectUjAnswers());
+      if (_ujState?.ruangId && !_ujState.readonly) {
+        ujSaveDraftLocal(collectUjAnswers());
+        try { await ujAutosaveServer(); } catch (_) {}
+      }
     } catch (_) {}
   }
 });
