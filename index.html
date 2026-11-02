@@ -2442,48 +2442,76 @@
 
   /* ===== DESKTOP LAYOUT (≥1024px) — HP tetap stack vertikal ===== */
   .desktop-side { display: none; }
+  #dashStickyAside { display: contents; } /* mobile: children flow as normal in parent */
   #dashUserCardUnderSchool { display: none; }
   body.dash-logged-in #dashUserCardUnderSchool { display: block; }
   #cardStrukturOrgDesktop { display: none; }
 
   @media (min-width: 1024px) {
     .content {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 300px;
-      gap: 16px;
-      align-items: start;
+      position: relative;
       max-width: 1280px;
       margin-left: auto;
       margin-right: auto;
       padding: 0 16px;
+      padding-right: 328px; /* ruang panel kanan fixed */
+      box-sizing: border-box;
     }
-    .content > .page { grid-column: 1; min-width: 0; }
+    .content > .page { min-width: 0; }
+
+    /* Panel sekolah + user: FIXED di kanan, tidak ikut scroll */
     .content > .desktop-side {
-      display: block;
-      grid-column: 2;
-      grid-row: 1;
+      display: block !important;
+      position: fixed;
+      top: calc(var(--topbar-h) + 12px);
+      /* sejajar tepi kanan area content max 1280 */
+      right: max(16px, calc((100vw - 1280px) / 2 + 16px));
+      width: 300px;
+      max-height: calc(100vh - var(--topbar-h) - 24px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      z-index: 40;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Dashboard: kolom kiri sticky (sekolah+user), kanan alur konten */
+    body.page-dashboard .content {
+      padding-right: 16px; /* side kanan diganti sticky kiri di dashboard */
+    }
+    body.page-dashboard .content > .desktop-side { display: none !important; }
+
+    #page-dashboard {
+      display: grid !important;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+    #dashStickyAside {
+      display: block !important;
       position: sticky;
       top: calc(var(--topbar-h) + 12px);
       align-self: start;
       max-height: calc(100vh - var(--topbar-h) - 24px);
       overflow-y: auto;
-      z-index: 5;
+      overflow-x: hidden;
+      z-index: 30;
+      -webkit-overflow-scrolling: touch;
     }
-    /* Dashboard: full width internal grid, hide global side */
-    body.page-dashboard .content {
-      grid-template-columns: 1fr;
-      max-width: 1280px;
-    }
-    body.page-dashboard .content > .desktop-side { display: none !important; }
-    body.page-dashboard .content > .page#page-dashboard { grid-column: 1 / -1; }
+    #dashStickyAside .dash-public-card { margin-bottom: 0; }
+    #dashStickyAside { display: flex !important; flex-direction: column; gap: 12px; }
 
-    /* 3 kolom: sekolah | stats | struktur */
+    #dashFlowCol { min-width: 0; }
+
+    /* Stats + struktur 2 kolom di area mengalir */
     #dashTopUnified {
       display: grid !important;
-      grid-template-columns: minmax(220px, 0.95fr) minmax(260px, 1fr) minmax(280px, 1.15fr);
+      grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.15fr);
       gap: 14px;
       align-items: start;
     }
+    /* Sekolah/user sudah di #dashStickyAside — sembunyikan duplikat di unified */
+    #dashTopUnified > .dash-top-left { display: none !important; }
+
     body.dash-logged-in #panelRekapGuru,
     body.dash-logged-in #panelRekapSiswa { display: none !important; }
     body.dash-logged-in #cardStrukturOrg { display: none !important; }
@@ -2497,10 +2525,19 @@
     margin-bottom: 12px;
     width: 100%;
   }
-  /* HP login: pertahankan layout lama (panel rekap guru/siswa), sembunyikan unified top */
+  /* HP: stack normal, sticky aside tidak aktif */
   @media (max-width: 1023px) {
+    #page-dashboard { display: block !important; }
+    #dashStickyAside {
+      display: flex !important;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    #dashFlowCol { display: contents; } /* children naik ke page-dashboard */
+    body.dash-logged-in #dashStickyAside { display: none !important; } /* login HP: panel lama */
     body.dash-logged-in #dashTopUnified { display: none !important; }
-    body:not(.dash-logged-in) #dashTopUnified { display: flex; }
+    body:not(.dash-logged-in) #dashTopUnified { display: flex; flex-direction: column; gap: 12px; }
   }
   #dashTopUnified .dash-top-left {
     display: flex;
@@ -2899,36 +2936,40 @@
   <div class="page active" id="page-dashboard">
 
 
-  <!-- Dashboard atas unified: kiri sekolah(+user), tengah stats, kanan struktur -->
-  <div id="dashTopUnified">
-    <div class="dash-top-left">
-      <div class="dash-public-card" id="dashPublicSchool">
-        <div class="dash-public-logo" id="dashPublicLogo"><span style="font-size:11px;color:#94a3b8;">Logo</span></div>
-        <div class="dash-public-school-name" id="dashPublicSchoolName">—</div>
-        <div class="dash-public-meta">
-          <div class="row"><span class="lbl">NSS</span><span class="sep">:</span><span class="val" id="dashPubNss">-</span></div>
-          <div class="row"><span class="lbl">NPSN</span><span class="sep">:</span><span class="val" id="dashPubNpsn">-</span></div>
-          <div class="row"><span class="lbl">Tahun Berdiri</span><span class="sep">:</span><span class="val" id="dashPubTahun">-</span></div>
-          <div class="row"><span class="lbl">Alamat</span><span class="sep">:</span><span class="val" id="dashPubAlamat">-</span></div>
-          <div class="row-block">
-            <span class="lbl">Visi</span>
-            <div class="val" id="dashPubVisi" style="white-space:pre-wrap;">-</div>
-          </div>
-          <div class="row-block">
-            <span class="lbl">Motto</span>
-            <div class="val" id="dashPubMotto" style="white-space:pre-wrap;">-</div>
-          </div>
+  <!-- Kolom kiri sticky (desktop): sekolah + user -->
+  <div id="dashStickyAside" class="dash-top-left">
+    <div class="dash-public-card" id="dashPublicSchool">
+      <div class="dash-public-logo" id="dashPublicLogo"><span style="font-size:11px;color:#94a3b8;">Logo</span></div>
+      <div class="dash-public-school-name" id="dashPublicSchoolName">—</div>
+      <div class="dash-public-meta">
+        <div class="row"><span class="lbl">NSS</span><span class="sep">:</span><span class="val" id="dashPubNss">-</span></div>
+        <div class="row"><span class="lbl">NPSN</span><span class="sep">:</span><span class="val" id="dashPubNpsn">-</span></div>
+        <div class="row"><span class="lbl">Tahun Berdiri</span><span class="sep">:</span><span class="val" id="dashPubTahun">-</span></div>
+        <div class="row"><span class="lbl">Alamat</span><span class="sep">:</span><span class="val" id="dashPubAlamat">-</span></div>
+        <div class="row-block">
+          <span class="lbl">Visi</span>
+          <div class="val" id="dashPubVisi" style="white-space:pre-wrap;">-</div>
         </div>
-        <div class="dash-public-hint">Dari menu <b>Data Sekolah</b></div>
+        <div class="row-block">
+          <span class="lbl">Motto</span>
+          <div class="val" id="dashPubMotto" style="white-space:pre-wrap;">-</div>
+        </div>
       </div>
-      <div class="dash-public-card" id="dashUserCardUnderSchool">
-        <div class="dash-avatar user" id="dashUserPhotoClone" style="margin:0 auto 8px">👤</div>
-        <div class="dash-name" id="dashUserNameClone" style="text-align:center">—</div>
-        <div class="dash-detail" id="dashUserDetailClone" style="text-align:left">
-          <p><b>Status</b> <span>: —</span></p>
-        </div>
+      <div class="dash-public-hint">Dari menu <b>Data Sekolah</b></div>
+    </div>
+    <div class="dash-public-card" id="dashUserCardUnderSchool">
+      <div class="dash-avatar user" id="dashUserPhotoClone" style="margin:0 auto 8px">👤</div>
+      <div class="dash-name" id="dashUserNameClone" style="text-align:center">—</div>
+      <div class="dash-detail" id="dashUserDetailClone" style="text-align:left">
+        <p><b>Status</b> <span>: —</span></p>
       </div>
     </div>
+  </div>
+
+  <!-- Konten mengalir (stats, struktur, rekap, …) -->
+  <div id="dashFlowCol">
+  <!-- Dashboard atas: stats + struktur -->
+  <div id="dashTopUnified">
     <div class="dash-top-center">
       <div class="dash-stats-stack">
         <div class="dash-public-card">
@@ -3092,6 +3133,7 @@
   </div>
   </div><!-- /dashRekapWrap -->
   <div id="dashRekapHiddenMsg" style="display:none;text-align:center;padding:18px 12px;margin-bottom:12px;background:#fff7ed;border:1px solid #fdba74;border-radius:10px;color:#9a3412;font-size:13px;font-weight:600;line-height:1.5;"></div>
+  </div><!-- /dashFlowCol -->
   </div><!-- /page-dashboard -->
 
   <!-- ========== PAGE: DATA SISWA ========== -->
