@@ -2440,6 +2440,11 @@
   }
 
 
+
+  /* Pastikan elemen dashboard tidak bocor ke halaman lain */
+  .page:not(.active) { display: none !important; }
+  .page.active { display: block; }
+
   /* ===== DESKTOP LAYOUT (≥1024px) — HP tetap stack vertikal ===== */
   .desktop-side { display: none; }
   #dashStickyAside { display: contents; } /* mobile: children flow as normal in parent */
@@ -2480,14 +2485,20 @@
     }
     body.page-dashboard .content > .desktop-side { display: none !important; }
 
-    #page-dashboard {
+    /* Hanya saat dashboard aktif — jangan paksa tampil di halaman lain */
+    #page-dashboard.active {
       display: grid !important;
       grid-template-columns: 280px minmax(0, 1fr);
       gap: 14px;
       align-items: start;
     }
-    #dashStickyAside {
-      display: block !important;
+    #page-dashboard:not(.active) {
+      display: none !important;
+    }
+    #page-dashboard.active #dashStickyAside {
+      display: flex !important;
+      flex-direction: column;
+      gap: 12px;
       position: sticky;
       top: calc(var(--topbar-h) + 12px);
       align-self: start;
@@ -2497,8 +2508,7 @@
       z-index: 30;
       -webkit-overflow-scrolling: touch;
     }
-    #dashStickyAside .dash-public-card { margin-bottom: 0; }
-    #dashStickyAside { display: flex !important; flex-direction: column; gap: 12px; }
+    #page-dashboard.active #dashStickyAside .dash-public-card { margin-bottom: 0; }
 
     #dashFlowCol { min-width: 0; }
 
@@ -2527,17 +2537,18 @@
   }
   /* HP: stack normal, sticky aside tidak aktif */
   @media (max-width: 1023px) {
-    #page-dashboard { display: block !important; }
-    #dashStickyAside {
+    #page-dashboard.active { display: block !important; }
+    #page-dashboard:not(.active) { display: none !important; }
+    #page-dashboard.active #dashStickyAside {
       display: flex !important;
       flex-direction: column;
       gap: 12px;
       margin-bottom: 12px;
     }
-    #dashFlowCol { display: contents; } /* children naik ke page-dashboard */
-    body.dash-logged-in #dashStickyAside { display: none !important; } /* login HP: panel lama */
-    body.dash-logged-in #dashTopUnified { display: none !important; }
-    body:not(.dash-logged-in) #dashTopUnified { display: flex; flex-direction: column; gap: 12px; }
+    #page-dashboard.active #dashFlowCol { display: contents; }
+    body.dash-logged-in #page-dashboard.active #dashStickyAside { display: none !important; }
+    body.dash-logged-in #page-dashboard.active #dashTopUnified { display: none !important; }
+    body:not(.dash-logged-in) #page-dashboard.active #dashTopUnified { display: flex; flex-direction: column; gap: 12px; }
   }
   #dashTopUnified .dash-top-left {
     display: flex;
