@@ -6752,10 +6752,29 @@ function handleAppBack() {
   showExitConfirm();
 }
 
+/** Deteksi lingkungan: Capacitor / Cordova / Android bridge / PWA standalone */
+function sisGetRuntimeEnv() {
+  const env = { capacitor: false, cordova: false, androidBridge: false, standalone: false };
+  try {
+    if (window.Capacitor?.Plugins?.App || window.Capacitor?.isNativePlatform?.()) env.capacitor = true;
+  } catch (_) {}
+  try {
+    if (window.cordova || (navigator.app && typeof navigator.app.exitApp === 'function')) env.cordova = true;
+  } catch (_) {}
+  try {
+    if (typeof Android !== 'undefined' && typeof Android.closeApp === 'function') env.androidBridge = true;
+  } catch (_) {}
+  try {
+    if (window.matchMedia('(display-mode: standalone)').matches) env.standalone = true;
+    if (window.navigator.standalone === true) env.standalone = true;
+    if (document.referrer && document.referrer.indexOf('android-app://') === 0) env.standalone = true;
+  } catch (_) {}
+  return env;
+}
+
 async function showExitConfirm() {
   const ov = document.getElementById('exitOverlay');
   if (!ov) {
-    // fallback native
     const ok = await sisConfirm('Yakin ingin menutup aplikasi?');
     if (ok) doExitApp();
     else {
@@ -6772,19 +6791,94 @@ function hideExitConfirm() {
   document.getElementById('exitOverlay')?.classList.remove('show');
 }
 
+/**
+ * Keluar aplikasi — urutan prioritas:
+ * 1) Capacitor App.exitApp()
+ * 2) Cordova navigator.app.exitApp()
+ * 3) Android WebView bridge (Android.closeApp)
+ * 4) window.close()
+ * 5) Fallback ramah: layar "ditutup" (bukan about:blank putih kosong)
+ */
 function doExitApp() {
   hideExitConfirm();
   navReady = false;
   navTrapArmed = false;
-  try { history.go(-1); } catch (_) {}
-  setTimeout(() => {
-    try { window.close(); } catch (_) {}
+  try { _exitTrapPushed = false; } catch (_) {}
+
+  const env = sisGetRuntimeEnv();
+
+  // 1) Capacitor (native APK/IPA)
+  try {
+    const CapApp = window.Capacitor?.Plugins?.App;
+    if (CapApp && typeof CapApp.exitApp === 'function') {
+      CapApp.exitApp();
+      return;
+    }
+  } catch (_) {}
+
+  // 2) Cordova
+  try {
+    if (navigator.app && typeof navigator.app.exitApp === 'function') {
+      navigator.app.exitApp();
+      return;
+    }
+  } catch (_) {}
+
+  // 3) Bridge Android custom (WebView)
+  try {
+    if (typeof Android !== 'undefined' && typeof Android.closeApp === 'function') {
+      Android.closeApp();
+      return;
+    }
+  } catch (_) {}
+
+  // 4) window.close (efektif di beberapa WebView)
+  try { window.close(); } catch (_) {}
+
+  // 5) Fallback: JANGAN about:blank — tampilkan layar penutup ramah
+  setTimeout(function () {
     try {
-      if (typeof Android !== 'undefined' && Android.closeApp) Android.closeApp();
+      history.replaceState({ sis: true, page: 'closed', trap: false }, '', '#closed');
     } catch (_) {}
-    // fallback terakhir
-    try { location.href = 'about:blank'; } catch (_) {}
-  }, 120);
+    showAppClosedScreen(env);
+  }, 160);
+}
+
+/** Layar penutup ramah — menggantikan about:blank putih */
+function showAppClosedScreen(env) {
+  try {
+    var standalone = !!(env && env.standalone);
+    var msg = standalone
+      ? 'Aplikasi telah ditutup.<br>Geser aplikasi dari daftar aplikasi terbaru<br>atau tekan tombol Home.'
+      : 'Sesi ditutup.<br>Anda dapat menutup tab / jendela ini.';
+    document.title = 'SIS — Ditutup';
+    document.body.innerHTML =
+      '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;' +
+      'background:linear-gradient(160deg,#0d47a1,#1565c0 40%,#1976d2);color:#fff;' +
+      'font-family:\'Segoe UI\',Tahoma,sans-serif;padding:24px;text-align:center;box-sizing:border-box">' +
+      '<div style="max-width:320px">' +
+      '<div style="font-size:48px;line-height:1;margin-bottom:12px;opacity:.95">✓</div>' +
+      '<div style="font-size:18px;font-weight:800;letter-spacing:.3px;margin-bottom:10px">Sistem Informasi Sekolah</div>' +
+      '<div style="font-size:13.5px;line-height:1.55;opacity:.92">' + msg + '</div>' +
+      '<button type="button" id="sisClosedReopen" style="margin-top:22px;padding:10px 20px;border:none;' +
+      'border-radius:10px;background:#fff;color:#1565c0;font-size:13px;font-weight:700;cursor:pointer">' +
+      'Buka kembali</button>' +
+      '</div></div>';
+    var btn = document.getElementById('sisClosedReopen');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        try { location.hash = '#dashboard'; location.reload(); } catch (_) { location.reload(); }
+      });
+    }
+    try {
+      history.pushState({ sis: true, page: 'closed', trap: true }, '', '#closed');
+      window.addEventListener('popstate', function _closedBlock() {
+        try { history.pushState({ sis: true, page: 'closed', trap: true }, '', '#closed'); } catch (_) {}
+      });
+    } catch (_) {}
+  } catch (_) {
+    try { location.replace('about:blank'); } catch (__) {}
+  }
 }
 
 document.getElementById('exitBtnCancel')?.addEventListener('click', async () => {
