@@ -13525,6 +13525,18 @@ async function renderIzinTable(rows) {
           owner_keys: expanded,
           items: expanded.map(k => ({ owner_key: k, allowed: !!allowed, jenis: izinTab })),
         });
+        for (const k of expanded.slice(0, 12)) {
+          try {
+            await apiCall('set_izin_bulk', {
+              jenis: izinTab,
+              keys: [k],
+              owner_key: k,
+              owner_keys: [k],
+              allowed: !!allowed,
+              izin: !!allowed,
+            });
+          } catch (_) {}
+        }
         izinStickySetMany(izinTab, expanded, !!allowed);
         izinStickySetMany(izinTab, [key], !!allowed);
         const row = izinRowsCache.find(x => String(x.owner_key) === key);
@@ -13683,7 +13695,7 @@ async function bulkIzin(allowed) {
   if (!await sisConfirm(`${label} ${keys.length} user (${izinJenisLabel(izinTab)})?`)) return;
   try {
     const expanded = expandIzinKeysForApi(keys, izinTab);
-    // Kirim payload minimal + lengkap (beberapa backend hanya baca salah satu field)
+    // 1) bulk
     const res = await apiCall('set_izin_bulk', {
       jenis: izinTab,
       keys: expanded,
@@ -13691,6 +13703,21 @@ async function bulkIzin(allowed) {
       owner_keys: expanded,
       items: expanded.map(k => ({ owner_key: k, allowed: !!allowed, jenis: izinTab })),
     });
+    // 2) per-kunci (beberapa backend hanya memproses 1 owner_key)
+    // batasi agar tidak terlalu lama
+    const perKeys = expanded.slice(0, 40);
+    for (const k of perKeys) {
+      try {
+        await apiCall('set_izin_bulk', {
+          jenis: izinTab,
+          keys: [k],
+          owner_key: k,
+          owner_keys: [k],
+          allowed: !!allowed,
+          izin: !!allowed,
+        });
+      } catch (_) {}
+    }
     // Sticky: kunci ini tetap ON/OFF meski list API tidak memetakan
     izinStickySetMany(izinTab, expanded, !!allowed);
     izinStickySetMany(izinTab, keys, !!allowed);
@@ -14926,14 +14953,16 @@ document.getElementById('btnUjSelesai')?.addEventListener('click', async () => {
 /** Cek izin per-user sebelum daftar/absen sidik jari */
 async function assertFpIzin(roleTarget, ownerKey) {
   const r = roleTarget === 'guru' || roleTarget === 'admin' ? 'guru' : 'siswa';
-  const jenis = r === 'guru' ? 'fp_guru' : 'fp_siswa';
+  const jenisList = r === 'guru'
+    ? ['fp_guru', 'guru', 'sidik_guru', 'fingerprint_guru']
+    : ['fp_siswa', 'siswa', 'sidik_siswa', 'fingerprint_siswa'];
   const sess = getSession();
   const tryKeys = [];
   const addKey = (v) => {
     if (v == null || v === '') return;
     const s = String(v).trim();
     if (!s) return;
-    if (s.length > 48 && !/^\d+$/.test(s)) return; // skip hash
+    if (s.length > 64 && !/^\d+$/.test(s)) return;
     if (!tryKeys.includes(s)) tryKeys.push(s);
     const dig = s.replace(/\D/g, '');
     if (dig && dig.length >= 5 && !tryKeys.includes(dig)) tryKeys.push(dig);
@@ -14948,25 +14977,40 @@ async function assertFpIzin(roleTarget, ownerKey) {
     addKey(sess?.user?.pin);
     addKey(sess?.user?.kode);
     addKey(sess?.user?.nip);
+    addKey(sess?.user?.nuptk);
     addKey(sess?.user?.id);
-    // Lengkapi NIP/id dari store (penting: izin admin sering tersimpan pakai NIP)
+    // Lengkapi dari store + list_guru (NIP sering jadi kunci izin di server)
     try {
       if (!(store.guru || []).length) {
         try { await refreshStoreFromDb(); } catch (_) {}
       }
-      const g = (store.guru || []).find(x =>
+      let g = (store.guru || []).find(x =>
         String(x.id) === String(sess?.user?.id) ||
         (sess?.user?.nama && String(x.nama).trim().toLowerCase() === String(sess.user.nama).trim().toLowerCase()) ||
         (sess?.user?.pin && String(x.pin) === String(sess.user.pin)) ||
         (sess?.user?.nip && String(x.nip) === String(sess.user.nip))
       );
+      if (!g) {
+        try {
+          const lg = await apiCall('list_guru', {});
+          const arr = Array.isArray(lg?.data) ? lg.data : (Array.isArray(lg?.guru) ? lg.guru : (Array.isArray(lg) ? lg : []));
+          g = arr.find(x =>
+            String(x.id) === String(sess?.user?.id) ||
+            (sess?.user?.nama && String(x.nama).trim().toLowerCase() === String(sess.user.nama).trim().toLowerCase()) ||
+            (sess?.user?.pin && String(x.pin) === String(sess.user.pin))
+          );
+        } catch (_) {}
+      }
       if (g) {
-        guruIzinKeyList(g).forEach(addKey);
-        // simpan nip/id ke sesi agar cek berikutnya lebih cepat
+        if (typeof guruIzinKeyList === 'function') guruIzinKeyList(g).forEach(addKey);
+        else {
+          addKey(g.pin); addKey(g.nip); addKey(g.nuptk); addKey(g.id);
+        }
         try {
           if (sess && sess.user) {
-            if (g.nip && !sess.user.nip) sess.user.nip = g.nip;
-            if (g.id && !sess.user.id) sess.user.id = g.id;
+            if (g.nip) sess.user.nip = g.nip;
+            if (g.id) sess.user.id = g.id;
+            if (g.nuptk) sess.user.nuptk = g.nuptk;
             saveSession(sess);
           }
         } catch (_) {}
@@ -14976,34 +15020,43 @@ async function assertFpIzin(roleTarget, ownerKey) {
 
   if (!tryKeys.length) throw new Error('Kode pengguna tidak diketahui untuk cek izin.');
 
-  let lastDenied = false;
-  let lastErr = null;
-  // Parallel check (lebih cepat)
-  const results = await Promise.all(tryKeys.map(async (key) => {
-    try {
-      const res = await apiCall('check_izin', { jenis, owner_key: key });
-      const ok = !!(res && (
-        res.allowed === true || res.allowed === 1 || res.allowed === '1' ||
-        (res.data && (res.data.allowed === true || res.data.allowed === 1))
-      ));
-      return { key, ok, res };
-    } catch (e) {
-      return { key, ok: false, err: e };
+  // Coba semua kombinasi jenis + kunci
+  const jobs = [];
+  for (const jenis of jenisList) {
+    for (const key of tryKeys) {
+      jobs.push((async () => {
+        try {
+          const res = await apiCall('check_izin', { jenis, owner_key: key, key, kode: key, role: r });
+          const ok = !!(res && (
+            res.allowed === true || res.allowed === 1 || res.allowed === '1' ||
+            res.izin === true || res.izin === 1 ||
+            (res.data && (res.data.allowed === true || res.data.allowed === 1 || res.data.izin === true))
+          ));
+          return { ok, jenis, key, res };
+        } catch (e) {
+          return { ok: false, jenis, key, err: e };
+        }
+      })());
     }
-  }));
-  if (results.some(x => x.ok)) return true;
-  if (results.some(x => x.err)) lastErr = results.find(x => x.err).err;
-  lastDenied = results.some(x => !x.err && !x.ok);
-
-  if (lastDenied) {
-    throw new Error(r === 'guru'
-      ? 'Akun Guru ini belum diberi izin sidik jari oleh Admin.'
-      : 'Siswa ini belum diberi izin sidik jari oleh Admin.');
   }
-  if (lastErr) console.warn('check_izin all keys failed', lastErr);
+  const results = await Promise.all(jobs);
+  if (results.some(x => x.ok)) return true;
+
+  const denied = results.filter(x => !x.err && !x.ok);
+  const errors = results.filter(x => x.err);
+  if (denied.length) {
+    const sampleKeys = tryKeys.slice(0, 4).join(', ');
+    throw new Error(
+      (r === 'guru'
+        ? 'Akun Guru ini belum diberi izin sidik jari oleh Admin.'
+        : 'Siswa ini belum diberi izin sidik jari oleh Admin.') +
+      ' (kunci dicek: ' + sampleKeys + (tryKeys.length > 4 ? ', …' : '') + ')'
+    );
+  }
+  // Gagal teknis semua: jangan blokir di client
+  if (errors.length) console.warn('check_izin all failed', errors[0].err);
   return true;
 }
-
 
 /* ===== Arsip Absensi ===== */
 function toInputDate(ymd) {
