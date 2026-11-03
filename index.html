@@ -13517,7 +13517,7 @@ async function renderIzinTable(rows) {
       const key = swEl.getAttribute('data-key') || '';
       const allowed = !!swEl.checked;
       try {
-        const expanded = expandIzinKeysForApi([key], izinTab);
+        const expanded = expandIzinKeysForApi([key], izinTab).slice(0, 4);
         await apiCall('set_izin_bulk', {
           jenis: izinTab,
           keys: expanded,
@@ -13525,18 +13525,6 @@ async function renderIzinTable(rows) {
           owner_keys: expanded,
           items: expanded.map(k => ({ owner_key: k, allowed: !!allowed, jenis: izinTab })),
         });
-        for (const k of expanded.slice(0, 12)) {
-          try {
-            await apiCall('set_izin_bulk', {
-              jenis: izinTab,
-              keys: [k],
-              owner_key: k,
-              owner_keys: [k],
-              allowed: !!allowed,
-              izin: !!allowed,
-            });
-          } catch (_) {}
-        }
         izinStickySetMany(izinTab, expanded, !!allowed);
         izinStickySetMany(izinTab, [key], !!allowed);
         const row = izinRowsCache.find(x => String(x.owner_key) === key);
@@ -13604,8 +13592,8 @@ async function initIzinSidikPage() {
     }
     izinRowsCache = await loadIzinList(izinTab, q);
     renderIzinTable(izinRowsCache);
-    // refresh counts for other tabs (ringkas)
-    refreshIzinCounts();
+    // hitung tab lain di latar — jangan blok UI
+    setTimeout(() => { try { refreshIzinCounts(); } catch (_) {} }, 400);
   } catch (e) {
     if (meta) meta.textContent = errToText(e);
     const tb = document.getElementById('tbodyIzinUsers');
@@ -13613,16 +13601,24 @@ async function initIzinSidikPage() {
   }
 }
 
+let _izinCountBusy = false;
 async function refreshIzinCounts() {
-  for (const j of ['fp_guru', 'fp_siswa', 'ujian']) {
-    if (j === izinTab) continue;
-    try {
-      const rows = await loadIzinList(j, '');
-      const n = rows.filter(r => r.allowed).length;
-      const id = j === 'fp_guru' ? 'cntFpGuru' : (j === 'fp_siswa' ? 'cntFpSiswa' : 'cntUjian');
-      const el = document.getElementById(id);
-      if (el) el.textContent = String(n);
-    } catch (_) {}
+  if (_izinCountBusy) return;
+  _izinCountBusy = true;
+  try {
+    // Hanya hitung tab lain secara ringan; jangan parallel berat
+    for (const j of ['fp_guru', 'fp_siswa', 'ujian']) {
+      if (j === izinTab) continue;
+      try {
+        const rows = await loadIzinList(j, '');
+        const n = rows.filter(r => r.allowed).length;
+        const id = j === 'fp_guru' ? 'cntFpGuru' : (j === 'fp_siswa' ? 'cntFpSiswa' : 'cntUjian');
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(n);
+      } catch (_) {}
+    }
+  } finally {
+    _izinCountBusy = false;
   }
 }
 
@@ -13684,7 +13680,12 @@ function expandIzinKeysForApi(keys, jenis) {
       }
     }
   });
-  return [...out].filter(Boolean);
+  // Maksimal 3 kunci per identitas agar tidak membanjiri API
+  const arr = [...out].filter(Boolean);
+  if (arr.length <= 24) return arr;
+  // prioritaskan yang pendek (PIN 6 digit / NIP)
+  arr.sort((a, b) => String(a).length - String(b).length);
+  return arr.slice(0, 24);
 }
 
 async function bulkIzin(allowed) {
@@ -13694,8 +13695,8 @@ async function bulkIzin(allowed) {
   const label = allowed ? 'memberi izin' : 'mencabut izin';
   if (!await sisConfirm(`${label} ${keys.length} user (${izinJenisLabel(izinTab)})?`)) return;
   try {
-    const expanded = expandIzinKeysForApi(keys, izinTab);
-    // 1) bulk
+    // Batasi kunci agar tidak membanjiri server (max 3 variasi per user)
+    const expanded = expandIzinKeysForApi(keys, izinTab).slice(0, Math.max(keys.length * 3, keys.length));
     const res = await apiCall('set_izin_bulk', {
       jenis: izinTab,
       keys: expanded,
@@ -13703,21 +13704,6 @@ async function bulkIzin(allowed) {
       owner_keys: expanded,
       items: expanded.map(k => ({ owner_key: k, allowed: !!allowed, jenis: izinTab })),
     });
-    // 2) per-kunci (beberapa backend hanya memproses 1 owner_key)
-    // batasi agar tidak terlalu lama
-    const perKeys = expanded.slice(0, 40);
-    for (const k of perKeys) {
-      try {
-        await apiCall('set_izin_bulk', {
-          jenis: izinTab,
-          keys: [k],
-          owner_key: k,
-          owner_keys: [k],
-          allowed: !!allowed,
-          izin: !!allowed,
-        });
-      } catch (_) {}
-    }
     // Sticky: kunci ini tetap ON/OFF meski list API tidak memetakan
     izinStickySetMany(izinTab, expanded, !!allowed);
     izinStickySetMany(izinTab, keys, !!allowed);
@@ -13731,27 +13717,19 @@ async function bulkIzin(allowed) {
     });
     try { renderIzinTable(izinRowsCache); } catch (_) {}
 
-    // Verifikasi 1 kunci lewat check_izin (diagnosa)
-    let verified = null;
-    try {
-      const testKey = expanded[0] || keys[0];
-      if (testKey) {
-        const chk = await apiCall('check_izin', { jenis: izinTab, owner_key: String(testKey) });
-        verified = !!(chk && (chk.allowed === true || chk.allowed === 1 || chk.allowed === '1' ||
-          (chk.data && (chk.data.allowed === true || chk.data.allowed === 1))));
-      }
-    } catch (_) {}
-
     toast(allowed ? ('Izin diberikan ke ' + keys.length + ' user') : ('Izin dicabut dari ' + keys.length + ' user'), 'ok');
-    let extra = '';
-    if (verified === true) extra = '<br><small style="color:#2e7d32">✓ Server mengonfirmasi izin aktif.</small>';
-    else if (verified === false) extra = '<br><small style="color:#c62828">⚠ Server belum mengonfirmasi izin (check_izin=false). Coba Cabut lalu Izinkan lagi, atau cek Edge Function set_izin_bulk.</small>';
     showBigPopup('ok', allowed ? 'Izin Diberikan' : 'Izin Dicabut',
-      (allowed ? 'Izin diberikan ke ' : 'Izin dicabut dari ') + '<b>' + keys.length + '</b> user.' + extra,
-      verified === false ? 0 : 3200);
+      (allowed ? 'Izin diberikan ke ' : 'Izin dicabut dari ') + '<b>' + keys.length + '</b> user.',
+      2200);
 
-    // Reload: sticky menjaga switch tetap benar
-    await initIzinSidikPage();
+    // Update UI dari cache (sticky); reload ringan tanpa tunggu count tab lain
+    try {
+      const q = document.getElementById('izinQ')?.value || '';
+      izinRowsCache = await loadIzinList(izinTab, q);
+      renderIzinTable(izinRowsCache);
+    } catch (_) {
+      try { renderIzinTable(izinRowsCache); } catch (__) {}
+    }
   } catch (e) {
     toast(errToText(e), 'err');
     showBigPopup('err', 'Gagal', errToText(e), 0);
@@ -15020,41 +14998,61 @@ async function assertFpIzin(roleTarget, ownerKey) {
 
   if (!tryKeys.length) throw new Error('Kode pengguna tidak diketahui untuk cek izin.');
 
-  // Coba semua kombinasi jenis + kunci
-  const jobs = [];
-  for (const jenis of jenisList) {
-    for (const key of tryKeys) {
-      jobs.push((async () => {
-        try {
-          const res = await apiCall('check_izin', { jenis, owner_key: key, key, kode: key, role: r });
-          const ok = !!(res && (
-            res.allowed === true || res.allowed === 1 || res.allowed === '1' ||
-            res.izin === true || res.izin === 1 ||
-            (res.data && (res.data.allowed === true || res.data.allowed === 1 || res.data.izin === true))
-          ));
-          return { ok, jenis, key, res };
-        } catch (e) {
-          return { ok: false, jenis, key, err: e };
-        }
-      })());
+  // Cek terbatas: jenis utama dulu, max 6 kunci — hindari lag
+  const primaryJenis = jenisList[0];
+  const keysToTry = tryKeys.slice(0, 6);
+  let anyDenied = false;
+  let anyErr = null;
+
+  for (const key of keysToTry) {
+    try {
+      const res = await apiCall('check_izin', {
+        jenis: primaryJenis,
+        owner_key: key,
+        key,
+        kode: key,
+        role: r,
+      });
+      const ok = !!(res && (
+        res.allowed === true || res.allowed === 1 || res.allowed === '1' ||
+        res.izin === true || res.izin === 1 ||
+        (res.data && (res.data.allowed === true || res.data.allowed === 1 || res.data.izin === true))
+      ));
+      if (ok) return true;
+      anyDenied = true;
+    } catch (e) {
+      anyErr = e;
     }
   }
-  const results = await Promise.all(jobs);
-  if (results.some(x => x.ok)) return true;
+  // Satu percobaan cadangan jenis alternatif (jika backend pakai nama lain)
+  if (jenisList[1] && keysToTry[0]) {
+    try {
+      const res = await apiCall('check_izin', {
+        jenis: jenisList[1],
+        owner_key: keysToTry[0],
+        role: r,
+      });
+      const ok = !!(res && (
+        res.allowed === true || res.allowed === 1 || res.allowed === '1' ||
+        (res.data && (res.data.allowed === true || res.data.allowed === 1))
+      ));
+      if (ok) return true;
+      anyDenied = true;
+    } catch (e) {
+      anyErr = e;
+    }
+  }
 
-  const denied = results.filter(x => !x.err && !x.ok);
-  const errors = results.filter(x => x.err);
-  if (denied.length) {
-    const sampleKeys = tryKeys.slice(0, 4).join(', ');
+  if (anyDenied) {
+    const sampleKeys = keysToTry.slice(0, 3).join(', ');
     throw new Error(
       (r === 'guru'
         ? 'Akun Guru ini belum diberi izin sidik jari oleh Admin.'
         : 'Siswa ini belum diberi izin sidik jari oleh Admin.') +
-      ' (kunci dicek: ' + sampleKeys + (tryKeys.length > 4 ? ', …' : '') + ')'
+      ' (kunci: ' + sampleKeys + ')'
     );
   }
-  // Gagal teknis semua: jangan blokir di client
-  if (errors.length) console.warn('check_izin all failed', errors[0].err);
+  if (anyErr) console.warn('check_izin failed', anyErr);
   return true;
 }
 
