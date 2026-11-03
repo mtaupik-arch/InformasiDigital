@@ -13129,6 +13129,72 @@ function izinJenisLabel(j) {
   return 'Izin Ujian';
 }
 
+/* ===== Sticky izin (cegah switch ON → OFF setelah reload jika list API tidak memetakan kunci) ===== */
+function izinStickyKey(jenis) {
+  return 'sis_izin_sticky_' + String(jenis || 'fp_guru');
+}
+function izinStickyLoad(jenis) {
+  try { return JSON.parse(sessionStorage.getItem(izinStickyKey(jenis)) || '{}') || {}; }
+  catch (_) { return {}; }
+}
+function izinStickySave(jenis, map) {
+  try { sessionStorage.setItem(izinStickyKey(jenis), JSON.stringify(map || {})); } catch (_) {}
+}
+function izinStickySetMany(jenis, keys, allowed) {
+  const map = izinStickyLoad(jenis);
+  (keys || []).forEach(k => {
+    const s = String(k || '').trim();
+    if (!s) return;
+    map[s] = !!allowed;
+    const dig = s.replace(/\D/g, '');
+    if (dig) map[dig] = !!allowed;
+  });
+  izinStickySave(jenis, map);
+}
+function izinStickyGet(jenis, keys) {
+  const map = izinStickyLoad(jenis);
+  for (const k of (keys || [])) {
+    const s = String(k || '').trim();
+    if (!s) continue;
+    if (map[s] === true) return true;
+    if (map[s] === false) return false;
+    const dig = s.replace(/\D/g, '');
+    if (dig && map[dig] === true) return true;
+    if (dig && map[dig] === false) return false;
+  }
+  return null; // unknown
+}
+
+function normalizeIzinApiRows(res) {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res.data)) return res.data;
+  if (Array.isArray(res.rows)) return res.rows;
+  if (Array.isArray(res.users)) return res.users;
+  if (res.data && Array.isArray(res.data.rows)) return res.data.rows;
+  if (res.data && Array.isArray(res.data.users)) return res.data.users;
+  if (res.data && Array.isArray(res.data.list)) return res.data.list;
+  if (res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
+    // { "123456": true, ... } atau { "123456": { allowed: true } }
+    return Object.entries(res.data).map(([k, v]) => {
+      if (v && typeof v === 'object') return { owner_key: k, ...v };
+      return { owner_key: k, allowed: !!v };
+    });
+  }
+  return [];
+}
+
+function rowIsIzinAllowed(r) {
+  if (!r || typeof r !== 'object') return false;
+  const vals = [r.allowed, r.izin, r.is_allowed, r.izin_aktif, r.active];
+  for (const v of vals) {
+    if (v === true || v === 1 || v === '1' || v === 'true' || v === 'on' || v === 'ON') return true;
+  }
+  const st = String(r.status || r.izin_status || r.state || '').toLowerCase();
+  if (['on', 'aktif', 'active', 'allowed', 'yes', 'ya', 'true', '1'].includes(st)) return true;
+  return false;
+}
+
 /** Kumpulkan semua kemungkinan owner_key untuk 1 guru (PIN login, NIP, id) */
 function guruIzinKeyList(g) {
   const keys = [];
@@ -13225,9 +13291,7 @@ function enrichIzinRows(jenis, apiRows) {
       if (dig && dig !== k) keys.push(dig);
     });
     const uniq = [...new Set(keys)];
-    const allowed = !!(r.allowed === true || r.allowed === 1 || r.allowed === '1' ||
-      String(r.status || '').toLowerCase() === 'on' ||
-      String(r.izin || '').toLowerCase() === 'on');
+    const allowed = rowIsIzinAllowed(r);
     uniq.forEach(k => {
       allowedMap.set(k, allowed || allowedMap.get(k) || false);
       if (!apiByKey.has(k)) apiByKey.set(k, r);
@@ -13257,11 +13321,14 @@ function enrichIzinRows(jenis, apiRows) {
       for (const k of allKeys) {
         if (apiByKey.has(k)) { apiR = apiByKey.get(k); break; }
       }
-      // ON jika salah satu kunci guru ada di map izin API
+      // ON jika salah satu kunci guru ada di map izin API ATAU sticky lokal
       let allowed = false;
       for (const k of allKeys) {
         if (allowedMap.has(k) && allowedMap.get(k)) { allowed = true; break; }
       }
+      const sticky = izinStickyGet(j, allKeys);
+      if (sticky === true) allowed = true;
+      if (sticky === false) allowed = false;
       allKeys.forEach(k => used.add(k));
       return {
         owner_key: key,
@@ -13334,11 +13401,10 @@ async function loadIzinList(jenis, q) {
   let apiRows = [];
   try {
     const res = await apiCall('list_izin_users', { jenis: j, q: q || '' });
-    apiRows = res?.data || res?.rows || res?.users || [];
-    if (!Array.isArray(apiRows)) apiRows = [];
+    apiRows = normalizeIzinApiRows(res);
+    if (!apiRows.length) apiRows = normalizeIzinApiRows(res?.data);
   } catch (e) {
     console.warn('list_izin_users', e);
-    // lanjut dengan master saja (semua belum izin)
     apiRows = [];
   }
 
@@ -13455,12 +13521,14 @@ async function renderIzinTable(rows) {
         await apiCall('set_izin_bulk', {
           jenis: izinTab,
           keys: expanded,
-          allowed,
+          allowed: !!allowed,
           owner_keys: expanded,
-          items: expanded.map(k => ({ owner_key: k, allowed })),
+          items: expanded.map(k => ({ owner_key: k, allowed: !!allowed, jenis: izinTab })),
         });
+        izinStickySetMany(izinTab, expanded, !!allowed);
+        izinStickySetMany(izinTab, [key], !!allowed);
         const row = izinRowsCache.find(x => String(x.owner_key) === key);
-        if (row) row.allowed = allowed;
+        if (row) row.allowed = !!allowed;
         renderIzinTable(izinRowsCache);
         toast(allowed ? 'Izin diberikan' : 'Izin dicabut', 'ok');
       } catch (e) {
@@ -13615,28 +13683,47 @@ async function bulkIzin(allowed) {
   if (!await sisConfirm(`${label} ${keys.length} user (${izinJenisLabel(izinTab)})?`)) return;
   try {
     const expanded = expandIzinKeysForApi(keys, izinTab);
+    // Kirim payload minimal + lengkap (beberapa backend hanya baca salah satu field)
     const res = await apiCall('set_izin_bulk', {
       jenis: izinTab,
       keys: expanded,
-      allowed,
+      allowed: !!allowed,
       owner_keys: expanded,
-      items: expanded.map(k => ({ owner_key: k, allowed })),
+      items: expanded.map(k => ({ owner_key: k, allowed: !!allowed, jenis: izinTab })),
     });
-    // Optimistic: update cache agar switch langsung ON/OFF
-    const keySet = new Set(keys.map(String));
+    // Sticky: kunci ini tetap ON/OFF meski list API tidak memetakan
+    izinStickySetMany(izinTab, expanded, !!allowed);
+    izinStickySetMany(izinTab, keys, !!allowed);
+
+    // Optimistic UI
+    const keySet = new Set([...keys, ...expanded].map(String));
     (izinRowsCache || []).forEach(r => {
-      if (keySet.has(String(r.owner_key))) r.allowed = !!allowed;
-      if (Array.isArray(r.alt_keys) && r.alt_keys.some(k => keySet.has(String(k)))) r.allowed = !!allowed;
+      const hit = keySet.has(String(r.owner_key)) ||
+        (Array.isArray(r.alt_keys) && r.alt_keys.some(k => keySet.has(String(k))));
+      if (hit) r.allowed = !!allowed;
     });
     try { renderIzinTable(izinRowsCache); } catch (_) {}
+
+    // Verifikasi 1 kunci lewat check_izin (diagnosa)
+    let verified = null;
+    try {
+      const testKey = expanded[0] || keys[0];
+      if (testKey) {
+        const chk = await apiCall('check_izin', { jenis: izinTab, owner_key: String(testKey) });
+        verified = !!(chk && (chk.allowed === true || chk.allowed === 1 || chk.allowed === '1' ||
+          (chk.data && (chk.data.allowed === true || chk.data.allowed === 1))));
+      }
+    } catch (_) {}
+
     toast(allowed ? ('Izin diberikan ke ' + keys.length + ' user') : ('Izin dicabut dari ' + keys.length + ' user'), 'ok');
+    let extra = '';
+    if (verified === true) extra = '<br><small style="color:#2e7d32">✓ Server mengonfirmasi izin aktif.</small>';
+    else if (verified === false) extra = '<br><small style="color:#c62828">⚠ Server belum mengonfirmasi izin (check_izin=false). Coba Cabut lalu Izinkan lagi, atau cek Edge Function set_izin_bulk.</small>';
     showBigPopup('ok', allowed ? 'Izin Diberikan' : 'Izin Dicabut',
-      (allowed ? 'Izin diberikan ke ' : 'Izin dicabut dari ') + '<b>' + keys.length + '</b> user.' +
-      (expanded.length > keys.length
-        ? '<br><small style="color:#666">Disimpan juga variasi PIN/NIP (' + expanded.length + ' kunci) agar akun guru mengenali izin.</small>'
-        : ''),
-      2800);
-    // sinkron ulang dari server
+      (allowed ? 'Izin diberikan ke ' : 'Izin dicabut dari ') + '<b>' + keys.length + '</b> user.' + extra,
+      verified === false ? 0 : 3200);
+
+    // Reload: sticky menjaga switch tetap benar
     await initIzinSidikPage();
   } catch (e) {
     toast(errToText(e), 'err');
