@@ -1876,28 +1876,25 @@
     overflow: hidden;
     color:#333;
   }
-  table.izin-table .col-chk { width:28px !important; max-width:32px; text-align:center; }
-  table.izin-table .col-no { width:28px !important; max-width:32px; text-align:center; color:#555; }
-  table.izin-table .col-duk { width:40px !important; max-width:48px; text-align:center; font-variant-numeric:tabular-nums; }
+  table.izin-table .col-chk { width:28px !important; text-align:center; }
+  table.izin-table .col-no { width:28px !important; text-align:center; color:#555; }
+  table.izin-table .col-duk { width:36px !important; text-align:center; font-variant-numeric:tabular-nums; }
   table.izin-table .col-kode {
     width:88px !important; text-align:center; font-size:10.5px;
     white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis;
   }
   table.izin-table .col-nama,
   table.izin-table td.col-nama {
-    width: auto !important;
-    min-width: 96px !important;
     text-align:left !important; font-weight:600 !important;
     white-space: normal !important;
     word-break: break-word !important;
     overflow-wrap: anywhere !important;
     line-height: 1.3 !important;
     padding-left: 5px !important;
-    color: #1a237e !important;
   }
   table.izin-table thead th.col-nama { text-align:left !important; padding-left:5px !important; }
-  table.izin-table .col-st { width:48px !important; max-width:56px; text-align:center; white-space:nowrap !important; }
-  table.izin-table .col-sw { width:48px !important; max-width:64px; text-align:center; }
+  table.izin-table .col-st { width:48px !important; text-align:center; white-space:nowrap !important; }
+  table.izin-table .col-sw { width:44px !important; text-align:center; }
   .izin-switch {
     position:relative; width:36px; height:20px; display:inline-block; vertical-align:middle;
   }
@@ -5677,12 +5674,6 @@ async function doLogin() {
     if ((session.role === 'guru' || session.role === 'admin') && id.length === 6) {
       session.user = { ...(session.user || {}), pin: id };
     }
-    // pastikan id user tersimpan (dipakai owner_key izin)
-    if (session.user && data.user) {
-      if (data.user.id && !session.user.id) session.user.id = data.user.id;
-      if (data.user.nip && !session.user.nip) session.user.nip = data.user.nip;
-      if (data.user.nuptk && !session.user.nuptk) session.user.nuptk = data.user.nuptk;
-    }
     saveSession(session);
     renderUserUI(session);
     closeLogin();
@@ -5711,23 +5702,6 @@ async function doLogin() {
     ;(async () => {
       try {
         await refreshStoreFromDb();
-        // Lengkapi NIP/id guru di sesi dari store (agar cek izin sidik jari cocok)
-        try {
-          const s = getSession();
-          if (s && (s.role === 'guru' || s.role === 'admin') && s.user) {
-            const g = (store.guru || []).find(x =>
-              String(x.id) === String(s.user.id) ||
-              (s.user.nama && String(x.nama).trim().toLowerCase() === String(s.user.nama).trim().toLowerCase()) ||
-              (s.user.pin && String(x.pin) === String(s.user.pin))
-            );
-            if (g) {
-              if (g.nip) s.user.nip = g.nip;
-              if (g.id) s.user.id = g.id;
-              if (g.nuptk) s.user.nuptk = g.nuptk;
-              saveSession(s);
-            }
-          }
-        } catch (_) {}
         const active = document.querySelector('.page.active');
         if (active?.id === 'page-data-siswa') renderSiswa();
         if (active?.id === 'page-data-guru') renderGuru();
@@ -13129,289 +13103,9 @@ function izinJenisLabel(j) {
   return 'Izin Ujian';
 }
 
-/* ===== Sticky izin (cegah switch ON → OFF setelah reload jika list API tidak memetakan kunci) ===== */
-function izinStickyKey(jenis) {
-  return 'sis_izin_sticky_' + String(jenis || 'fp_guru');
-}
-function izinStickyLoad(jenis) {
-  try { return JSON.parse(sessionStorage.getItem(izinStickyKey(jenis)) || '{}') || {}; }
-  catch (_) { return {}; }
-}
-function izinStickySave(jenis, map) {
-  try { sessionStorage.setItem(izinStickyKey(jenis), JSON.stringify(map || {})); } catch (_) {}
-}
-function izinStickySetMany(jenis, keys, allowed) {
-  const map = izinStickyLoad(jenis);
-  (keys || []).forEach(k => {
-    const s = String(k || '').trim();
-    if (!s) return;
-    map[s] = !!allowed;
-    const dig = s.replace(/\D/g, '');
-    if (dig) map[dig] = !!allowed;
-  });
-  izinStickySave(jenis, map);
-}
-function izinStickyGet(jenis, keys) {
-  const map = izinStickyLoad(jenis);
-  for (const k of (keys || [])) {
-    const s = String(k || '').trim();
-    if (!s) continue;
-    if (map[s] === true) return true;
-    if (map[s] === false) return false;
-    const dig = s.replace(/\D/g, '');
-    if (dig && map[dig] === true) return true;
-    if (dig && map[dig] === false) return false;
-  }
-  return null; // unknown
-}
-
-function normalizeIzinApiRows(res) {
-  if (!res) return [];
-  if (Array.isArray(res)) return res;
-  if (Array.isArray(res.data)) return res.data;
-  if (Array.isArray(res.rows)) return res.rows;
-  if (Array.isArray(res.users)) return res.users;
-  if (res.data && Array.isArray(res.data.rows)) return res.data.rows;
-  if (res.data && Array.isArray(res.data.users)) return res.data.users;
-  if (res.data && Array.isArray(res.data.list)) return res.data.list;
-  if (res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
-    // { "123456": true, ... } atau { "123456": { allowed: true } }
-    return Object.entries(res.data).map(([k, v]) => {
-      if (v && typeof v === 'object') return { owner_key: k, ...v };
-      return { owner_key: k, allowed: !!v };
-    });
-  }
-  return [];
-}
-
-function rowIsIzinAllowed(r) {
-  if (!r || typeof r !== 'object') return false;
-  const vals = [r.allowed, r.izin, r.is_allowed, r.izin_aktif, r.active];
-  for (const v of vals) {
-    if (v === true || v === 1 || v === '1' || v === 'true' || v === 'on' || v === 'ON') return true;
-  }
-  const st = String(r.status || r.izin_status || r.state || '').toLowerCase();
-  if (['on', 'aktif', 'active', 'allowed', 'yes', 'ya', 'true', '1'].includes(st)) return true;
-  return false;
-}
-
-/** Kumpulkan semua kemungkinan owner_key untuk 1 guru (PIN login, NIP, id) */
-function guruIzinKeyList(g) {
-  const keys = [];
-  const add = (v) => {
-    if (v == null || v === '') return;
-    const s = String(v).trim();
-    if (!s) return;
-    if (!keys.includes(s)) keys.push(s);
-    const dig = s.replace(/\D/g, '');
-    if (dig && !keys.includes(dig)) keys.push(dig);
-  };
-  // PIN 6 digit plaintext (prioritas — sama dengan yang dicek saat absen)
-  const pinRaw = String(g?.pin || '').trim();
-  const pinDig = pinRaw.replace(/\D/g, '');
-  if (!g?.pin_is_hashed && pinDig.length === 6) add(pinDig);
-  else if (/^\d{6}$/.test(pinRaw)) add(pinRaw);
-  add(g?.nip);
-  add(g?.kode);
-  add(g?.pin); // cadangan jika server menyimpan pin apa adanya
-  add(g?.id);
-  return keys.filter(Boolean);
-}
-
-/** Primary key yang dipakai di tabel & saat grant: PIN 6 digit jika ada */
-function primaryGuruIzinKey(g) {
-  const list = guruIzinKeyList(g);
-  const six = list.find(k => /^\d{6}$/.test(String(k)));
-  if (six) return six;
-  return list[0] || '';
-}
-
-/** Ambil daftar master guru/siswa dari store (aktif saja) */
-function izinMasterPeople(jenis) {
-  const j = jenis || izinTab;
-  if (j === 'fp_guru') {
-    return (store.guru || [])
-      .filter(g => {
-        const st = String(g.status || 'Aktif').toLowerCase();
-        return st === 'aktif' || st === '' || st === 'null';
-      })
-      .map(g => {
-        const owner_key = primaryGuruIzinKey(g);
-        return {
-          owner_key,
-          alt_keys: guruIzinKeyList(g),
-          nama: g.nama || '',
-          duk: g.duk != null ? g.duk : '',
-          nip: g.nip || '',
-          pin: g.pin || '',
-          id: g.id,
-          status_user: g.status || 'Aktif',
-        };
-      })
-      .filter(x => x.owner_key);
-  }
-  if (j === 'fp_siswa' || j === 'ujian') {
-    return (store.siswa || [])
-      .filter(s => {
-        const st = String(s.status || 'Aktif').toLowerCase();
-        return st === 'aktif' || st === '' || st === 'null';
-      })
-      .map(s => {
-        const nisn = String(s.nisn || '').replace(/\D/g, '') || String(s.nisn || '');
-        return {
-          owner_key: nisn || String(s.id || ''),
-          nama: s.nama || '',
-          kelas: s.kelas || '',
-          nisn: s.nisn || '',
-          id: s.id,
-          status_user: s.status || 'Aktif',
-        };
-      })
-      .filter(x => x.owner_key);
-  }
-  return [];
-}
-
-/** Gabungkan hasil API izin dengan data master agar nama tidak kosong */
-function enrichIzinRows(jenis, apiRows) {
-  const j = jenis || izinTab;
-  const api = Array.isArray(apiRows) ? apiRows : [];
-  const master = izinMasterPeople(j);
-
-  // Index izin dari API by key (berbagai kemungkinan field)
-  const allowedMap = new Map();
-  const apiByKey = new Map();
-  api.forEach(r => {
-    const keys = [
-      r.owner_key, r.kode, r.pin, r.nisn, r.nip, r.key, r.id
-    ].map(v => String(v == null ? '' : v).trim()).filter(Boolean);
-    // juga versi hanya digit
-    keys.slice().forEach(k => {
-      const dig = k.replace(/\D/g, '');
-      if (dig && dig !== k) keys.push(dig);
-    });
-    const uniq = [...new Set(keys)];
-    const allowed = rowIsIzinAllowed(r);
-    uniq.forEach(k => {
-      allowedMap.set(k, allowed || allowedMap.get(k) || false);
-      if (!apiByKey.has(k)) apiByKey.set(k, r);
-    });
-  });
-
-  const pickNama = (r, m) => {
-    const candidates = [
-      r && r.nama, r && r.name, r && r.nama_lengkap, r && r.full_name,
-      m && m.nama, m && m.name
-    ];
-    for (const c of candidates) {
-      if (c != null && String(c).trim()) return String(c).trim();
-    }
-    return '';
-  };
-
-  // Jika ada master: pakai master sebagai sumber daftar (nama pasti ada)
-  if (master.length) {
-    const used = new Set();
-    const rows = master.map(m => {
-      const key = String(m.owner_key);
-      const dig = key.replace(/\D/g, '');
-      const alt = Array.isArray(m.alt_keys) ? m.alt_keys.map(String) : [];
-      const allKeys = [...new Set([key, dig, ...alt].filter(Boolean))];
-      let apiR = null;
-      for (const k of allKeys) {
-        if (apiByKey.has(k)) { apiR = apiByKey.get(k); break; }
-      }
-      // ON jika salah satu kunci guru ada di map izin API ATAU sticky lokal
-      let allowed = false;
-      for (const k of allKeys) {
-        if (allowedMap.has(k) && allowedMap.get(k)) { allowed = true; break; }
-      }
-      const sticky = izinStickyGet(j, allKeys);
-      if (sticky === true) allowed = true;
-      if (sticky === false) allowed = false;
-      allKeys.forEach(k => used.add(k));
-      return {
-        owner_key: key,
-        alt_keys: allKeys,
-        nama: pickNama(apiR, m) || m.nama || '—',
-        duk: (apiR && apiR.duk != null && apiR.duk !== '') ? apiR.duk : m.duk,
-        kelas: m.kelas || (apiR && apiR.kelas) || '',
-        allowed: !!allowed,
-        id: m.id,
-      };
-    });
-    // Tambah baris API yang tidak ketemu di master (agar izin orphan tetap tampil)
-    api.forEach(r => {
-      const key = String(r.owner_key || r.kode || r.pin || r.nisn || '').trim();
-      if (!key) return;
-      const dig = key.replace(/\D/g, '');
-      if (used.has(key) || (dig && used.has(dig))) return;
-      rows.push({
-        owner_key: key,
-        nama: pickNama(r, null) || '—',
-        duk: r.duk != null ? r.duk : '',
-        kelas: r.kelas || '',
-        allowed: !!(r.allowed === true || r.allowed === 1 || r.allowed === '1'),
-      });
-    });
-    // urut: guru by duk, siswa by nama
-    if (j === 'fp_guru') {
-      rows.sort((a, b) => {
-        const da = Number(a.duk); const db = Number(b.duk);
-        const na = Number.isFinite(da) ? da : 9999;
-        const nb = Number.isFinite(db) ? db : 9999;
-        if (na !== nb) return na - nb;
-        return String(a.nama || '').localeCompare(String(b.nama || ''), 'id');
-      });
-    } else {
-      rows.sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
-    }
-    return rows;
-  }
-
-  // Tanpa master: pakai API apa adanya + normalisasi nama
-  return api.map(r => ({
-    owner_key: String(r.owner_key || r.kode || r.pin || r.nisn || r.key || '').trim(),
-    nama: pickNama(r, null) || '—',
-    duk: r.duk != null ? r.duk : '',
-    kelas: r.kelas || '',
-    allowed: !!(r.allowed === true || r.allowed === 1 || r.allowed === '1' ||
-      String(r.status || '').toLowerCase() === 'on'),
-  })).filter(r => r.owner_key);
-}
-
-function filterIzinRows(rows, q) {
-  const s = String(q || '').trim().toLowerCase();
-  if (!s) return rows;
-  return (rows || []).filter(r => {
-    const blob = [r.nama, r.owner_key, r.duk, r.kelas, r.nip, r.nisn]
-      .map(v => String(v == null ? '' : v).toLowerCase()).join(' ');
-    return blob.includes(s);
-  });
-}
-
 async function loadIzinList(jenis, q) {
-  const j = jenis || izinTab;
-  // Pastikan master guru/siswa tersedia agar nama tidak kosong
-  try {
-    if (j === 'fp_guru' && !(store.guru || []).length) await refreshStoreFromDb();
-    if ((j === 'fp_siswa' || j === 'ujian') && !(store.siswa || []).length) await refreshStoreFromDb();
-  } catch (_) {}
-
-  let apiRows = [];
-  try {
-    const res = await apiCall('list_izin_users', { jenis: j, q: q || '' });
-    apiRows = normalizeIzinApiRows(res);
-    if (!apiRows.length) apiRows = normalizeIzinApiRows(res?.data);
-  } catch (e) {
-    console.warn('list_izin_users', e);
-    apiRows = [];
-  }
-
-  let rows = enrichIzinRows(j, apiRows);
-  // Jika API sudah filter by q, master merge bisa menampilkan semua — filter ulang di client
-  rows = filterIzinRows(rows, q);
-  return rows;
+  const res = await apiCall('list_izin_users', { jenis: jenis || izinTab, q: q || '' });
+  return res?.data || [];
 }
 
 async function renderIzinTable(rows) {
@@ -13420,9 +13114,8 @@ async function renderIzinTable(rows) {
   if (!tb) return;
   const isAdmin = getSession()?.role === 'admin';
   const isGuru = izinTab === 'fp_guru';
-  const isFp = izinTab === 'fp_guru' || izinTab === 'fp_siswa';
 
-  // Header dinamis — kolom Reset FP selaras dengan body
+  // Header dinamis agar muat HP
   if (thead) {
     if (isGuru) {
       thead.innerHTML = `<tr>
@@ -13431,17 +13124,6 @@ async function renderIzinTable(rows) {
         <th class="col-nama">Nama</th>
         <th class="col-st">Status</th>
         <th class="col-sw">Izin</th>
-        <th class="col-sw">FP</th>
-      </tr>`;
-    } else if (isFp) {
-      thead.innerHTML = `<tr>
-        <th class="col-chk"><input type="checkbox" id="izinCheckAll" title="Pilih semua" /></th>
-        <th class="col-no">No</th>
-        <th class="col-kode">NISN</th>
-        <th class="col-nama">Nama</th>
-        <th class="col-st">Status</th>
-        <th class="col-sw">Izin</th>
-        <th class="col-sw">FP</th>
       </tr>`;
     } else {
       thead.innerHTML = `<tr>
@@ -13464,12 +13146,9 @@ async function renderIzinTable(rows) {
   const cntEl = document.getElementById(cntId);
   if (cntEl) cntEl.textContent = String(allowedN);
 
-  const colSpan = isGuru ? 6 : (isFp ? 7 : 6);
+  const colSpan = isGuru ? 6 : (izinTab === 'fp_siswa' || izinTab === 'fp_guru' ? 7 : 6);
   if (!rows.length) {
-    const hint = isGuru
-      ? 'Tidak ada data guru. Pastikan Data Guru sudah terisi, lalu tekan ↻.'
-      : 'Tidak ada data.';
-    tb.innerHTML = `<tr><td colspan="${colSpan}" style="padding:14px;color:#888;text-align:center">${hint}</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="${colSpan}" style="padding:14px;color:#888;text-align:center">Tidak ada data.</td></tr>`;
     return;
   }
 
@@ -13477,34 +13156,33 @@ async function renderIzinTable(rows) {
     const st = r.allowed
       ? '<span class="izin-status-pill on">ON</span>'
       : '<span class="izin-status-pill off">OFF</span>';
-    const keyAttr = escapeHtml(String(r.owner_key || ''));
     const sw = `<label class="izin-switch">
-        <input type="checkbox" class="izin-row-sw" data-key="${keyAttr}"
+        <input type="checkbox" class="izin-row-sw" data-key="${escapeHtml(r.owner_key)}"
           ${r.allowed ? 'checked' : ''} ${isAdmin ? '' : 'disabled'} />
         <span class="slider"></span>
       </label>`;
-    const chk = `<input type="checkbox" class="izin-chk" data-key="${keyAttr}" ${isAdmin ? '' : 'disabled'} />`;
+    const chk = `<input type="checkbox" class="izin-chk" data-key="${escapeHtml(r.owner_key)}" ${isAdmin ? '' : 'disabled'} />`;
+    const isFp = izinTab === 'fp_guru' || izinTab === 'fp_siswa';
     const fpRole = isGuru ? 'guru' : 'siswa';
     const resetBtn = (isFp && isAdmin)
-      ? `<button type="button" class="btn btn-outline btn-sm izin-reset-fp" data-key="${keyAttr}" data-role="${fpRole}" title="Reset sidik jari agar bisa daftar ulang di perangkat sah">Reset</button>`
+      ? `<button type="button" class="btn btn-outline btn-sm izin-reset-fp" data-key="${escapeHtml(r.owner_key)}" data-role="${fpRole}" title="Reset sidik jari agar bisa daftar ulang di perangkat sah">Reset FP</button>`
       : '';
-    const nama = (r.nama && String(r.nama).trim()) ? String(r.nama).trim() : '—';
     if (isGuru) {
       const duk = r.duk != null && r.duk !== '' ? r.duk : '—';
-      return `<tr data-key="${keyAttr}">
+      return `<tr data-key="${escapeHtml(r.owner_key)}">
         <td class="col-chk">${chk}</td>
         <td class="col-duk">${escapeHtml(String(duk))}</td>
-        <td class="col-nama" title="${escapeHtml(nama)}">${escapeHtml(nama)}</td>
+        <td class="col-nama">${escapeHtml(r.nama || '—')}</td>
         <td class="col-st">${st}</td>
         <td class="col-sw">${sw}</td>
         <td class="col-sw">${resetBtn}</td>
       </tr>`;
     }
-    return `<tr data-key="${keyAttr}">
+    return `<tr data-key="${escapeHtml(r.owner_key)}">
       <td class="col-chk">${chk}</td>
       <td class="col-no">${i + 1}</td>
-      <td class="col-kode">${escapeHtml(String(r.owner_key || ''))}</td>
-      <td class="col-nama" title="${escapeHtml(nama)}">${escapeHtml(nama)}</td>
+      <td class="col-kode">${escapeHtml(r.owner_key)}</td>
+      <td class="col-nama">${escapeHtml(r.nama || '—')}</td>
       <td class="col-st">${st}</td>
       <td class="col-sw">${sw}</td>
       ${isFp ? `<td class="col-sw">${resetBtn}</td>` : ''}
@@ -13517,18 +13195,9 @@ async function renderIzinTable(rows) {
       const key = swEl.getAttribute('data-key') || '';
       const allowed = !!swEl.checked;
       try {
-        const expanded = expandIzinKeysForApi([key], izinTab).slice(0, 4);
-        await apiCall('set_izin_bulk', {
-          jenis: izinTab,
-          keys: expanded,
-          allowed: !!allowed,
-          owner_keys: expanded,
-          items: expanded.map(k => ({ owner_key: k, allowed: !!allowed, jenis: izinTab })),
-        });
-        izinStickySetMany(izinTab, expanded, !!allowed);
-        izinStickySetMany(izinTab, [key], !!allowed);
+        await apiCall('set_izin_bulk', { jenis: izinTab, keys: [key], allowed });
         const row = izinRowsCache.find(x => String(x.owner_key) === key);
-        if (row) row.allowed = !!allowed;
+        if (row) row.allowed = allowed;
         renderIzinTable(izinRowsCache);
         toast(allowed ? 'Izin diberikan' : 'Izin dicabut', 'ok');
       } catch (e) {
@@ -13581,19 +13250,10 @@ async function initIzinSidikPage() {
   if (meta) meta.textContent = 'Memuat daftar…';
   const q = document.getElementById('izinQ')?.value || '';
   try {
-    // Pastikan data guru/siswa ada sebelum render (nama tidak hilang)
-    if (izinTab === 'fp_guru' && !(store.guru || []).length) {
-      if (meta) meta.textContent = 'Memuat data guru…';
-      try { await refreshStoreFromDb(); } catch (_) {}
-    }
-    if ((izinTab === 'fp_siswa' || izinTab === 'ujian') && !(store.siswa || []).length) {
-      if (meta) meta.textContent = 'Memuat data siswa…';
-      try { await refreshStoreFromDb(); } catch (_) {}
-    }
     izinRowsCache = await loadIzinList(izinTab, q);
     renderIzinTable(izinRowsCache);
-    // hitung tab lain di latar — jangan blok UI
-    setTimeout(() => { try { refreshIzinCounts(); } catch (_) {} }, 400);
+    // refresh counts for other tabs (ringkas)
+    refreshIzinCounts();
   } catch (e) {
     if (meta) meta.textContent = errToText(e);
     const tb = document.getElementById('tbodyIzinUsers');
@@ -13601,24 +13261,16 @@ async function initIzinSidikPage() {
   }
 }
 
-let _izinCountBusy = false;
 async function refreshIzinCounts() {
-  if (_izinCountBusy) return;
-  _izinCountBusy = true;
-  try {
-    // Hanya hitung tab lain secara ringan; jangan parallel berat
-    for (const j of ['fp_guru', 'fp_siswa', 'ujian']) {
-      if (j === izinTab) continue;
-      try {
-        const rows = await loadIzinList(j, '');
-        const n = rows.filter(r => r.allowed).length;
-        const id = j === 'fp_guru' ? 'cntFpGuru' : (j === 'fp_siswa' ? 'cntFpSiswa' : 'cntUjian');
-        const el = document.getElementById(id);
-        if (el) el.textContent = String(n);
-      } catch (_) {}
-    }
-  } finally {
-    _izinCountBusy = false;
+  for (const j of ['fp_guru', 'fp_siswa', 'ujian']) {
+    if (j === izinTab) continue;
+    try {
+      const rows = await loadIzinList(j, '');
+      const n = rows.filter(r => r.allowed).length;
+      const id = j === 'fp_guru' ? 'cntFpGuru' : (j === 'fp_siswa' ? 'cntFpSiswa' : 'cntUjian');
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(n);
+    } catch (_) {}
   }
 }
 
@@ -13628,66 +13280,6 @@ function selectedIzinKeys() {
     .filter(Boolean);
 }
 
-/**
- * Perluas key agar cocok di server & saat guru login (PIN / NIP / id).
- * Hindari menambahkan hash PIN panjang yang tidak pernah dipakai login.
- */
-function expandIzinKeysForApi(keys, jenis) {
-  const j = jenis || izinTab;
-  const out = new Set();
-  const add = (v) => {
-    if (v == null || v === '') return;
-    const s = String(v).trim();
-    if (!s) return;
-    // skip hash / token panjang non-operasional
-    if (s.length > 32 && !/^\d+$/.test(s)) return;
-    out.add(s);
-    const dig = s.replace(/\D/g, '');
-    if (dig && dig.length >= 5) out.add(dig);
-  };
-
-  (keys || []).forEach(k0 => {
-    const k = String(k0 || '').trim();
-    if (!k) return;
-    add(k);
-
-    if (j === 'fp_guru') {
-      const dig = k.replace(/\D/g, '');
-      const g = (store.guru || []).find(x => {
-        const ks = guruIzinKeyList(x);
-        return ks.includes(k) || (dig && ks.includes(dig)) ||
-          String(x.id) === k || String(x.nip || '').replace(/\D/g, '') === dig;
-      });
-      if (g) {
-        // urutan prioritas: PIN 6 digit, NIP, id
-        const pinDig = String(g.pin || '').replace(/\D/g, '');
-        if (!g.pin_is_hashed && pinDig.length === 6) add(pinDig);
-        else if (/^\d{6}$/.test(String(g.pin || '').trim())) add(String(g.pin).trim());
-        add(String(g.nip || '').replace(/\D/g, '') || g.nip);
-        add(g.id);
-      }
-      const row = (izinRowsCache || []).find(r => String(r.owner_key) === k || String(r.owner_key).replace(/\D/g, '') === dig);
-      if (row && Array.isArray(row.alt_keys)) row.alt_keys.forEach(add);
-    } else {
-      const dig = k.replace(/\D/g, '');
-      const s = (store.siswa || []).find(x =>
-        String(x.nisn || '').replace(/\D/g, '') === dig ||
-        String(x.nisn) === k || String(x.id) === k
-      );
-      if (s) {
-        add(String(s.nisn || '').replace(/\D/g, '') || s.nisn);
-        add(s.id);
-      }
-    }
-  });
-  // Maksimal 3 kunci per identitas agar tidak membanjiri API
-  const arr = [...out].filter(Boolean);
-  if (arr.length <= 24) return arr;
-  // prioritaskan yang pendek (PIN 6 digit / NIP)
-  arr.sort((a, b) => String(a).length - String(b).length);
-  return arr.slice(0, 24);
-}
-
 async function bulkIzin(allowed) {
   if (getSession()?.role !== 'admin') { toast('Hanya admin', 'err'); return; }
   const keys = selectedIzinKeys();
@@ -13695,41 +13287,11 @@ async function bulkIzin(allowed) {
   const label = allowed ? 'memberi izin' : 'mencabut izin';
   if (!await sisConfirm(`${label} ${keys.length} user (${izinJenisLabel(izinTab)})?`)) return;
   try {
-    // Batasi kunci agar tidak membanjiri server (max 3 variasi per user)
-    const expanded = expandIzinKeysForApi(keys, izinTab).slice(0, Math.max(keys.length * 3, keys.length));
-    const res = await apiCall('set_izin_bulk', {
-      jenis: izinTab,
-      keys: expanded,
-      allowed: !!allowed,
-      owner_keys: expanded,
-      items: expanded.map(k => ({ owner_key: k, allowed: !!allowed, jenis: izinTab })),
-    });
-    // Sticky: kunci ini tetap ON/OFF meski list API tidak memetakan
-    izinStickySetMany(izinTab, expanded, !!allowed);
-    izinStickySetMany(izinTab, keys, !!allowed);
-
-    // Optimistic UI
-    const keySet = new Set([...keys, ...expanded].map(String));
-    (izinRowsCache || []).forEach(r => {
-      const hit = keySet.has(String(r.owner_key)) ||
-        (Array.isArray(r.alt_keys) && r.alt_keys.some(k => keySet.has(String(k))));
-      if (hit) r.allowed = !!allowed;
-    });
-    try { renderIzinTable(izinRowsCache); } catch (_) {}
-
-    toast(allowed ? ('Izin diberikan ke ' + keys.length + ' user') : ('Izin dicabut dari ' + keys.length + ' user'), 'ok');
+    const res = await apiCall('set_izin_bulk', { jenis: izinTab, keys, allowed });
+    toast(res.message || 'OK', 'ok');
     showBigPopup('ok', allowed ? 'Izin Diberikan' : 'Izin Dicabut',
-      (allowed ? 'Izin diberikan ke ' : 'Izin dicabut dari ') + '<b>' + keys.length + '</b> user.',
-      2200);
-
-    // Update UI dari cache (sticky); reload ringan tanpa tunggu count tab lain
-    try {
-      const q = document.getElementById('izinQ')?.value || '';
-      izinRowsCache = await loadIzinList(izinTab, q);
-      renderIzinTable(izinRowsCache);
-    } catch (_) {
-      try { renderIzinTable(izinRowsCache); } catch (__) {}
-    }
+      res.message || `${keys.length} user diperbarui.`, 2500);
+    await initIzinSidikPage();
   } catch (e) {
     toast(errToText(e), 'err');
     showBigPopup('err', 'Gagal', errToText(e), 0);
@@ -14931,130 +14493,32 @@ document.getElementById('btnUjSelesai')?.addEventListener('click', async () => {
 /** Cek izin per-user sebelum daftar/absen sidik jari */
 async function assertFpIzin(roleTarget, ownerKey) {
   const r = roleTarget === 'guru' || roleTarget === 'admin' ? 'guru' : 'siswa';
-  const jenisList = r === 'guru'
-    ? ['fp_guru', 'guru', 'sidik_guru', 'fingerprint_guru']
-    : ['fp_siswa', 'siswa', 'sidik_siswa', 'fingerprint_siswa'];
+  const jenis = r === 'guru' ? 'fp_guru' : 'fp_siswa';
   const sess = getSession();
-  const tryKeys = [];
-  const addKey = (v) => {
-    if (v == null || v === '') return;
-    const s = String(v).trim();
-    if (!s) return;
-    if (s.length > 64 && !/^\d+$/.test(s)) return;
-    if (!tryKeys.includes(s)) tryKeys.push(s);
-    const dig = s.replace(/\D/g, '');
-    if (dig && dig.length >= 5 && !tryKeys.includes(dig)) tryKeys.push(dig);
-  };
-
-  addKey(ownerKey);
-  if (r === 'siswa') {
-    addKey(sess?.user?.nisn);
-    addKey(sess?.user?.kode);
-    addKey(sess?.user?.id);
-  } else {
-    addKey(sess?.user?.pin);
-    addKey(sess?.user?.kode);
-    addKey(sess?.user?.nip);
-    addKey(sess?.user?.nuptk);
-    addKey(sess?.user?.id);
-    // Lengkapi dari store + list_guru (NIP sering jadi kunci izin di server)
-    try {
-      if (!(store.guru || []).length) {
-        try { await refreshStoreFromDb(); } catch (_) {}
-      }
-      let g = (store.guru || []).find(x =>
-        String(x.id) === String(sess?.user?.id) ||
-        (sess?.user?.nama && String(x.nama).trim().toLowerCase() === String(sess.user.nama).trim().toLowerCase()) ||
-        (sess?.user?.pin && String(x.pin) === String(sess.user.pin)) ||
-        (sess?.user?.nip && String(x.nip) === String(sess.user.nip))
-      );
-      if (!g) {
-        try {
-          const lg = await apiCall('list_guru', {});
-          const arr = Array.isArray(lg?.data) ? lg.data : (Array.isArray(lg?.guru) ? lg.guru : (Array.isArray(lg) ? lg : []));
-          g = arr.find(x =>
-            String(x.id) === String(sess?.user?.id) ||
-            (sess?.user?.nama && String(x.nama).trim().toLowerCase() === String(sess.user.nama).trim().toLowerCase()) ||
-            (sess?.user?.pin && String(x.pin) === String(sess.user.pin))
-          );
-        } catch (_) {}
-      }
-      if (g) {
-        if (typeof guruIzinKeyList === 'function') guruIzinKeyList(g).forEach(addKey);
-        else {
-          addKey(g.pin); addKey(g.nip); addKey(g.nuptk); addKey(g.id);
-        }
-        try {
-          if (sess && sess.user) {
-            if (g.nip) sess.user.nip = g.nip;
-            if (g.id) sess.user.id = g.id;
-            if (g.nuptk) sess.user.nuptk = g.nuptk;
-            saveSession(sess);
-          }
-        } catch (_) {}
-      }
-    } catch (_) {}
-  }
-
-  if (!tryKeys.length) throw new Error('Kode pengguna tidak diketahui untuk cek izin.');
-
-  // Cek terbatas: jenis utama dulu, max 6 kunci — hindari lag
-  const primaryJenis = jenisList[0];
-  const keysToTry = tryKeys.slice(0, 6);
-  let anyDenied = false;
-  let anyErr = null;
-
-  for (const key of keysToTry) {
-    try {
-      const res = await apiCall('check_izin', {
-        jenis: primaryJenis,
-        owner_key: key,
-        key,
-        kode: key,
-        role: r,
-      });
-      const ok = !!(res && (
-        res.allowed === true || res.allowed === 1 || res.allowed === '1' ||
-        res.izin === true || res.izin === 1 ||
-        (res.data && (res.data.allowed === true || res.data.allowed === 1 || res.data.izin === true))
-      ));
-      if (ok) return true;
-      anyDenied = true;
-    } catch (e) {
-      anyErr = e;
+  let key = String(ownerKey || '').replace(/\D/g, '');
+  if (!key) {
+    if (r === 'siswa') {
+      key = String(sess?.user?.nisn || sess?.user?.kode || '').replace(/\D/g, '');
+    } else {
+      key = String(sess?.user?.pin || sess?.user?.kode || '').replace(/\D/g, '');
     }
   }
-  // Satu percobaan cadangan jenis alternatif (jika backend pakai nama lain)
-  if (jenisList[1] && keysToTry[0]) {
-    try {
-      const res = await apiCall('check_izin', {
-        jenis: jenisList[1],
-        owner_key: keysToTry[0],
-        role: r,
-      });
-      const ok = !!(res && (
-        res.allowed === true || res.allowed === 1 || res.allowed === '1' ||
-        (res.data && (res.data.allowed === true || res.data.allowed === 1))
-      ));
-      if (ok) return true;
-      anyDenied = true;
-    } catch (e) {
-      anyErr = e;
-    }
-  }
-
-  if (anyDenied) {
-    const sampleKeys = keysToTry.slice(0, 3).join(', ');
-    throw new Error(
-      (r === 'guru'
+  if (!key) throw new Error('Kode pengguna tidak diketahui untuk cek izin.');
+  try {
+    const res = await apiCall('check_izin', { jenis, owner_key: key });
+    if (!res.allowed) {
+      throw new Error(r === 'guru'
         ? 'Akun Guru ini belum diberi izin sidik jari oleh Admin.'
-        : 'Siswa ini belum diberi izin sidik jari oleh Admin.') +
-      ' (kunci: ' + sampleKeys + ')'
-    );
+        : 'Siswa ini belum diberi izin sidik jari oleh Admin.');
+    }
+  } catch (e) {
+    if (String(e.message || e).includes('belum diberi izin')) throw e;
+    // jika API gagal, biarkan server yang menolak
+    console.warn('check_izin', e);
   }
-  if (anyErr) console.warn('check_izin failed', anyErr);
   return true;
 }
+
 
 /* ===== Arsip Absensi ===== */
 function toInputDate(ymd) {
