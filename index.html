@@ -1876,25 +1876,28 @@
     overflow: hidden;
     color:#333;
   }
-  table.izin-table .col-chk { width:28px !important; text-align:center; }
-  table.izin-table .col-no { width:28px !important; text-align:center; color:#555; }
-  table.izin-table .col-duk { width:36px !important; text-align:center; font-variant-numeric:tabular-nums; }
+  table.izin-table .col-chk { width:28px !important; max-width:32px; text-align:center; }
+  table.izin-table .col-no { width:28px !important; max-width:32px; text-align:center; color:#555; }
+  table.izin-table .col-duk { width:40px !important; max-width:48px; text-align:center; font-variant-numeric:tabular-nums; }
   table.izin-table .col-kode {
     width:88px !important; text-align:center; font-size:10.5px;
     white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis;
   }
   table.izin-table .col-nama,
   table.izin-table td.col-nama {
+    width: auto !important;
+    min-width: 96px !important;
     text-align:left !important; font-weight:600 !important;
     white-space: normal !important;
     word-break: break-word !important;
     overflow-wrap: anywhere !important;
     line-height: 1.3 !important;
     padding-left: 5px !important;
+    color: #1a237e !important;
   }
   table.izin-table thead th.col-nama { text-align:left !important; padding-left:5px !important; }
-  table.izin-table .col-st { width:48px !important; text-align:center; white-space:nowrap !important; }
-  table.izin-table .col-sw { width:44px !important; text-align:center; }
+  table.izin-table .col-st { width:48px !important; max-width:56px; text-align:center; white-space:nowrap !important; }
+  table.izin-table .col-sw { width:48px !important; max-width:64px; text-align:center; }
   .izin-switch {
     position:relative; width:36px; height:20px; display:inline-block; vertical-align:middle;
   }
@@ -13103,9 +13106,182 @@ function izinJenisLabel(j) {
   return 'Izin Ujian';
 }
 
+/** Ambil daftar master guru/siswa dari store (aktif saja) */
+function izinMasterPeople(jenis) {
+  const j = jenis || izinTab;
+  if (j === 'fp_guru') {
+    return (store.guru || [])
+      .filter(g => {
+        const st = String(g.status || 'Aktif').toLowerCase();
+        return st === 'aktif' || st === '' || st === 'null';
+      })
+      .map(g => {
+        const pin = String(g.pin || g.nip || g.kode || '').replace(/\D/g, '') || String(g.pin || g.nip || '');
+        return {
+          owner_key: pin || String(g.id || ''),
+          nama: g.nama || '',
+          duk: g.duk != null ? g.duk : '',
+          nip: g.nip || '',
+          pin: g.pin || '',
+          id: g.id,
+          status_user: g.status || 'Aktif',
+        };
+      })
+      .filter(x => x.owner_key);
+  }
+  if (j === 'fp_siswa' || j === 'ujian') {
+    return (store.siswa || [])
+      .filter(s => {
+        const st = String(s.status || 'Aktif').toLowerCase();
+        return st === 'aktif' || st === '' || st === 'null';
+      })
+      .map(s => {
+        const nisn = String(s.nisn || '').replace(/\D/g, '') || String(s.nisn || '');
+        return {
+          owner_key: nisn || String(s.id || ''),
+          nama: s.nama || '',
+          kelas: s.kelas || '',
+          nisn: s.nisn || '',
+          id: s.id,
+          status_user: s.status || 'Aktif',
+        };
+      })
+      .filter(x => x.owner_key);
+  }
+  return [];
+}
+
+/** Gabungkan hasil API izin dengan data master agar nama tidak kosong */
+function enrichIzinRows(jenis, apiRows) {
+  const j = jenis || izinTab;
+  const api = Array.isArray(apiRows) ? apiRows : [];
+  const master = izinMasterPeople(j);
+
+  // Index izin dari API by key (berbagai kemungkinan field)
+  const allowedMap = new Map();
+  const apiByKey = new Map();
+  api.forEach(r => {
+    const keys = [
+      r.owner_key, r.kode, r.pin, r.nisn, r.nip, r.key, r.id
+    ].map(v => String(v == null ? '' : v).trim()).filter(Boolean);
+    // juga versi hanya digit
+    keys.slice().forEach(k => {
+      const dig = k.replace(/\D/g, '');
+      if (dig && dig !== k) keys.push(dig);
+    });
+    const uniq = [...new Set(keys)];
+    const allowed = !!(r.allowed === true || r.allowed === 1 || r.allowed === '1' ||
+      String(r.status || '').toLowerCase() === 'on' ||
+      String(r.izin || '').toLowerCase() === 'on');
+    uniq.forEach(k => {
+      allowedMap.set(k, allowed || allowedMap.get(k) || false);
+      if (!apiByKey.has(k)) apiByKey.set(k, r);
+    });
+  });
+
+  const pickNama = (r, m) => {
+    const candidates = [
+      r && r.nama, r && r.name, r && r.nama_lengkap, r && r.full_name,
+      m && m.nama, m && m.name
+    ];
+    for (const c of candidates) {
+      if (c != null && String(c).trim()) return String(c).trim();
+    }
+    return '';
+  };
+
+  // Jika ada master: pakai master sebagai sumber daftar (nama pasti ada)
+  if (master.length) {
+    const used = new Set();
+    const rows = master.map(m => {
+      const key = String(m.owner_key);
+      const dig = key.replace(/\D/g, '');
+      const apiR = apiByKey.get(key) || apiByKey.get(dig) || null;
+      const allowed = allowedMap.has(key) ? allowedMap.get(key)
+        : (allowedMap.has(dig) ? allowedMap.get(dig) : false);
+      used.add(key); if (dig) used.add(dig);
+      return {
+        owner_key: key,
+        nama: pickNama(apiR, m) || m.nama || '—',
+        duk: (apiR && apiR.duk != null && apiR.duk !== '') ? apiR.duk : m.duk,
+        kelas: m.kelas || (apiR && apiR.kelas) || '',
+        allowed: !!allowed,
+        id: m.id,
+      };
+    });
+    // Tambah baris API yang tidak ketemu di master (agar izin orphan tetap tampil)
+    api.forEach(r => {
+      const key = String(r.owner_key || r.kode || r.pin || r.nisn || '').trim();
+      if (!key) return;
+      const dig = key.replace(/\D/g, '');
+      if (used.has(key) || (dig && used.has(dig))) return;
+      rows.push({
+        owner_key: key,
+        nama: pickNama(r, null) || '—',
+        duk: r.duk != null ? r.duk : '',
+        kelas: r.kelas || '',
+        allowed: !!(r.allowed === true || r.allowed === 1 || r.allowed === '1'),
+      });
+    });
+    // urut: guru by duk, siswa by nama
+    if (j === 'fp_guru') {
+      rows.sort((a, b) => {
+        const da = Number(a.duk); const db = Number(b.duk);
+        const na = Number.isFinite(da) ? da : 9999;
+        const nb = Number.isFinite(db) ? db : 9999;
+        if (na !== nb) return na - nb;
+        return String(a.nama || '').localeCompare(String(b.nama || ''), 'id');
+      });
+    } else {
+      rows.sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
+    }
+    return rows;
+  }
+
+  // Tanpa master: pakai API apa adanya + normalisasi nama
+  return api.map(r => ({
+    owner_key: String(r.owner_key || r.kode || r.pin || r.nisn || r.key || '').trim(),
+    nama: pickNama(r, null) || '—',
+    duk: r.duk != null ? r.duk : '',
+    kelas: r.kelas || '',
+    allowed: !!(r.allowed === true || r.allowed === 1 || r.allowed === '1' ||
+      String(r.status || '').toLowerCase() === 'on'),
+  })).filter(r => r.owner_key);
+}
+
+function filterIzinRows(rows, q) {
+  const s = String(q || '').trim().toLowerCase();
+  if (!s) return rows;
+  return (rows || []).filter(r => {
+    const blob = [r.nama, r.owner_key, r.duk, r.kelas, r.nip, r.nisn]
+      .map(v => String(v == null ? '' : v).toLowerCase()).join(' ');
+    return blob.includes(s);
+  });
+}
+
 async function loadIzinList(jenis, q) {
-  const res = await apiCall('list_izin_users', { jenis: jenis || izinTab, q: q || '' });
-  return res?.data || [];
+  const j = jenis || izinTab;
+  // Pastikan master guru/siswa tersedia agar nama tidak kosong
+  try {
+    if (j === 'fp_guru' && !(store.guru || []).length) await refreshStoreFromDb();
+    if ((j === 'fp_siswa' || j === 'ujian') && !(store.siswa || []).length) await refreshStoreFromDb();
+  } catch (_) {}
+
+  let apiRows = [];
+  try {
+    const res = await apiCall('list_izin_users', { jenis: j, q: q || '' });
+    apiRows = res?.data || res?.rows || res?.users || [];
+    if (!Array.isArray(apiRows)) apiRows = [];
+  } catch (e) {
+    console.warn('list_izin_users', e);
+    // lanjut dengan master saja (semua belum izin)
+    apiRows = [];
+  }
+
+  let rows = enrichIzinRows(j, apiRows);
+  // Jika API sudah filter by q, master merge bisa menampilkan semua — filter ulang di client
+  rows = filterIzinRows(rows, q);
+  return rows;
 }
 
 async function renderIzinTable(rows) {
@@ -13114,8 +13290,9 @@ async function renderIzinTable(rows) {
   if (!tb) return;
   const isAdmin = getSession()?.role === 'admin';
   const isGuru = izinTab === 'fp_guru';
+  const isFp = izinTab === 'fp_guru' || izinTab === 'fp_siswa';
 
-  // Header dinamis agar muat HP
+  // Header dinamis — kolom Reset FP selaras dengan body
   if (thead) {
     if (isGuru) {
       thead.innerHTML = `<tr>
@@ -13124,6 +13301,17 @@ async function renderIzinTable(rows) {
         <th class="col-nama">Nama</th>
         <th class="col-st">Status</th>
         <th class="col-sw">Izin</th>
+        <th class="col-sw">FP</th>
+      </tr>`;
+    } else if (isFp) {
+      thead.innerHTML = `<tr>
+        <th class="col-chk"><input type="checkbox" id="izinCheckAll" title="Pilih semua" /></th>
+        <th class="col-no">No</th>
+        <th class="col-kode">NISN</th>
+        <th class="col-nama">Nama</th>
+        <th class="col-st">Status</th>
+        <th class="col-sw">Izin</th>
+        <th class="col-sw">FP</th>
       </tr>`;
     } else {
       thead.innerHTML = `<tr>
@@ -13146,9 +13334,12 @@ async function renderIzinTable(rows) {
   const cntEl = document.getElementById(cntId);
   if (cntEl) cntEl.textContent = String(allowedN);
 
-  const colSpan = isGuru ? 6 : (izinTab === 'fp_siswa' || izinTab === 'fp_guru' ? 7 : 6);
+  const colSpan = isGuru ? 6 : (isFp ? 7 : 6);
   if (!rows.length) {
-    tb.innerHTML = `<tr><td colspan="${colSpan}" style="padding:14px;color:#888;text-align:center">Tidak ada data.</td></tr>`;
+    const hint = isGuru
+      ? 'Tidak ada data guru. Pastikan Data Guru sudah terisi, lalu tekan ↻.'
+      : 'Tidak ada data.';
+    tb.innerHTML = `<tr><td colspan="${colSpan}" style="padding:14px;color:#888;text-align:center">${hint}</td></tr>`;
     return;
   }
 
@@ -13156,33 +13347,34 @@ async function renderIzinTable(rows) {
     const st = r.allowed
       ? '<span class="izin-status-pill on">ON</span>'
       : '<span class="izin-status-pill off">OFF</span>';
+    const keyAttr = escapeHtml(String(r.owner_key || ''));
     const sw = `<label class="izin-switch">
-        <input type="checkbox" class="izin-row-sw" data-key="${escapeHtml(r.owner_key)}"
+        <input type="checkbox" class="izin-row-sw" data-key="${keyAttr}"
           ${r.allowed ? 'checked' : ''} ${isAdmin ? '' : 'disabled'} />
         <span class="slider"></span>
       </label>`;
-    const chk = `<input type="checkbox" class="izin-chk" data-key="${escapeHtml(r.owner_key)}" ${isAdmin ? '' : 'disabled'} />`;
-    const isFp = izinTab === 'fp_guru' || izinTab === 'fp_siswa';
+    const chk = `<input type="checkbox" class="izin-chk" data-key="${keyAttr}" ${isAdmin ? '' : 'disabled'} />`;
     const fpRole = isGuru ? 'guru' : 'siswa';
     const resetBtn = (isFp && isAdmin)
-      ? `<button type="button" class="btn btn-outline btn-sm izin-reset-fp" data-key="${escapeHtml(r.owner_key)}" data-role="${fpRole}" title="Reset sidik jari agar bisa daftar ulang di perangkat sah">Reset FP</button>`
+      ? `<button type="button" class="btn btn-outline btn-sm izin-reset-fp" data-key="${keyAttr}" data-role="${fpRole}" title="Reset sidik jari agar bisa daftar ulang di perangkat sah">Reset</button>`
       : '';
+    const nama = (r.nama && String(r.nama).trim()) ? String(r.nama).trim() : '—';
     if (isGuru) {
       const duk = r.duk != null && r.duk !== '' ? r.duk : '—';
-      return `<tr data-key="${escapeHtml(r.owner_key)}">
+      return `<tr data-key="${keyAttr}">
         <td class="col-chk">${chk}</td>
         <td class="col-duk">${escapeHtml(String(duk))}</td>
-        <td class="col-nama">${escapeHtml(r.nama || '—')}</td>
+        <td class="col-nama" title="${escapeHtml(nama)}">${escapeHtml(nama)}</td>
         <td class="col-st">${st}</td>
         <td class="col-sw">${sw}</td>
         <td class="col-sw">${resetBtn}</td>
       </tr>`;
     }
-    return `<tr data-key="${escapeHtml(r.owner_key)}">
+    return `<tr data-key="${keyAttr}">
       <td class="col-chk">${chk}</td>
       <td class="col-no">${i + 1}</td>
-      <td class="col-kode">${escapeHtml(r.owner_key)}</td>
-      <td class="col-nama">${escapeHtml(r.nama || '—')}</td>
+      <td class="col-kode">${escapeHtml(String(r.owner_key || ''))}</td>
+      <td class="col-nama" title="${escapeHtml(nama)}">${escapeHtml(nama)}</td>
       <td class="col-st">${st}</td>
       <td class="col-sw">${sw}</td>
       ${isFp ? `<td class="col-sw">${resetBtn}</td>` : ''}
@@ -13250,6 +13442,15 @@ async function initIzinSidikPage() {
   if (meta) meta.textContent = 'Memuat daftar…';
   const q = document.getElementById('izinQ')?.value || '';
   try {
+    // Pastikan data guru/siswa ada sebelum render (nama tidak hilang)
+    if (izinTab === 'fp_guru' && !(store.guru || []).length) {
+      if (meta) meta.textContent = 'Memuat data guru…';
+      try { await refreshStoreFromDb(); } catch (_) {}
+    }
+    if ((izinTab === 'fp_siswa' || izinTab === 'ujian') && !(store.siswa || []).length) {
+      if (meta) meta.textContent = 'Memuat data siswa…';
+      try { await refreshStoreFromDb(); } catch (_) {}
+    }
     izinRowsCache = await loadIzinList(izinTab, q);
     renderIzinTable(izinRowsCache);
     // refresh counts for other tabs (ringkas)
