@@ -13923,7 +13923,7 @@ function collectUjAnswers() {
   // Sinkron ke state
   try {
     const map = {};
-    answers.forEach(async (a) => { map[String(a.item_id)] = a.jawaban; });
+    answers.forEach((a) => { map[String(a.item_id)] = a.jawaban; });
     _ujState.soal = (_ujState.soal || []).map((s) => ({
       ...s,
       jawaban: map[String(s.id)] != null ? map[String(s.id)] : s.jawaban,
@@ -13964,7 +13964,7 @@ async function ujSimpanJawabanKeServer(opts) {
   }));
 
   const mapObj = {};
-  filledAnswers.forEach(async (a) => { mapObj[String(a.item_id)] = a.jawaban; });
+  filledAnswers.forEach((a) => { mapObj[String(a.item_id)] = a.jawaban; });
 
   const base = {
     ruang_id: _ujState.ruangId,
@@ -14001,7 +14001,7 @@ async function ujSimpanJawabanKeServer(opts) {
   // Update state
   try {
     const map = {};
-    answers.forEach(async (a) => { map[String(a.item_id)] = a.jawaban; });
+    answers.forEach((a) => { map[String(a.item_id)] = a.jawaban; });
     _ujState.soal = (_ujState.soal || []).map((s) => ({
       ...s,
       jawaban: map[String(s.id)] != null ? map[String(s.id)] : s.jawaban,
@@ -14034,7 +14034,7 @@ async function ujAutosaveServer() {
   if (!_ujState?.ruangId || _ujState.readonly) return;
   if (_ujServerSaveInFlight) { _ujServerSaveQueued = true; return; }
   const now = Date.now();
-  if (now - _ujLastServerSaveAt < 25000) return; // throttle
+  if (now - _ujLastServerSaveAt < 30000) return; // throttle (30s min antar autosave sukses)
   _ujServerSaveInFlight = true;
   try {
     const answers = collectUjAnswers();
@@ -14045,6 +14045,7 @@ async function ujAutosaveServer() {
       ruang_id: _ujState.ruangId,
       bank_soal_id: _ujState.bankId || undefined,
       answers: filled,
+      final: false,
     }, { timeoutMs: 60000, retries: 2 });
     _ujLastServerSaveAt = Date.now();
   } catch (e) {
@@ -14090,7 +14091,7 @@ async function ujSimpanJawabanKeServer(opts) {
   // Update state lokal agar konsisten
   try {
     const map = {};
-    answers.forEach(async (a) => { map[String(a.item_id)] = a.jawaban; });
+    answers.forEach((a) => { map[String(a.item_id)] = a.jawaban; });
     _ujState.soal = (_ujState.soal || []).map((s) => ({
       ...s,
       jawaban: map[String(s.id)] != null ? map[String(s.id)] : s.jawaban,
@@ -14159,7 +14160,7 @@ async function ujOpenLembar(bankId, opts = {}) {
         const draft = ujLoadDraftLocal(_ujState.ruangId);
         if (draft && Array.isArray(draft.answers)) {
           const dmap = {};
-          draft.answers.forEach(async (a) => {
+          draft.answers.forEach((a) => {
             if (a && a.item_id != null && String(a.jawaban || '').trim() !== '') {
               dmap[String(a.item_id)] = a.jawaban;
             }
@@ -14180,11 +14181,11 @@ async function ujOpenLembar(bankId, opts = {}) {
       try {
         const box = document.getElementById('ujSoalList');
         if (box) {
-          box.querySelectorAll('input, textarea, button.btn-uj-math').forEach(async (el) => {
+          box.querySelectorAll('input, textarea, button.btn-uj-math').forEach((el) => {
             el.disabled = true;
             el.setAttribute('readonly', 'readonly');
           });
-          box.querySelectorAll('label').forEach(async (lb) => {
+          box.querySelectorAll('label').forEach((lb) => {
             lb.style.pointerEvents = 'none';
             lb.style.opacity = '0.95';
           });
@@ -14197,7 +14198,7 @@ async function ujOpenLembar(bankId, opts = {}) {
         _ujHeartbeat = setInterval(() => {
           if (!_ujState?.ruangId || _ujState.readonly) return;
           ujAutosaveServer().catch(() => {});
-        }, 45000);
+        }, 60000);
       } catch (_) {}
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -14431,12 +14432,16 @@ document.getElementById('btnUjSelesai')?.addEventListener('click', async () => {
         bank_soal_id: _ujState.bankId || undefined,
         answers: filledAnswers.length ? filledAnswers : answers,
         jml_terisi: filled,
+        final: true,
+        submit: true,
       },
       {
         ruang_id: _ujState.ruangId,
         bank_soal_id: _ujState.bankId || undefined,
         answers: answers,
         jml_terisi: filled,
+        final: true,
+        submit: true,
       },
     ];
 
@@ -14469,11 +14474,14 @@ document.getElementById('btnUjSelesai')?.addEventListener('click', async () => {
     }
 
     _ujState.readonly = true;
+    _ujState.status = 'Selesai';
+    try { if (_ujHeartbeat) { clearInterval(_ujHeartbeat); _ujHeartbeat = null; } } catch (_) {}
+    try { clearTimeout(_ujServerSaveTimer); clearTimeout(_ujAutosaveTimer); } catch (_) {}
     const foot = document.getElementById('ujLembarFoot');
     if (foot) foot.style.display = 'none';
     // Update state + tampilan readonly
     const map = {};
-    answers.forEach(async (a) => { map[String(a.item_id)] = a.jawaban; });
+    answers.forEach((a) => { map[String(a.item_id)] = a.jawaban; });
     _ujState.soal = (_ujState.soal || []).map((s) => ({
       ...s,
       jawaban: map[String(s.id)] != null ? map[String(s.id)] : s.jawaban,
