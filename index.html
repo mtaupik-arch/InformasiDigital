@@ -6594,7 +6594,7 @@ try {
 } catch (_) {}
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','profil-saya','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal','download-absensi','backup-data'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','profil-saya','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal','download-absensi','backup-data','login-log','ruang-ujian'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   if (page === 'pengumuman-lulus') target = 'validasi-lulusan';
@@ -6728,21 +6728,32 @@ function navigate(page, opts = {}) {
   const SISWA_PAGES = new Set([
     'sidik-jari-siswa','nilai-saya','syarat-naik','tugas-ujian','jadwal-mapel-kelas'
   ]);
-  if (ADMIN_ONLY_PAGES.has(target) && !requireSession('admin')) {
-    toast('Halaman ini hanya untuk Admin. Silakan login.', 'err');
-    target = 'dashboard';
-  } else if (GURU_PAGES.has(target) && !requireSession('guru')) {
-    toast('Halaman ini memerlukan login Guru/Admin.', 'err');
-    target = 'dashboard';
-  } else if (SISWA_PAGES.has(target)) {
-    const s = getSession();
-    // Siswa wajib; guru/admin boleh buka (bimbingan / uji)
-    if (!s || !s.token) {
-      toast('Silakan login untuk mengakses halaman ini.', 'err');
-      target = 'dashboard';
-    } else if (s.role !== 'siswa' && s.role !== 'guru' && s.role !== 'admin') {
-      toast('Akses tidak diizinkan.', 'err');
-      target = 'dashboard';
+  // Saat refresh (init/fromHash), jangan "lempar" ke dashboard hanya karena race session —
+  // cek session langsung dari localStorage; jika benar-benar tidak berhak, baru dashboard.
+  {
+    const sGate = getSession();
+    const isInitNav = !!(opts.init || opts.fromHash);
+    if (ADMIN_ONLY_PAGES.has(target) && !(sGate && sGate.token && sGate.role === 'admin')) {
+      if (!isInitNav || !sGate || !sGate.token) {
+        if (!isInitNav) toast('Halaman ini hanya untuk Admin. Silakan login.', 'err');
+        target = 'dashboard';
+      } else if (sGate.role !== 'admin') {
+        target = 'dashboard';
+      }
+    } else if (GURU_PAGES.has(target) && !(sGate && sGate.token && (sGate.role === 'guru' || sGate.role === 'admin'))) {
+      if (!isInitNav || !sGate || !sGate.token) {
+        if (!isInitNav) toast('Halaman ini memerlukan login Guru/Admin.', 'err');
+        target = 'dashboard';
+      } else if (sGate.role !== 'guru' && sGate.role !== 'admin') {
+        target = 'dashboard';
+      }
+    } else if (SISWA_PAGES.has(target)) {
+      if (!sGate || !sGate.token) {
+        if (!isInitNav) toast('Silakan login untuk mengakses halaman ini.', 'err');
+        target = 'dashboard';
+      } else if (sGate.role !== 'siswa' && sGate.role !== 'guru' && sGate.role !== 'admin') {
+        target = 'dashboard';
+      }
     }
   }
 
@@ -6807,6 +6818,7 @@ function navigate(page, opts = {}) {
 
   try {
     sessionStorage.setItem('sis_last_page', target);
+    try { localStorage.setItem('sis_last_page', target); } catch (_) {}
     // Stack navigasi
     if (!opts.fromBack && !opts.fromPop) {
       if (opts.init || opts.fromHash) {
@@ -20330,21 +20342,30 @@ document.getElementById('btnBackupRestore')?.addEventListener('click', async () 
   try { if (typeof refreshKelulusanMenuMode === 'function') refreshKelulusanMenuMode(); } catch (_) {}
     try { updatePeriodeBadges(); } catch (e) { console.warn(e); }
 
-    // 2) Tentukan halaman awal dari hash / session (refresh tetap di halaman sama)
-    const fromHash = (location.hash || '').replace(/^#/, '');
-    const fromStore = sessionStorage.getItem('sis_last_page') || '';
+    // 2) Tentukan halaman awal dari hash / session (refresh tetap di halaman yang sama)
+    let fromHash = (location.hash || '').replace(/^#/, '').trim();
+    if (fromHash === 'closed') fromHash = '';
+    let fromStore = '';
+    try { fromStore = sessionStorage.getItem('sis_last_page') || ''; } catch (_) {}
+    if (!fromStore) {
+      try { fromStore = localStorage.getItem('sis_last_page') || ''; } catch (_) {}
+    }
     // Mode tamu: jangan warisi stack/halaman dari sesi login sebelumnya
     const _bootSess = (typeof getSession === 'function') ? getSession() : null;
     let startPage = fromHash || fromStore || 'dashboard';
+    // Jika hash kosong tapi ada last page tersimpan → tulis hash agar refresh berikutnya stabil
+    if (!fromHash && startPage && startPage !== 'dashboard') {
+      try { history.replaceState({ sis: true, page: startPage }, '', '#' + startPage); } catch (_) {}
+    }
     if (!_bootSess || !_bootSess.token) {
-      startPage = (fromHash && fromHash !== 'closed') ? fromHash : 'dashboard';
-      // Batasi tamu ke halaman publik yang aman
+      // Tamu: hanya halaman publik; hormati hash publik jika ada
       const guestOk = new Set(['dashboard','pengumuman-lulus','validasi-lulusan','syarat-naik','jadwal-mapel','jadwal-mapel-kelas','cari-siswa']);
       if (!guestOk.has(startPage)) startPage = 'dashboard';
       navStack = ['dashboard'];
       try {
         sessionStorage.setItem('sis_nav_stack', JSON.stringify(['dashboard']));
-        sessionStorage.setItem('sis_last_page', startPage === 'dashboard' ? 'dashboard' : startPage);
+        sessionStorage.setItem('sis_last_page', startPage);
+        localStorage.setItem('sis_last_page', startPage);
       } catch (_) {}
     } else {
       try {
@@ -20382,8 +20403,13 @@ document.getElementById('btnBackupRestore')?.addEventListener('click', async () 
       try { applySekolahToUI(); } catch (_) {}
       try { renderUserUI(getSession()); } catch (_) {}
       try {
-        if (navCurrent === 'dashboard' || startPage === 'dashboard') await renderDashboard();
-        else navigate(startPage || navCurrent, { fromHash: true, init: true, noScroll: true });
+        // Penting: setelah bootstrap, kembalikan ke halaman yang di-refresh (bukan selalu dashboard)
+        const want = startPage || navCurrent || 'dashboard';
+        if (want && want !== 'dashboard') {
+          navigate(want, { fromHash: true, init: true, noScroll: true });
+        } else {
+          await renderDashboard();
+        }
       } catch (_) {}
     } catch (e) {
       console.warn('init bootstrap', e);
