@@ -7405,17 +7405,27 @@ function openForm(entity, id) {
   const row = id ? store[entity].find(r => r.id === id) : {};
   const titles = { siswa: 'Siswa', guru: 'Guru', lulusan: 'Lulusan', periode: 'Periode' };
   document.getElementById('crudModalTitle').textContent = (id ? 'Edit ' : 'Tambah ') + titles[entity];
+  const guruPinHashed = entity === 'guru' && !!(id && (row.pin_is_hashed || String(row.pin || '').startsWith('$2')));
 
   document.getElementById('crudModalBody').innerHTML = `
     <div class="form-grid">
       ${fields.map(f => {
-        const val = row[f.key] != null ? row[f.key] : '';
+        let val = row[f.key] != null ? row[f.key] : '';
         const cls = f.full ? 'form-group full' : 'form-group';
         if (f.type === 'select') {
           return `<div class="${cls}"><label>${f.label}${f.required?' *':''}</label>
             <select name="${f.key}">
               ${f.options.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
             </select></div>`;
+        }
+        if (entity === 'guru' && f.key === 'pin') {
+          const label = id ? 'PIN (6 digit — kosongkan jika tidak diubah)' : f.label;
+          const pinVal = (guruPinHashed || String(val).startsWith('$2')) ? '' : val;
+          const req = id ? '' : 'required';
+          return `<div class="${cls}"><label>${label}${id ? '' : ' *'}</label>
+            <input type="text" name="pin" inputmode="numeric" maxlength="6" autocomplete="new-password"
+              placeholder="${id ? 'biarkan kosong = PIN lama' : '6 digit'}"
+              value="${escapeHtml(String(pinVal))}" ${req} /></div>`;
         }
         return `<div class="${cls}"><label>${f.label}${f.required?' *':''}</label>
           <input type="${f.type||'text'}" name="${f.key}" value="${escapeHtml(String(val))}" ${f.required?'required':''} /></div>`;
@@ -7559,8 +7569,15 @@ async function saveForm() {
   if (entity === 'siswa' && data.nisn && !/^\d{10}$/.test(data.nisn)) {
     toast('NISN harus 10 digit angka', 'err'); return;
   }
-  if (entity === 'guru' && data.pin && !/^\d{6}$/.test(data.pin)) {
-    toast('PIN harus 6 digit angka', 'err'); return;
+  if (entity === 'guru') {
+    if (data.pin && !/^\d{6}$/.test(data.pin)) {
+      toast('PIN harus 6 digit angka', 'err'); return;
+    }
+    if (!id && !data.pin) {
+      toast('PIN 6 digit wajib untuk guru baru', 'err'); return;
+    }
+    // Edit tanpa PIN: jangan kirim field pin → server pertahankan hash lama
+    if (id && !data.pin) delete data.pin;
   }
 
   const aktif = getActivePeriode();
@@ -7587,8 +7604,8 @@ async function saveForm() {
     // sync local cache
     const row = res.data || data;
     if (!store[entity]) store[entity] = [];
-    const keyFn = (r) => entity === 'siswa' ? r.nisn : entity === 'guru' ? r.pin : entity === 'lulusan' ? r.nisn : (r.tahun_ajaran + '|' + r.semester);
-    const idx = store[entity].findIndex(r => (r.id && row.id && r.id === row.id) || (keyFn(r) && keyFn(r) === keyFn(row)));
+    const keyFn = (r) => entity === 'siswa' ? r.nisn : entity === 'guru' ? (r.id || '') : entity === 'lulusan' ? r.nisn : (r.tahun_ajaran + '|' + r.semester);
+    const idx = store[entity].findIndex(r => (r.id && row.id && String(r.id) === String(row.id)) || (keyFn(r) && keyFn(r) === keyFn(row)));
     if (idx >= 0) store[entity][idx] = { ...store[entity][idx], ...row };
     else store[entity].push(row);
     if (entity === 'guru' && Array.isArray(res.ampu)) {
