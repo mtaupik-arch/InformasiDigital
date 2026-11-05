@@ -7422,7 +7422,7 @@ const FORM_FIELDS = {
     { key: 'pangkat_gol', label: 'Pangkat/Gol' },
     { key: 'status', label: 'Status', type: 'select', options: ['Aktif','Nonaktif','Pensiun','Pindah'] },
     { key: 'no_hp', label: 'No HP' },
-    { key: 'pin', label: 'PIN (6 digit)', required: true },
+    { key: 'pin', label: 'PIN (6 digit)', required: false },
   ],
   lulusan: [
     { key: 'nama', label: 'Nama', required: true },
@@ -7464,13 +7464,27 @@ function openForm(entity, id) {
   document.getElementById('crudModalBody').innerHTML = `
     <div class="form-grid">
       ${fields.map(f => {
-        const val = row[f.key] != null ? row[f.key] : '';
+        let val = row[f.key] != null ? row[f.key] : '';
         const cls = f.full ? 'form-group full' : 'form-group';
         if (f.type === 'select') {
           return `<div class="${cls}"><label>${f.label}${f.required?' *':''}</label>
             <select name="${f.key}">
               ${f.options.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
             </select></div>`;
+        }
+        // Guru PIN: saat edit, hash disembunyikan — kosong = pertahankan PIN lama
+        if (entity === 'guru' && f.key === 'pin') {
+          const hashed = !!(row && row.pin_is_hashed);
+          const needPin = !id; // wajib hanya tambah baru
+          const ph = id
+            ? (hashed ? 'Kosongkan jika tidak ubah PIN (sudah ter-hash)' : 'Isi 6 digit untuk ganti PIN')
+            : 'Wajib 6 digit';
+          const showVal = (val && String(val).startsWith('$2')) ? '' : (val || '');
+          return `<div class="${cls}"><label>${f.label}${needPin?' *':''}</label>
+            <input type="text" name="pin" inputmode="numeric" maxlength="6" autocomplete="off"
+              value="${escapeHtml(String(showVal))}" placeholder="${escapeHtml(ph)}" ${needPin?'required':''} />
+            ${id ? '<small style="display:block;color:#666;font-size:11px;margin-top:3px">Biarkan kosong untuk mempertahankan PIN lama.</small>' : ''}
+          </div>`;
         }
         return `<div class="${cls}"><label>${f.label}${f.required?' *':''}</label>
           <input type="${f.type||'text'}" name="${f.key}" value="${escapeHtml(String(val))}" ${f.required?'required':''} /></div>`;
@@ -7614,8 +7628,16 @@ async function saveForm() {
   if (entity === 'siswa' && data.nisn && !/^\d{10}$/.test(data.nisn)) {
     toast('NISN harus 10 digit angka', 'err'); return;
   }
-  if (entity === 'guru' && data.pin && !/^\d{6}$/.test(data.pin)) {
-    toast('PIN harus 6 digit angka', 'err'); return;
+  if (entity === 'guru') {
+    const pin = String(data.pin || '').trim();
+    if (!id && !/^\d{6}$/.test(pin)) {
+      toast('PIN wajib 6 digit untuk guru baru', 'err'); return;
+    }
+    if (pin && !/^\d{6}$/.test(pin)) {
+      toast('PIN harus 6 digit angka (atau kosongkan jika tidak diubah)', 'err'); return;
+    }
+    // kosong saat edit → jangan kirim pin (backend pertahankan yang lama)
+    if (id && !pin) delete data.pin;
   }
 
   const aktif = getActivePeriode();
@@ -7642,8 +7664,13 @@ async function saveForm() {
     // sync local cache
     const row = res.data || data;
     if (!store[entity]) store[entity] = [];
-    const keyFn = (r) => entity === 'siswa' ? r.nisn : entity === 'guru' ? r.pin : entity === 'lulusan' ? r.nisn : (r.tahun_ajaran + '|' + r.semester);
-    const idx = store[entity].findIndex(r => (r.id && row.id && r.id === row.id) || (keyFn(r) && keyFn(r) === keyFn(row)));
+    const keyFn = (r) => entity === 'siswa' ? r.nisn : entity === 'lulusan' ? r.nisn : (r.tahun_ajaran + '|' + r.semester);
+    // Guru: selalu cocokkan by id (PIN bisa berubah / ter-hash)
+    const idx = store[entity].findIndex(r => {
+      if (r.id && row.id && String(r.id) === String(row.id)) return true;
+      if (entity === 'guru') return false;
+      return keyFn(r) && keyFn(r) === keyFn(row);
+    });
     if (idx >= 0) store[entity][idx] = { ...store[entity][idx], ...row };
     else store[entity].push(row);
     if (entity === 'guru' && Array.isArray(res.ampu)) {
