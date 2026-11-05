@@ -23,19 +23,53 @@
 <script src="https://cdn.jsdelivr.net/npm/mathlive@0.98.6/dist/mathlive.min.js"></script>
 
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
+  * { margin:0; padding:0; box-sizing:border-box; }
   :root {
     --biru:#2196F3; --hijau:#4CAF50; --orange:#FF9800;
     --kuning:#FFC107; --pink:#E91E63; --merah:#C62828;
     --primary:#0000E6; --primary-light:#1a1aff;
     --topbar-h:60px; --footer-h:40px; --sidebar-w:270px;
   }
-  body { background:#f0f2f5; color:#333; padding-top:var(--topbar-h); padding-bottom:var(--footer-h); }
+  body {
+    background:#f0f2f5; color:#333; padding-top:var(--topbar-h); padding-bottom:var(--footer-h);
+    font-family:'Segoe UI', Tahoma, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
   html, body {
     max-width: 100%;
     overflow-x: hidden;
+    /* smooth scroll global memperparah lag di HP */
+    scroll-behavior: auto;
   }
   *, *::before, *::after { box-sizing: border-box; }
+
+  /* ===== PERF: isolasi layout + skip render halaman non-aktif ===== */
+  .page:not(.active) {
+    display: none !important;
+    content-visibility: hidden;
+  }
+  .page.active {
+    display: block;
+    content-visibility: visible;
+    contain: layout style;
+  }
+  .card, .dash-panel, .data-card {
+    contain: layout style;
+  }
+  /* Baris tabel panjang: browser boleh skip paint di luar viewport */
+  .table-scroll tbody tr {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 42px;
+  }
+  .table-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  /* Kurangi biaya compositing saat scroll */
+  .topbar, .footer {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
   .content, .page, .dash-panel, .card, .data-card {
     max-width: 100%;
   }
@@ -5235,13 +5269,17 @@ const hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 const bulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
 function updateDateTime(){
+  if (typeof document !== 'undefined' && document.hidden) return;
+  const el = document.getElementById('datetime');
+  if (!el) return;
   const d = new Date();
   const tglAngka = String(d.getDate()).padStart(2, '0');
   const tgl = `${hari[d.getDay()]}, ${tglAngka} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
   const jam = [d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
-  document.getElementById('datetime').textContent = `${tgl} • ${jam}`;
+  const next = `${tgl} • ${jam}`;
+  if (el.textContent !== next) el.textContent = next;
 }
-updateDateTime(); setInterval(updateDateTime,1000);
+updateDateTime(); setInterval(updateDateTime, 1000);
 
 /* ===== Sidebar ===== */
 const sidebar = document.getElementById('sidebar');
@@ -6782,7 +6820,7 @@ function navigate(page, opts = {}) {
 
   try { closeProfileMenu(); } catch (_) {}
   tutupSidebar();
-  if (!opts.noScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (!opts.noScroll) window.scrollTo(0, 0); /* instant — smooth lag di HP */
 }
 
 function handleAppBack() {
@@ -12222,41 +12260,57 @@ function buildDashLiburChipHtml(liburRow) {
 }
 
 function autoRefreshSesiUI() {
+  // Jangan bebani main thread saat tab di background
+  if (typeof document !== 'undefined' && document.hidden) return;
+
   const key = sesiStateKey();
   const changed = key !== _lastSesiKey;
   _lastSesiKey = key;
-  // Selalu update teks sesi & tombol kamera (halaman scan)
-  updateSesiBadges();
+  // Update badge sesi (halaman scan) — murah
+  try { updateSesiBadges(); } catch (_) {}
 
   const onDash = document.getElementById('page-dashboard')?.classList.contains('active');
   const chipWrap = document.getElementById('dashSesiChips');
   const liburHariIni = (typeof isTanggalLibur === 'function') ? isTanggalLibur(todayStr()) : null;
 
-  // Dashboard: prioritas hari libur — jangan ditimpa pesan "sesi selesai"
+  // Dashboard: update chip hanya jika HTML berubah (hindari reflow tiap 10 dtk)
   if (chipWrap && onDash) {
-    if (liburHariIni) {
-      chipWrap.innerHTML = buildDashLiburChipHtml(liburHariIni);
-    } else {
-      chipWrap.innerHTML = buildDashSesiInfoHtml(getSesiList());
+    const nextHtml = liburHariIni
+      ? buildDashLiburChipHtml(liburHariIni)
+      : buildDashSesiInfoHtml(getSesiList());
+    if (chipWrap.getAttribute('data-html-key') !== key || chipWrap.innerHTML.length < 8) {
+      chipWrap.innerHTML = nextHtml;
+      chipWrap.setAttribute('data-html-key', key);
+    } else if (changed) {
+      chipWrap.innerHTML = nextHtml;
+      chipWrap.setAttribute('data-html-key', key);
     }
   }
 
-  // Jika pergantian sesi → refresh rekap & terapkan A/B di server
-  // Lewati apply_ab_status saat hari libur
+  // Pergantian sesi → refresh rekap (hanya jika tab terlihat & halaman aktif)
   if (changed && getSession()?.token) {
     if (!liburHariIni) {
       apiCall('apply_ab_status', {}).catch(() => {});
     }
     if (onDash) {
-      // Saat libur, cukup jaga chip + hide rekap; renderDashboard aman dipanggil
-      renderDashboard();
+      try { renderDashboard(); } catch (_) {}
     }
     if (document.getElementById('page-scan-barcode')?.classList.contains('active')) {
-      if (typeof renderScanLogTable === 'function') renderScanLogTable();
+      if (typeof renderScanLogTable === 'function') {
+        try { renderScanLogTable({ skipFetch: false }); } catch (_) {}
+      }
     }
   }
 }
-setInterval(autoRefreshSesiUI, 10000);
+setInterval(autoRefreshSesiUI, 15000); // 15s — lebih ringan di HP
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    try { updateDateTime(); } catch (_) {}
+    try { autoRefreshSesiUI(); } catch (_) {}
+  }
+});
+
 
 
 
@@ -14201,7 +14255,7 @@ async function ujOpenLembar(bankId, opts = {}) {
         }, 60000);
       } catch (_) {}
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo(0, 0);
   } catch (e) {
     toast(errToText(e), 'err');
   }
