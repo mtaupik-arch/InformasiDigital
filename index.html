@@ -5046,6 +5046,38 @@ const LOGIN_FN_URL = SUPABASE_URL + '/functions/v1/login';
 const API_FN_URL = SUPABASE_URL + '/functions/v1/api';
 
 /** Panggil Edge Function api (database) */
+/* ============================================================
+   API CALL — antrean global + retry 429/503 + jitter
+   Siap beban ujian ~250 siswa (cegah thundering herd ke Supabase)
+   ============================================================ */
+const _apiQueue = {
+  maxConcurrent: 3,
+  active: 0,
+  waiters: [],
+  async acquire() {
+    if (this.active < this.maxConcurrent) {
+      this.active++;
+      return;
+    }
+    await new Promise((resolve) => this.waiters.push(resolve));
+    this.active++;
+  },
+  release() {
+    this.active = Math.max(0, this.active - 1);
+    const next = this.waiters.shift();
+    if (next) next();
+  },
+};
+
+function _apiSleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+function _apiJitter(baseMs) {
+  // exponential-ish base + random jitter 0–40%
+  const j = Math.floor(baseMs * (0.6 + Math.random() * 0.8));
+  return Math.min(12000, Math.max(200, j));
+}
+
 async function apiCall(action, payload = {}, opts = {}) {
   const session = getSession();
   const body = { action, ...payload, token: session?.token || null };
@@ -5054,11 +5086,16 @@ async function apiCall(action, payload = {}, opts = {}) {
   const isHeavy = /ujian|jawaban|lembar|mulai_ujian|selesai_ujian|simpan_jawaban|list_ujian|bootstrap|list_absen|bank_soal/i.test(act);
   const timeoutMs = opts.timeoutMs != null ? Number(opts.timeoutMs)
     : (isHeavy ? 60000 : 20000);
-  const maxTry = opts.retries != null ? Number(opts.retries) : (isHeavy ? 3 : 1);
+  const maxTry = opts.retries != null ? Number(opts.retries) : (isHeavy ? 4 : 2);
+  const skipQueue = opts.skipQueue === true;
   let lastErr = null;
   let res = null;
   let data = null;
 
+  if (!skipQueue) {
+    try { await _apiQueue.acquire(); } catch (_) {}
+  }
+  try {
   for (let attempt = 1; attempt <= maxTry; attempt++) {
     try {
       const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -5080,9 +5117,22 @@ async function apiCall(action, payload = {}, opts = {}) {
       try { data = await res.json(); } catch {
         throw new Error('Function api merespons non-JSON (HTTP ' + res.status + '). Kemungkinan kode function error saat deploy.');
       }
-      // Retry transient 5xx / overload
-      if (res.status >= 500 && attempt < maxTry) {
-        await new Promise(r => setTimeout(r, 400 * attempt * attempt));
+      // Retry transient: 429 rate-limit, 502/503/504 overload, 5xx, 409 busy (ujian lock)
+      const bodyRetry = data && (data.retry_after != null || data.throttled === true);
+      const retriableHttp = res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504
+        || res.status >= 500
+        || (res.status === 409 && /diproses|coba lagi|busy|conflict/i.test(String(data?.message || '')));
+      if ((retriableHttp || bodyRetry) && attempt < maxTry) {
+        const ra = res.headers && typeof res.headers.get === 'function' ? res.headers.get('Retry-After') : null;
+        let wait = _apiJitter(400 * attempt * attempt);
+        if (ra) {
+          const sec = Number(ra);
+          if (!isNaN(sec) && sec > 0) wait = Math.min(15000, sec * 1000);
+        } else if (data && data.retry_after != null) {
+          const sec = Number(data.retry_after);
+          if (!isNaN(sec) && sec > 0) wait = Math.min(15000, sec * 1000);
+        }
+        await _apiSleep(wait);
         continue;
       }
       break;
@@ -5090,7 +5140,7 @@ async function apiCall(action, payload = {}, opts = {}) {
       lastErr = netErr;
       const aborted = netErr && (netErr.name === 'AbortError' || /abort/i.test(String(netErr.message || '')));
       if (attempt < maxTry) {
-        await new Promise(r => setTimeout(r, 500 * attempt * attempt));
+        await _apiSleep(_apiJitter(500 * attempt * attempt));
         continue;
       }
       throw new Error(
@@ -5099,6 +5149,11 @@ async function apiCall(action, payload = {}, opts = {}) {
           : ('Gagal terhubung ke Edge Function api. Cek: (1) function api sudah deploy, ' +
              '(2) Verify JWT = OFF, (3) koneksi internet. Detail: ' + (netErr.message || 'Failed to fetch'))
       );
+    }
+  }
+  } finally {
+    if (!skipQueue) {
+      try { _apiQueue.release(); } catch (_) {}
     }
   }
 
@@ -14110,6 +14165,12 @@ async function ujOpenLembar(bankId, opts = {}) {
       _ujState.siswa?.nisn || sess?.user?.nisn || sess?.user?.kode || sess?.user?.identifier || ''
     ).replace(/\D/g, '');
 
+    // Stagger start: sebar 0–2.5 dtk agar 250 siswa tidak menembak Supabase bersamaan
+    if (!forceReadonly) {
+      const stagger = Math.floor(Math.random() * 2500);
+      if (stagger > 80) await new Promise((r) => setTimeout(r, stagger));
+    }
+
     // Jika hanya lihat (sudah Selesai), minta mode lihat agar backend tidak membuka lagi
     const start = await apiCall('mulai_ujian', {
       bank_soal_id: bankId,
@@ -14118,7 +14179,7 @@ async function ujOpenLembar(bankId, opts = {}) {
       mode: forceReadonly ? 'lihat' : 'kerjakan',
       readonly: forceReadonly ? true : false,
       hanya_lihat: forceReadonly ? true : false,
-    });
+    }, { timeoutMs: 60000, retries: 4 });
     const ruang = start.data || {};
     if (!ruang?.id) throw new Error('Gagal membuat/membuka sesi ujian');
 
@@ -14126,7 +14187,7 @@ async function ujOpenLembar(bankId, opts = {}) {
       bank_soal_id: bankId,
       ruang_id: ruang.id,
       mode: forceReadonly ? 'lihat' : undefined,
-    });
+    }, { timeoutMs: 60000, retries: 4 });
     const d = lembar.data || {};
     const statusRuang = String(ruang.status || d.status || d.ruang?.status || opts.status_siswa || '');
     const readonly = forceReadonly
@@ -14449,7 +14510,7 @@ document.getElementById('btnUjSelesai')?.addEventListener('click', async () => {
     let lastErr = null;
     for (const body of payloadVariants) {
       try {
-        res = await apiCall('selesai_ujian', body);
+        res = await apiCall('selesai_ujian', body, { timeoutMs: 90000, retries: 4 });
         const msg = String((res && (res.message || res.msg)) || '');
         // Jika server bilang 0 objektif padahal siswa mengisi, coba payload berikutnya
         if (/0\s*jawaban/i.test(msg) && filled > 0 && body.answers === filledAnswers) {
@@ -14463,6 +14524,10 @@ document.getElementById('btnUjSelesai')?.addEventListener('click', async () => {
       }
     }
     if (!res && lastErr) throw lastErr;
+    // already_done dari backend (double submit) = sukses
+    if (res && (res.already_done || /sudah selesai/i.test(String(res.message || '')))) {
+      // lanjut alur sukses
+    }
 
     try { ujClearDraftLocal(_ujState.ruangId); } catch (_) {}
 
