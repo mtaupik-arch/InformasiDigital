@@ -5,22 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistem Informasi Sekolah</title>
 <meta name="sis-fix" content="mask-nisn-2026-11-01">
-<!-- Supabase JS Client -->
+<!-- Supabase saja di awal — library berat di-load lazy saat dibutuhkan -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.5/tinymce.min.js" referrerpolicy="origin"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathlive@0.98.6/dist/mathlive-static.css">
-<script src="https://cdn.jsdelivr.net/npm/mathlive@0.98.6/dist/mathlive.min.js"></script>
 
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -43,33 +30,22 @@
   }
   *, *::before, *::after { box-sizing: border-box; }
 
-  /* ===== PERF: isolasi layout + skip render halaman non-aktif ===== */
-  .page:not(.active) {
-    display: none !important;
-    content-visibility: hidden;
-  }
-  .page.active {
-    display: block;
-    content-visibility: visible;
-    contain: layout style;
-  }
-  .card, .dash-panel, .data-card {
-    contain: layout style;
-  }
-  /* Baris tabel panjang: browser boleh skip paint di luar viewport */
-  .table-scroll tbody tr {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 42px;
-  }
+  /* ===== PERF ===== */
+  .page:not(.active) { display: none !important; }
+  .page.active { display: block; }
   .table-scroll {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
-  /* Kurangi biaya compositing saat scroll */
-  .topbar, .footer {
-    transform: translateZ(0);
-    backface-visibility: hidden;
+  /* Topbar interaktif di atas segalanya — jangan diblok reflow tabel */
+  .topbar, .profile-menu, .login-overlay {
+    z-index: 1000;
   }
+  .login-overlay { z-index: 2000; }
+  .profile-menu {
+    will-change: opacity, transform;
+  }
+
   .content, .page, .dash-panel, .card, .data-card {
     max-width: 100%;
   }
@@ -181,7 +157,7 @@
     opacity:0; visibility:hidden; transform:translateY(-8px); transition:.2s; z-index:1001;
     pointer-events:none;
   }
-  /* Buka hanya lewat class .open (klik) — hindari sticky :hover di HP */
+  /* Buka HANYA lewat class .open (klik) — tanpa :hover agar tidak lag */
   .profile-wrap.open .profile-menu,
   .profile-menu.open {
     opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto;
@@ -189,11 +165,6 @@
   .profile-wrap.force-close .profile-menu,
   .profile-wrap.force-close.open .profile-menu {
     opacity:0 !important; visibility:hidden !important; pointer-events:none !important;
-  }
-  @media (hover:hover) and (pointer:fine) {
-    .profile-wrap:hover:not(.force-close) .profile-menu {
-      opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto;
-    }
   }
   .profile-menu .pm-header { padding:12px 14px; background:#f8f9fa; border-bottom:1px solid #eee; font-size:12px; color:#666; }
   .profile-menu a { display:flex; align-items:center; gap:10px; padding:10px 14px; color:#333;
@@ -5263,6 +5234,72 @@ function requireSession(minRole) {
 /** Action yang wajib login (UX — penegakan di server). */
 const API_AUTH_REQUIRED = true;
 
+/* ===== Lazy-load library berat (hanya saat fitur dipakai) ===== */
+const _sisScriptPromises = {};
+function sisLoadScript(src) {
+  if (_sisScriptPromises[src]) return _sisScriptPromises[src];
+  _sisScriptPromises[src] = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-sis-src="' + src + '"]');
+    if (existing) {
+      if (existing.dataset.loaded === '1') resolve();
+      else existing.addEventListener('load', () => resolve(), { once: true });
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.dataset.sisSrc = src;
+    s.onload = () => { s.dataset.loaded = '1'; resolve(); };
+    s.onerror = () => reject(new Error('Gagal memuat: ' + src));
+    document.head.appendChild(s);
+  });
+  return _sisScriptPromises[src];
+}
+function sisLoadCss(href) {
+  if (document.querySelector('link[data-sis-href="' + href + '"]')) return Promise.resolve();
+  return new Promise((resolve) => {
+    const l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = href;
+    l.dataset.sisHref = href;
+    l.onload = () => resolve();
+    l.onerror = () => resolve();
+    document.head.appendChild(l);
+  });
+}
+async function ensureXlsx() {
+  if (typeof XLSX !== 'undefined') return;
+  await sisLoadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+}
+async function ensureHtml5Qrcode() {
+  if (typeof Html5Qrcode !== 'undefined') return;
+  await sisLoadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js');
+}
+async function ensureJsZip() {
+  if (typeof JSZip !== 'undefined') return;
+  await sisLoadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+}
+async function ensureMammoth() {
+  if (typeof mammoth !== 'undefined') return;
+  await sisLoadScript('https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js');
+}
+async function ensureKatex() {
+  if (typeof katex !== 'undefined') return;
+  await sisLoadScript('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js');
+  await sisLoadScript('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js');
+}
+async function ensureMathLive() {
+  await ensureKatex();
+  if (typeof MathLive !== 'undefined' || customElements.get('math-field')) return;
+  await sisLoadCss('https://cdn.jsdelivr.net/npm/mathlive@0.98.6/dist/mathlive-static.css');
+  await sisLoadScript('https://cdn.jsdelivr.net/npm/mathlive@0.98.6/dist/mathlive.min.js');
+}
+async function ensureTinymce() {
+  if (typeof tinymce !== 'undefined') return;
+  await sisLoadScript('https://cdn.jsdelivr.net/npm/tinymce@6.8.5/tinymce.min.js');
+}
+
+
 
 /* ===== UI: jam ===== */
 const hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
@@ -5860,15 +5897,15 @@ navigate('dashboard');
   } catch (_) {}
 });
 
-document.addEventListener('click', async (e) => {
+document.addEventListener('click', (e) => {
   const wrap = document.querySelector('.profile-wrap');
-  if (!wrap) return;
+  if (!wrap || !wrap.classList.contains('open')) return;
   if (!wrap.contains(e.target)) closeProfileMenu();
-});
-// Toggle saat ketuk avatar / area profil
-document.querySelector('.profile-wrap')?.addEventListener('click', async (e) => {
+}, { passive: true });
+// Toggle saat ketuk avatar (klik saja, tanpa hover CSS)
+document.querySelector('.profile-wrap')?.addEventListener('click', (e) => {
   if (e.target.closest('#profileMenu a')) return;
-  if (e.target.closest('#profileMenu') && !e.target.closest('.avatar')) return;
+  if (e.target.closest('#profileMenu') && !e.target.closest('.avatar, #avatarInitial')) return;
   e.preventDefault();
   e.stopPropagation();
   toggleProfileMenu();
@@ -6362,7 +6399,12 @@ function renderRekapKehadiran(role, sesiList, absenRows) {
     return;
   }
 
-  tbody.innerHTML = people.map((p, i) => {
+  // Render bertahap agar klik menu/login tetap responsif (jangan blokir main thread)
+  const token = (tbody._rekapToken = (tbody._rekapToken || 0) + 1);
+  tbody.innerHTML = '';
+  const CHUNK = 40;
+  let idx = 0;
+  function rowHtml(p, i) {
     const cells = list.map(s => {
       const rec = findAbsenRecord(absenRows, p, role, s);
       return `<td class="col-sesi">${buildAbsenCellHtml(rec)}</td>`;
@@ -6377,7 +6419,21 @@ function renderRekapKehadiran(role, sesiList, absenRows) {
       <td class="col-kelas"><span class="kelas-cell">${escapeHtml(p.kelas || '-')}</span></td>
       ${cells}
     </tr>`;
-  }).join('');
+  }
+  function paintChunk() {
+    if (tbody._rekapToken !== token) return; // dibatalkan render baru
+    const end = Math.min(idx + CHUNK, people.length);
+    let html = '';
+    for (let i = idx; i < end; i++) html += rowHtml(people[i], i);
+    tbody.insertAdjacentHTML('beforeend', html);
+    idx = end;
+    if (idx < people.length) {
+      // yield ke browser — izinkan klik/hover diproses
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(paintChunk);
+      else setTimeout(paintChunk, 0);
+    }
+  }
+  paintChunk();
 }
 
 async function renderDashboard() {
@@ -7836,7 +7892,9 @@ document.getElementById('btnDownloadTemplate')?.addEventListener('click', async 
   downloadTemplate(importState.entity);
 });
 
-function downloadTemplate(entity) {
+async function downloadTemplate(entity) {
+  try { await ensureXlsx(); } catch (e) { toast('Gagal muat library Excel', 'err'); return; }
+
   if (!entity || !TEMPLATE_HEADERS[entity]) {
     toast('Entity tidak valid', 'err'); return;
   }
@@ -7910,7 +7968,7 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        if (typeof XLSX === 'undefined') throw new Error('Library Excel belum termuat');
+        await ensureXlsx(); if (typeof XLSX === 'undefined') throw new Error('Library Excel belum termuat');
         const data = new Uint8Array(reader.result);
         const wb = XLSX.read(data, { type: 'array', cellDates: true });
         const sheet = wb.Sheets[wb.SheetNames[0]];
@@ -9323,7 +9381,7 @@ async function tryStartFresh(cameraIdOrConfig, cfg) {
 }
 
 async function startScanEngine() {
-  if (typeof Html5Qrcode === 'undefined') throw new Error('Library Html5Qrcode belum termuat');
+  await ensureHtml5Qrcode(); if (typeof Html5Qrcode === 'undefined') throw new Error('Library Html5Qrcode belum termuat');
   const config = buildScanQrConfig();
   const lightConfig = {
     fps: 30,
@@ -11371,7 +11429,9 @@ async function loadNilaiDaftar() {
     renderNilaiDaftar(res.data || { columns: [], rows: [] });
   } catch (e) { toast(errToText(e), 'err'); showBigPopup('err', 'Gagal Muat', errToText(e), 0); }
 }
-function downloadNilaiTemplate(massal) {
+async function downloadNilaiTemplate(massal) {
+  try { await ensureXlsx(); } catch (_) { toast('Gagal muat library Excel', 'err'); return; }
+
   const kelasId = document.getElementById('nilaiFilterKelas')?.value;
   const jenis = document.getElementById('nilaiFilterJenis')?.value || 'NH';
   const ke = Number(document.getElementById('nilaiFilterKe')?.value) || 1;
@@ -11401,6 +11461,7 @@ function downloadNilaiTemplate(massal) {
 async function importNilaiFile(file, massal) {
   if (!file) return;
   try {
+    await ensureXlsx();
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });
     const sheet = wb.Sheets[wb.SheetNames[0]];
@@ -11460,7 +11521,8 @@ async function importNilaiFile(file, massal) {
     await loadNilaiInput();
   } catch (e) { toast(errToText(e), 'err'); showBigPopup('err', 'Gagal Import', errToText(e), 0); }
 }
-function exportNilaiDaftarExcel() {
+async function exportNilaiDaftarExcel() {
+  try { await ensureXlsx(); } catch (_) { toast('Gagal muat library Excel', 'err'); return; }
   const thead = document.getElementById('theadNilaiDaftar');
   const tb = document.getElementById('tbodyNilaiDaftar');
   if (!thead || !tb) return;
@@ -13716,7 +13778,9 @@ function ujFormatOpsiHtml(txt) {
 
 /** Render KaTeX di elemen lembar ujian (bs-math + delimiter) + fallback akar */
 /** Render KaTeX di elemen lembar ujian (siswa) — equation sama seperti admin, laptop & HP */
-function ujRenderAllMath(root) {
+async function ujRenderAllMath(root) {
+  try { await ensureKatex(); } catch (_) {}
+
   if (!root) return;
   // Marker import / kunci rusak → span.bs-math
   root.querySelectorAll('.us-q, .us-opsi, .us-opsi span').forEach(async (el) => {
@@ -17202,13 +17266,14 @@ function opsiEditableTextToHtml(txt) {
   return t;
 }
 
-function bsInitEditor(initialHtml) {
+async function bsInitEditor(initialHtml) {
   bsDestroyEditor();
   const el = document.getElementById('bsiPertanyaan');
   const prepared = bsPrepareHtmlForEditor(initialHtml || '');
+  try { await ensureTinymce(); } catch (_) {}
   if (!el || typeof tinymce === 'undefined') {
     if (el) el.value = prepared;
-    return Promise.resolve();
+    return;
   }
   return tinymce.init({
     selector: '#bsiPertanyaan',
@@ -17361,7 +17426,9 @@ function bsMathInsertLatex(piece, mode) {
   bsSyncMathPreview();
 }
 
-function bsOpenMathModal(target) {
+async function bsOpenMathModal(target) {
+  try { await ensureMathLive(); } catch (_) {}
+
   // target: 'pertanyaan' (default) atau elemen textarea/input opsi
   if (target && target !== 'pertanyaan' && target.nodeType === 1) {
     _bsMathInsertTarget = target;
@@ -17502,7 +17569,9 @@ document.getElementById('bsiOpsiList')?.addEventListener('click', async (e) => {
 
 
 
-function bsRenderMathIn(el) {
+async function bsRenderMathIn(el) {
+  try { await ensureKatex(); } catch (_) {}
+
   if (!el) return;
   // Marker import yang belum di-wrap
   try {
@@ -18027,6 +18096,7 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
       }
       stage = 'mammoth';
       toast('📄 Mengurai dokumen Word…', 'ok');
+      await ensureMammoth();
       const res = await mammoth.convertToHtml({
         arrayBuffer: buf,
         convertImage: mammoth.images.imgElement(function (image) {
@@ -18136,6 +18206,7 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
  * agar mammoth tidak menghapus persamaan.
  */
 async function preprocessDocxMathToLatex(arrayBuffer) {
+  try { await ensureJsZip(); } catch (_) {}
   if (typeof JSZip === 'undefined') {
     return { buffer: arrayBuffer, eqCount: 0 };
   }
@@ -19776,6 +19847,7 @@ async function dlExportExcelStyled() {
     console.error(e);
     // Fallback SheetJS
     try {
+      await ensureXlsx();
       if (typeof XLSX === 'undefined') throw e;
       const ws = XLSX.utils.aoa_to_sheet(_dlAbsLast.aoa);
       const wb = XLSX.utils.book_new();
