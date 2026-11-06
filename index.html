@@ -6587,10 +6587,15 @@ let navCurrent = 'dashboard';
 let navReady = false;
 let navTrapArmed = false;
 
-// Trap dini (sebelum init selesai) — cegah Back HP menutup tab saat masih loading / mode tamu
+// Trap dini (sebelum init selesai) — JANGAN timpa hash halaman yang sedang dibuka (agar refresh tetap di halaman sama)
 try {
-  history.replaceState({ sis: true, page: 'dashboard', trap: false }, '', '#dashboard');
-  history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
+  const _earlyHash = (location.hash || '').replace(/^#/, '').trim();
+  const _earlyPage = (_earlyHash && _earlyHash !== 'closed') ? _earlyHash : 'dashboard';
+  history.replaceState({ sis: true, page: _earlyPage, trap: false }, '', '#' + _earlyPage);
+  // Hanya pasang trap exit di akar (dashboard). Di halaman lain biarkan hash tetap.
+  if (_earlyPage === 'dashboard') {
+    history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
+  }
 } catch (_) {}
 
 function resolveNavTarget(page) {
@@ -6688,9 +6693,14 @@ function armBackTrap() {
 function ensureBackTrap() {
   try {
     if (!navReady) {
-      // Meski belum ready, tetap coba pasang trap dasar
+      // Jangan paksa #dashboard — hormati hash / halaman saat ini
       try {
-        history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
+        const p = (navCurrent && navCurrent !== 'dashboard')
+          ? navCurrent
+          : ((location.hash || '').replace(/^#/, '').trim() || 'dashboard');
+        if (p === 'dashboard') {
+          history.pushState({ sis: true, page: 'dashboard', trap: true }, '', '#dashboard');
+        }
       } catch (_) {}
       return;
     }
@@ -20335,6 +20345,23 @@ document.getElementById('btnBackupRestore')?.addEventListener('click', async () 
 /* ===== Init ===== */
 (async function init() {
   try {
+    // Ambil hash SEBELUM ada kode lain yang mengubah history
+    const __bootHash = (function () {
+      try {
+        const h = (location.hash || '').replace(/^#/, '').trim();
+        if (h && h !== 'closed') return h;
+      } catch (_) {}
+      try {
+        const s = sessionStorage.getItem('sis_last_page');
+        if (s) return s;
+      } catch (_) {}
+      try {
+        const s = localStorage.getItem('sis_last_page');
+        if (s) return s;
+      } catch (_) {}
+      return 'dashboard';
+    })();
+
     // 1) UI lokal dulu agar tidak stuck "Memuat…"
     const session = getSession();
     try { renderUserUI(session); } catch (e) { console.warn(e); }
@@ -20352,7 +20379,10 @@ document.getElementById('btnBackupRestore')?.addEventListener('click', async () 
     }
     // Mode tamu: jangan warisi stack/halaman dari sesi login sebelumnya
     const _bootSess = (typeof getSession === 'function') ? getSession() : null;
-    let startPage = fromHash || fromStore || 'dashboard';
+    // Prioritas: hash boot (paling awal) → hash sekarang → storage → dashboard
+    let startPage = (__bootHash && __bootHash !== 'dashboard' ? __bootHash : null)
+      || fromHash || fromStore || 'dashboard';
+    if (__bootHash && __bootHash !== 'dashboard') startPage = __bootHash;
     // Jika hash kosong tapi ada last page tersimpan → tulis hash agar refresh berikutnya stabil
     if (!fromHash && startPage && startPage !== 'dashboard') {
       try { history.replaceState({ sis: true, page: startPage }, '', '#' + startPage); } catch (_) {}
@@ -20425,14 +20455,29 @@ document.getElementById('btnBackupRestore')?.addEventListener('click', async () 
 
     try { _lastSesiKey = sesiStateKey(); } catch (_) {}
 
-    // 5) Arm back trap setelah UI siap
+    // 5) Pastikan tetap di halaman yang di-refresh (terakhir kali sebelum arm trap)
+    try {
+      if (startPage && startPage !== 'dashboard' && navCurrent !== startPage) {
+        navigate(startPage, { fromHash: true, init: true, noScroll: true });
+      } else if (startPage && startPage !== 'dashboard') {
+        try { history.replaceState({ sis: true, page: startPage, trap: false }, '', '#' + startPage); } catch (_) {}
+      }
+    } catch (_) {}
+
+    // 6) Arm back trap setelah UI siap (hanya trap exit jika di dashboard)
     try { armBackTrap(); } catch (_) {}
     navReady = true;
 
     window.addEventListener('hashchange', async () => {
       if (!navReady) return;
-      const p = (location.hash || '').replace(/^#/, '') || 'dashboard';
+      const p = (location.hash || '').replace(/^#/, '').trim() || 'dashboard';
+      if (p === 'closed') return;
       if (p === navCurrent) return;
+      // Abaikan jika trap exit memaksa #dashboard sementara user di halaman lain
+      if (p === 'dashboard' && navCurrent && navCurrent !== 'dashboard' && _exitTrapPushed) {
+        try { history.replaceState({ sis: true, page: navCurrent, trap: false }, '', '#' + navCurrent); } catch (_) {}
+        return;
+      }
       try {
         navigate(p);
         armBackTrap();
