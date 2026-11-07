@@ -9487,12 +9487,18 @@ document.getElementById('btnScanMode')?.addEventListener('click', async () => {
 function initSesiLiburPage() {
   renderSesiTable();
   renderLiburTable();
-  fillHapusSesiSelect();
   const today = todayStr();
   const d1 = document.getElementById('hapusAbsenDari');
   const d2 = document.getElementById('hapusAbsenSampai');
   if (d1 && !d1.value) d1.value = today;
   if (d2 && !d2.value) d2.value = today;
+  // Muat ulang daftar sesi real saat tanggal berubah
+  const reloadSesi = () => { fillHapusSesiSelect().catch(() => {}); };
+  d1?.removeEventListener('change', d1._hapusSesiReload);
+  d2?.removeEventListener('change', d2._hapusSesiReload);
+  if (d1) { d1._hapusSesiReload = reloadSesi; d1.addEventListener('change', reloadSesi); }
+  if (d2) { d2._hapusSesiReload = reloadSesi; d2.addEventListener('change', reloadSesi); }
+  fillHapusSesiSelect();
 }
 
 function renderSesiTable() {
@@ -9541,24 +9547,36 @@ async function fillHapusSesiSelect() {
   const sel = document.getElementById('hapusAbsenSesi');
   if (!sel) return;
   const cur = sel.value;
-  // Ambil nama sesi real dari tabel absensi di database
+  const dari = document.getElementById('hapusAbsenDari')?.value || '';
+  const sampai = document.getElementById('hapusAbsenSampai')?.value || '';
+  // Ambil sesi REAL dari absensi + absensi_historis (bukan hanya setting sesi)
   let opts = [];
   try {
     if (getSession()?.token) {
-      const res = await apiCall('list_sesi_absensi', {});
+      const res = await apiCall('list_sesi_absensi', { dari: dari || undefined, sampai: sampai || undefined });
       opts = Array.isArray(res.data) ? res.data : [];
     }
   } catch (e) {
     console.warn('list_sesi_absensi', e);
   }
-  // Fallback ke master sesi jika absensi masih kosong
+  // Fallback ke master sesi jika belum ada data scan
   if (!opts.length) {
     opts = (store.sesi || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
       .map(s => ({ sesi_id: s.id, sesi_nama: s.nama }));
   }
-  sel.innerHTML = '<option value="">- Pilih Sesi -</option>' +
-    opts.map(s => {
-      const val = s.sesi_id != null ? String(s.sesi_id) : ('nama:' + s.sesi_nama);
+  const seen = new Set();
+  const uniq = [];
+  for (const s of opts) {
+    const key = String(s.sesi_id ?? '') + '|' + String(s.sesi_nama || '').toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniq.push(s);
+  }
+  sel.innerHTML =
+    '<option value="">- Pilih Sesi -</option>' +
+    '<option value="__ALL__" data-nama="__ALL__">Semua Sesi</option>' +
+    uniq.map(s => {
+      const val = s.sesi_id != null && s.sesi_id !== '' ? String(s.sesi_id) : ('nama:' + s.sesi_nama);
       const label = s.sesi_nama || ('Sesi ' + s.sesi_id);
       return `<option value="${escapeHtml(val)}" data-nama="${escapeHtml(s.sesi_nama || '')}">${escapeHtml(label)}</option>`;
     }).join('');
@@ -9738,10 +9756,13 @@ function countAbsenForFilter() {
   const tipe = document.getElementById('hapusAbsenTipe')?.value || 'semua';
   if (!dari || !sampai || !sesiId) return { ok: false, msg: 'Lengkapi tanggal dan sesi.' };
   const log = loadAbsenLog();
-  const sesi = (store.sesi || []).find(s => s.id === sesiId);
+  const all = sesiId === '__ALL__';
+  const sesi = (store.sesi || []).find(s => String(s.id) === String(sesiId));
   const rows = log.filter(r => {
     if (r.tanggal < dari || r.tanggal > sampai) return false;
-    if (String(r.sesi_id) !== String(sesiId) && (!sesi || r.sesi_nama !== sesi.nama)) return false;
+    if (!all) {
+      if (String(r.sesi_id) !== String(sesiId) && (!sesi || r.sesi_nama !== sesi.nama)) return false;
+    }
     if (tipe === 'siswa' && r.role !== 'siswa') return false;
     if (tipe === 'guru' && r.role !== 'guru') return false;
     return true;
@@ -9749,35 +9770,45 @@ function countAbsenForFilter() {
   return { ok: true, count: rows.length, rows, dari, sampai, sesiId, tipe };
 }
 
-async function parseHapusSesiValue() {
+function parseHapusSesiValue() {
   const sel = document.getElementById('hapusAbsenSesi');
   const val = sel?.value || '';
-  if (!val) return { sesi_id: null, sesi_nama: null };
+  if (!val) return { sesi_id: null, sesi_nama: null, sesi_all: false };
+  if (val === '__ALL__') return { sesi_id: '__ALL__', sesi_nama: '__ALL__', sesi_all: true };
   const opt = sel.options[sel.selectedIndex];
   const nama = opt?.getAttribute('data-nama') || opt?.textContent || '';
   if (val.startsWith('nama:')) {
-    return { sesi_id: null, sesi_nama: val.slice(5) || nama };
+    return { sesi_id: null, sesi_nama: val.slice(5) || nama, sesi_all: false };
   }
-  return { sesi_id: val, sesi_nama: nama || null };
+  return { sesi_id: val, sesi_nama: nama || null, sesi_all: false };
 }
 
 document.getElementById('btnCekJumlahAbsen')?.addEventListener('click', async () => {
   const dari = document.getElementById('hapusAbsenDari')?.value;
   const sampai = document.getElementById('hapusAbsenSampai')?.value;
   const tipe = document.getElementById('hapusAbsenTipe')?.value || 'semua';
-  const { sesi_id, sesi_nama } = parseHapusSesiValue();
+  const parsed = parseHapusSesiValue();
+  const { sesi_id, sesi_nama, sesi_all } = parsed;
   const info = document.getElementById('hapusAbsenInfo');
-  if (!dari || !sampai || (!sesi_id && !sesi_nama)) {
+  if (!dari || !sampai || (!sesi_all && !sesi_id && !sesi_nama)) {
     info.textContent = 'Lengkapi tanggal dan sesi.';
     info.style.color = '#c62828';
     return;
   }
+  info.textContent = 'Menghitung…';
+  info.style.color = '#666';
   try {
-    const res = await apiCall('count_absen_filter', { dari, sampai, sesi_id, sesi_nama, tipe });
+    const res = await apiCall('count_absen_filter', {
+      dari, sampai, sesi_id, sesi_nama, sesi_all: !!sesi_all, tipe,
+    });
+    const det = res.detail || {};
+    const labelSesi = sesi_all ? 'Semua Sesi' : (sesi_nama || sesi_id || '-');
     info.style.color = '#1565c0';
-    info.innerHTML = `Ditemukan <b>${res.count || 0}</b> data absensi (semua status) di database · ${dari} s/d ${sampai} · ${escapeHtml(sesi_nama || sesi_id)}.`;
+    info.innerHTML =
+      `Ditemukan <b>${res.count || 0}</b> data absensi` +
+      ` (aktif: ${det.absensi ?? '—'}, historis: ${det.absensi_historis ?? '—'})` +
+      ` · ${escapeHtml(dari)} s/d ${escapeHtml(sampai)} · ${escapeHtml(String(labelSesi))}.`;
   } catch (e) {
-    // fallback lokal
     const res = countAbsenForFilter();
     info.style.color = res.ok ? '#1565c0' : '#c62828';
     info.innerHTML = res.ok
@@ -9790,15 +9821,25 @@ document.getElementById('btnHapusAbsenSesi')?.addEventListener('click', async ()
   const dari = document.getElementById('hapusAbsenDari')?.value;
   const sampai = document.getElementById('hapusAbsenSampai')?.value;
   const tipe = document.getElementById('hapusAbsenTipe')?.value || 'semua';
-  const { sesi_id, sesi_nama } = parseHapusSesiValue();
-  if (!dari || !sampai || (!sesi_id && !sesi_nama)) { toast('Lengkapi tanggal dan sesi', 'err'); return; }
-  if (!await sisConfirm('Hapus SEMUA data absensi (semua status) di database untuk filter ini?\nPengaturan sesi (jam) tidak dihapus.')) return;
+  const { sesi_id, sesi_nama, sesi_all } = parseHapusSesiValue();
+  if (!dari || !sampai || (!sesi_all && !sesi_id && !sesi_nama)) {
+    toast('Lengkapi tanggal dan sesi', 'err'); return;
+  }
+  const labelSesi = sesi_all ? 'SEMUA SESI' : (sesi_nama || sesi_id);
+  if (!await sisConfirm(
+    'Hapus SEMUA data absensi (absensi + historis, semua status)\n' +
+    'Tanggal: ' + dari + ' s/d ' + sampai + '\n' +
+    'Sesi: ' + labelSesi + '\n' +
+    'Tipe: ' + tipe + '\n\nPengaturan sesi (jam) TIDAK dihapus.'
+  )) return;
   try {
-    const res = await apiCall('hapus_absen_filter', { dari, sampai, sesi_id, sesi_nama, tipe });
-    // bersihkan cache lokal yang cocok
+    const res = await apiCall('hapus_absen_filter', {
+      dari, sampai, sesi_id, sesi_nama, sesi_all: !!sesi_all, tipe,
+    });
     try {
       const log = loadAbsenLog().filter(r => {
         if (r.tanggal < dari || r.tanggal > sampai) return true;
+        if (sesi_all) return false;
         if (sesi_id && String(r.sesi_id) === String(sesi_id)) return false;
         if (sesi_nama && r.sesi_nama === sesi_nama) return false;
         return true;
@@ -9808,7 +9849,8 @@ document.getElementById('btnHapusAbsenSesi')?.addEventListener('click', async ()
     await refreshStoreFromDb();
     await fillHapusSesiSelect();
     document.getElementById('hapusAbsenInfo').innerHTML =
-      'Berhasil menghapus <b>' + (res.deleted || 0) + '</b> data absensi (semua status) dari database.';
+      'Berhasil menghapus <b>' + (res.deleted || 0) + '</b> data absensi dari database' +
+      (sesi_all ? ' (semua sesi)' : '') + '.';
     showBigPopup('success', 'Data Dihapus', (res.deleted || 0) + ' data absensi dihapus dari database.');
     if (typeof renderScanLogTable === 'function') renderScanLogTable();
     if (typeof renderDashboard === 'function') renderDashboard();
