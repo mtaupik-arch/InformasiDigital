@@ -3663,25 +3663,39 @@
         Data Sekolah
       </div>
       <style>
-        #formSekolah.sek-form-aligned { display:flex; flex-direction:column; gap:10px; }
+        /* Data Sekolah: label | input sejajar di HP & laptop; Visi/Motto full-width */
+        #page-data-sekolah .data-card { max-width: 640px; width: 100%; box-sizing: border-box; }
+        #formSekolah.sek-form-aligned { display:flex; flex-direction:column; gap:10px; width:100%; }
         #formSekolah.sek-form-aligned .sek-row {
-          display:grid; grid-template-columns: 120px 1fr; gap:10px 12px; align-items:center;
+          display:grid;
+          grid-template-columns: minmax(96px, 130px) minmax(0, 1fr);
+          gap:8px 12px;
+          align-items:center;
+          width:100%;
         }
         #formSekolah.sek-form-aligned .sek-row label {
           margin:0; font-size:13px; font-weight:600; color:#333; text-align:left;
+          line-height:1.3; word-break:break-word;
         }
         #formSekolah.sek-form-aligned .sek-row input,
         #formSekolah.sek-form-aligned .sek-row textarea {
-          width:100%; padding:8px 10px; border:1.5px solid #1a237e; border-radius:2px;
+          width:100%; min-width:0; padding:8px 10px; border:1.5px solid #1a237e; border-radius:2px;
           font:inherit; font-size:13px; background:#fff; box-sizing:border-box;
         }
-        #formSekolah.sek-form-aligned .sek-row.sek-area { align-items:start; }
-        #formSekolah.sek-form-aligned .sek-row.sek-area label { padding-top:8px; }
-        #formSekolah.sek-form-aligned .sek-row.sek-area textarea { min-height:64px; resize:vertical; }
-        .sek-upload-row {
-          display:flex; gap:16px; flex-wrap:wrap; margin-top:18px; justify-content:flex-start;
+        /* Visi & Motto: label di atas, teks panjang full lebar */
+        #formSekolah.sek-form-aligned .sek-row.sek-area {
+          grid-template-columns: 1fr;
+          align-items:stretch;
+          gap:6px;
         }
-        .sek-upload-box { flex:0 0 auto; width:120px; text-align:center; }
+        #formSekolah.sek-form-aligned .sek-row.sek-area label { padding-top:0; }
+        #formSekolah.sek-form-aligned .sek-row.sek-area textarea {
+          min-height:72px; resize:vertical; line-height:1.4;
+        }
+        .sek-upload-row {
+          display:flex; gap:12px; flex-wrap:wrap; margin-top:18px; justify-content:flex-start;
+        }
+        .sek-upload-box { flex:0 0 auto; width:110px; text-align:center; }
         .sek-upload-box .sek-btn-label {
           display:block; background:#0d47a1; color:#fff; font-size:12px; font-weight:700;
           padding:8px 6px; border-radius:4px; margin-bottom:8px; cursor:pointer;
@@ -3694,9 +3708,18 @@
         .sek-upload-box .sek-preview img { max-width:100%; max-height:100%; object-fit:contain; }
         .sek-upload-box input[type=file] { display:none; }
         @media (max-width:480px) {
-          #formSekolah.sek-form-aligned .sek-row { grid-template-columns: 1fr; gap:4px; }
-          #formSekolah.sek-form-aligned .sek-row.sek-area label { padding-top:0; }
-          .sek-upload-box { width:100px; }
+          /* Tetap 2 kolom (sejajar) di HP — jangan stack */
+          #formSekolah.sek-form-aligned .sek-row {
+            grid-template-columns: minmax(88px, 108px) minmax(0, 1fr);
+            gap:6px 8px;
+          }
+          #formSekolah.sek-form-aligned .sek-row label { font-size:12px; }
+          #formSekolah.sek-form-aligned .sek-row input { font-size:12.5px; padding:7px 8px; }
+          /* Visi/Motto tetap full width */
+          #formSekolah.sek-form-aligned .sek-row.sek-area { grid-template-columns: 1fr; gap:4px; }
+          .sek-upload-row { gap:10px; justify-content:space-between; }
+          .sek-upload-box { width:30%; min-width:96px; flex:1 1 96px; max-width:120px; }
+          .sek-upload-box .sek-preview { width:88px; height:88px; }
         }
       </style>
       <div class="sek-form-aligned" id="formSekolah">
