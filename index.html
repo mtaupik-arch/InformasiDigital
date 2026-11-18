@@ -4226,8 +4226,15 @@
           <option value="Sakit">Sakit</option>
         </select>
       </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">
+        <button type="button" class="btn btn-primary" id="btnKgCamToggle">📷 Buka Kamera Scanner</button>
+        <button type="button" class="btn btn-outline" id="btnKgCamStop" style="display:none">Tutup Kamera</button>
+        <span style="font-size:11px;color:#666">Sama seperti absen KBM — arahkan ke barcode/QR NISN siswa</span>
+      </div>
+      <div id="kg-qr-reader" style="width:100%;max-width:360px;margin:0 auto 10px;border:1px solid #d0d7e2;border-radius:8px;overflow:hidden;background:#000;display:none"></div>
+      <div id="kgScanResult" class="absen-result" style="margin-bottom:8px"></div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-        <input type="text" id="kgKode" inputmode="numeric" placeholder="Scan / ketik NISN siswa" autocomplete="off"
+        <input type="text" id="kgKode" inputmode="numeric" placeholder="Atau ketik / tempel NISN siswa" autocomplete="off"
           style="flex:1;min-width:160px;padding:10px 12px;border-radius:8px;border:1.5px solid #cfd8dc;font-size:16px;letter-spacing:1px" />
         <button type="button" class="btn btn-primary" id="btnKgAbsen">✓ Catat</button>
         <button type="button" class="btn btn-outline" id="btnKgReload">↻ Muat Daftar</button>
@@ -6945,6 +6952,9 @@ function navigate(page, opts = {}) {
   if (target === 'pengumuman-lulus' || target === 'validasi-lulusan') runPage(() => initValidasiLulusanPage());
   if (target !== 'scan-barcode') {
     try { stopQrScanner(); } catch (_) {}
+  }
+  if (target !== 'absen-kegiatan') {
+    try { if (typeof kgStopCam === 'function') kgStopCam(); } catch (_) {}
   }
 
   const prev = navCurrent;
@@ -13037,6 +13047,169 @@ document.getElementById('btnKgSavePembina')?.addEventListener('click', async () 
     await refreshKegiatanMenuVisibility();
   } catch (e) { toast(errToText(e), 'err'); }
 });
+
+
+
+/* ===== Scanner barcode Absen Kegiatan (Html5Qrcode, terpisah dari scan KBM) ===== */
+let kgQrScanner = null;
+let kgQrRunning = false;
+let kgScanBusy = false;
+let kgLastCode = '';
+let kgLastAt = 0;
+
+function kgExtractNisn(raw) {
+  const s = String(raw || '').trim();
+  const dig = s.replace(/\D/g, '');
+  // prefer 10 digit NISN if present
+  if (dig.length >= 10) {
+    const m = dig.match(/\d{10}/);
+    if (m) return m[0];
+  }
+  return dig;
+}
+
+async function kgStopCam() {
+  try {
+    if (kgQrScanner && kgQrRunning) {
+      await kgQrScanner.stop();
+    }
+  } catch (_) {}
+  try {
+    if (kgQrScanner) await kgQrScanner.clear();
+  } catch (_) {}
+  kgQrRunning = false;
+  kgQrScanner = null;
+  const el = document.getElementById('kg-qr-reader');
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+  const btn = document.getElementById('btnKgCamToggle');
+  const stop = document.getElementById('btnKgCamStop');
+  if (btn) { btn.textContent = '📷 Buka Kamera Scanner'; btn.style.display = ''; }
+  if (stop) stop.style.display = 'none';
+}
+
+async function kgOnScanSuccess(decodedText) {
+  const now = Date.now();
+  const code = kgExtractNisn(decodedText);
+  if (!code || code.length < 8) return;
+  if (kgScanBusy) return;
+  if (code === kgLastCode && (now - kgLastAt) < 2500) return;
+  kgScanBusy = true;
+  kgLastCode = code;
+  kgLastAt = now;
+  const inp = document.getElementById('kgKode');
+  if (inp) inp.value = code;
+  const box = document.getElementById('kgScanResult');
+  if (box) {
+    box.className = 'absen-result';
+    box.innerHTML = '<div style="padding:8px;background:#e3f2fd;border-radius:8px;font-size:13px">Terdeteksi: <b>' + escapeHtml(code) + '</b> · menyimpan…</div>';
+  }
+  try {
+    await doKgAbsen();
+    if (box) {
+      const msg = document.getElementById('kgMsg')?.textContent || 'Tersimpan';
+      box.innerHTML = '<div style="padding:8px;background:#e8f5e9;border-radius:8px;font-size:13px;color:#2e7d32">' + escapeHtml(msg) + '</div>';
+    }
+  } catch (e) {
+    if (box) {
+      box.innerHTML = '<div style="padding:8px;background:#ffebee;border-radius:8px;font-size:13px;color:#c62828">' + escapeHtml(errToText(e)) + '</div>';
+    }
+  } finally {
+    setTimeout(() => { kgScanBusy = false; }, 800);
+  }
+}
+
+async function kgStartCam() {
+  if (kgQrRunning) {
+    await kgStopCam();
+    return;
+  }
+  if (typeof Html5Qrcode === 'undefined') {
+    toast('Library kamera belum termuat. Refresh halaman.', 'err');
+    return;
+  }
+  // Jangan bentrok dengan scanner KBM
+  try {
+    if (typeof stopQrScanner === 'function') await stopQrScanner();
+  } catch (_) {}
+
+  const el = document.getElementById('kg-qr-reader');
+  if (!el) return;
+  el.style.display = '';
+  el.innerHTML = '';
+  kgQrScanner = new Html5Qrcode('kg-qr-reader', { verbose: false });
+  const formats = (typeof Html5QrcodeSupportedFormats !== 'undefined')
+    ? [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+      ]
+    : undefined;
+  const config = {
+    fps: 15,
+    qrbox: function (viewW, viewH) {
+      const w = Math.floor(Math.min(viewW, viewH) * 0.75);
+      return { width: w, height: Math.floor(w * 0.55) };
+    },
+    aspectRatio: 1.333,
+    disableFlip: false,
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+  };
+  if (formats) config.formatsToSupport = formats;
+
+  const onSuccess = (text) => { kgOnScanSuccess(text); };
+  const onError = () => {};
+
+  let started = false;
+  const tryStart = async (cameraConfig) => {
+    await kgQrScanner.start(cameraConfig, config, onSuccess, onError);
+    started = true;
+  };
+  try {
+    try {
+      await tryStart({ facingMode: 'environment' });
+    } catch (e1) {
+      try {
+        const cams = await Html5Qrcode.getCameras();
+        if (cams && cams.length) {
+          const back = cams.find(c => /back|rear|environment|belakang/i.test(c.label || '')) || cams[cams.length - 1];
+          await tryStart(back.id);
+        } else {
+          throw e1;
+        }
+      } catch (e2) {
+        await tryStart({ facingMode: 'user' });
+      }
+    }
+    kgQrRunning = true;
+    const btn = document.getElementById('btnKgCamToggle');
+    const stop = document.getElementById('btnKgCamStop');
+    if (btn) btn.style.display = 'none';
+    if (stop) stop.style.display = '';
+    toast('Kamera siap — arahkan ke barcode siswa', 'ok');
+  } catch (e) {
+    await kgStopCam();
+    toast('Kamera gagal: ' + errToText(e), 'err');
+  }
+}
+
+document.getElementById('btnKgCamToggle')?.addEventListener('click', () => {
+  kgStartCam().catch(e => console.error(e));
+});
+document.getElementById('btnKgCamStop')?.addEventListener('click', () => {
+  kgStopCam().catch(() => {});
+});
+
+// Matikan kamera kegiatan saat pindah halaman
+(function hookKgCamOnNavigate() {
+  const _nav = typeof navigate === 'function' ? navigate : null;
+  // cukup: stop saat init page lain / hash — interval ringan
+  setInterval(() => {
+    const on = document.getElementById('page-absen-kegiatan')?.classList.contains('active');
+    if (!on && kgQrRunning) kgStopCam().catch(() => {});
+  }, 1500);
+})();
 
 
 /* ===== Wali Kelas helpers + cetak Syarat / Nilai ===== */
