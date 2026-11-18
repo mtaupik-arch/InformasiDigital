@@ -2884,8 +2884,8 @@
         <a href="#" data-page="input-daftar-nilai"><span class="ico">✏️</span> Input / Daftar Nilai</a>
         <a href="#" data-page="bank-soal"><span class="ico">📚</span> Bank Soal</a>
         <a href="#" data-page="download-absensi"><span class="ico">⬇️</span> Download Absensi</a>
-        <a href="#" data-page="syarat-naik" id="navGuruSyaratNaik"><span class="ico">📋</span> Cek Syarat Naik / Lulus (Wali)</a>
-        <a href="#" data-page="nilai-saya" id="navGuruNilaiSaya"><span class="ico">📈</span> Lihat Nilai Siswa (Wali)</a>
+        <a href="#" data-page="syarat-naik" id="navGuruSyaratNaik" class="nav-wali-only" style="display:none"><span class="ico">📋</span> Cek Syarat Naik / Lulus (Wali)</a>
+        <a href="#" data-page="nilai-saya" id="navGuruNilaiSaya" class="nav-wali-only" style="display:none"><span class="ico">📈</span> Lihat Nilai Siswa (Wali)</a>
       </div>
     </div>
 
@@ -5266,10 +5266,11 @@ async function refreshStoreFromDb() {
       saveAbsenLog(d.absen_hari_ini);
     }
     saveStore(store);
-    // Setelah kelas/guru terisi, tampilkan menu Wali jika guru adalah wali kelas
+    // Setelah kelas/guru terisi, tampilkan menu Wali HANYA jika guru adalah wali kelas
     try {
       const s = getSession();
       if (s && s.role) applyRoleMenus(s.role);
+      else updateWaliMenuVisibility(null);
     } catch (_) {}
     return true;
   } catch (e) {
@@ -5400,6 +5401,26 @@ function applyRoleMenus(role) {
     if (role === 'admin') setTimeout(() => refreshNotifBadge(), 400);
     else setNotifBadge(0);
   } catch (_) {}
+  // Menu Wali: hanya admin + guru yang benar-benar ditugaskan wali kelas
+  try { updateWaliMenuVisibility(role); } catch (_) {}
+}
+
+/** Tampilkan/sembunyikan menu Syarat Naik & Nilai (Wali). Default: sembunyi. */
+function updateWaliMenuVisibility(role) {
+  const r = role != null ? role : (getSession()?.role || null);
+  let show = false;
+  if (r === 'admin') {
+    show = true;
+  } else if (r === 'guru') {
+    try { show = typeof isGuruWaliAktif === 'function' && isGuruWaliAktif(); } catch (_) { show = false; }
+  }
+  const a1 = document.getElementById('navGuruSyaratNaik');
+  const a2 = document.getElementById('navGuruNilaiSaya');
+  if (a1) a1.style.display = show ? '' : 'none';
+  if (a2) a2.style.display = show ? '' : 'none';
+  document.querySelectorAll('a.nav-wali-only').forEach(el => {
+    el.style.display = show ? '' : 'none';
+  });
 }
 
 /* ===== Profil & topbar ===== */
@@ -12773,15 +12794,39 @@ function getSessionGuruId() {
   const sess = getSession();
   if (!sess || sess.role !== 'guru') return null;
   const u = sess.user || {};
-  if (u.id) return String(u.id);
+  const candidates = [];
+  if (u.id != null && String(u.id).trim() !== '') candidates.push(String(u.id).trim());
   const pin = String(u.pin || '').replace(/\D/g, '');
   const nip = String(u.nip || '').trim();
-  const hit = (store.guru || []).find(g =>
-    (pin && String(g.pin || '').replace(/\D/g, '') === pin) ||
-    (nip && String(g.nip || '').trim() === nip) ||
-    (u.nama && String(g.nama || '') === String(u.nama))
-  );
-  return hit ? String(hit.id) : null;
+  const hit = (store.guru || []).find(g => {
+    if (u.id != null && String(g.id) === String(u.id)) return true;
+    if (pin && String(g.pin || '').replace(/\D/g, '') === pin) return true;
+    if (nip && String(g.nip || '').trim() === nip) return true;
+    if (u.nama && String(g.nama || '').trim().toLowerCase() === String(u.nama).trim().toLowerCase()) return true;
+    return false;
+  });
+  if (hit?.id != null) candidates.push(String(hit.id));
+  // unik
+  return candidates.length ? candidates[0] : null;
+}
+
+/** Semua id yang mungkin merepresentasikan guru login (untuk cocokkan wali_kelas_id). */
+function getSessionGuruIdCandidates() {
+  const sess = getSession();
+  if (!sess || sess.role !== 'guru') return [];
+  const u = sess.user || {};
+  const out = new Set();
+  if (u.id != null && String(u.id).trim() !== '') out.add(String(u.id).trim());
+  const pin = String(u.pin || '').replace(/\D/g, '');
+  const nip = String(u.nip || '').trim();
+  for (const g of (store.guru || [])) {
+    let match = false;
+    if (u.id != null && String(g.id) === String(u.id)) match = true;
+    if (pin && String(g.pin || '').replace(/\D/g, '') === pin) match = true;
+    if (nip && String(g.nip || '').trim() === nip) match = true;
+    if (match && g.id != null) out.add(String(g.id));
+  }
+  return [...out];
 }
 
 function getMyWaliKelasNames() {
@@ -12791,11 +12836,14 @@ function getMyWaliKelasNames() {
     return new Set((store.kelas || []).map(k => String(k.nama || '').trim()).filter(Boolean));
   }
   if (sess.role !== 'guru') return new Set();
-  const gid = getSessionGuruId();
-  if (!gid) return new Set();
+  const ids = (typeof getSessionGuruIdCandidates === 'function')
+    ? getSessionGuruIdCandidates()
+    : (getSessionGuruId() ? [getSessionGuruId()] : []);
+  if (!ids.length) return new Set();
+  const idSet = new Set(ids.map(String));
   return new Set(
     (store.kelas || [])
-      .filter(k => k.wali_kelas_id != null && String(k.wali_kelas_id) === gid)
+      .filter(k => k.wali_kelas_id != null && idSet.has(String(k.wali_kelas_id)))
       .map(k => String(k.nama || '').trim())
       .filter(Boolean)
   );
