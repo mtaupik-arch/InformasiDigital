@@ -5266,6 +5266,11 @@ async function refreshStoreFromDb() {
       saveAbsenLog(d.absen_hari_ini);
     }
     saveStore(store);
+    // Setelah kelas/guru terisi, tampilkan menu Wali jika guru adalah wali kelas
+    try {
+      const s = getSession();
+      if (s && s.role) applyRoleMenus(s.role);
+    } catch (_) {}
     return true;
   } catch (e) {
     console.warn('bootstrap DB gagal, pakai cache lokal:', e.message);
@@ -12584,10 +12589,16 @@ async function initNilaiSayaPage() {
   if (badge) badge.textContent = aktif ? `${aktif.tahun_ajaran || ''} · ${aktif.semester || ''}` : '—';
 
   const sess = getSession();
+  // Hanya siswa (data sendiri), admin, atau guru wali kelas
+  if (sess?.role === 'guru' && !isGuruWaliAktif()) {
+    toast('Hanya Wali Kelas yang dapat mengakses halaman ini.', 'err');
+    try { navigate('dashboard'); } catch (_) {}
+    return;
+  }
   const searchWrap = document.getElementById('nsSearchWrap');
   const isSiswa = sess?.role === 'siswa';
-  // Kolom pencarian hanya admin/guru — siswa otomatis dari NISN login
-  if (searchWrap) searchWrap.style.display = (sess?.role === 'admin' || sess?.role === 'guru') ? '' : 'none';
+  // Kolom pencarian hanya admin / guru wali
+  if (searchWrap) searchWrap.style.display = (sess?.role === 'admin' || (sess?.role === 'guru' && isGuruWaliAktif())) ? '' : 'none';
   try { updateWaliPrintBars(); } catch (_) {}
 
   if (isSiswa) {
@@ -20736,7 +20747,7 @@ document.getElementById('btnBackupRestore')?.addEventListener('click', async () 
     }
     if (!_bootSess || !_bootSess.token) {
       // Tamu: hanya halaman publik; hormati hash publik jika ada
-      const guestOk = new Set(['dashboard','pengumuman-lulus','validasi-lulusan','syarat-naik','jadwal-mapel','jadwal-mapel-kelas','cari-siswa']);
+      const guestOk = new Set(['dashboard','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa']);
       if (!guestOk.has(startPage)) startPage = 'dashboard';
       navStack = ['dashboard'];
       try {
