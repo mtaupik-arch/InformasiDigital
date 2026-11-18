@@ -4234,11 +4234,11 @@
       <div id="kg-qr-reader" style="width:100%;max-width:360px;margin:0 auto 10px;border:1px solid #d0d7e2;border-radius:8px;overflow:hidden;background:#000;display:none"></div>
       <div id="kgScanResult" class="absen-result" style="margin-bottom:8px"></div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-        <input type="text" id="kgKode" inputmode="numeric" placeholder="Atau ketik / tempel NISN siswa" autocomplete="off"
-          style="flex:1;min-width:160px;padding:10px 12px;border-radius:8px;border:1.5px solid #cfd8dc;font-size:16px;letter-spacing:1px" />
-        <button type="button" class="btn btn-primary" id="btnKgAbsen">✓ Catat</button>
         <button type="button" class="btn btn-outline" id="btnKgReload">↻ Muat Daftar</button>
+        <span style="font-size:11px;color:#888">NISN diambil otomatis dari hasil scan barcode</span>
       </div>
+      <!-- hidden: diisi scanner, tidak fokus / tidak buka keyboard -->
+      <input type="hidden" id="kgKode" value="" autocomplete="off" tabindex="-1" />
       <p id="kgMsg" style="font-size:12px;margin-top:8px;min-height:18px;color:#1565c0"></p>
     </div>
 
@@ -13009,7 +13009,7 @@ async function doKgAbsen() {
     if (msg) msg.textContent = res.message || 'OK';
     toast(res.message || 'Tersimpan', res.status === 'success' ? 'ok' : 'err');
     const inp = document.getElementById('kgKode');
-    if (inp) { inp.value = ''; inp.focus(); }
+    if (inp) inp.value = '';
     loadKgAbsenList();
   } catch (e) {
     if (msg) msg.textContent = errToText(e);
