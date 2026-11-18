@@ -2905,6 +2905,7 @@
       <div class="submenu">
         <a href="#" data-page="mapel-kelas"><span class="ico">📖</span> Mapel & Kelas</a>
         <a href="#" data-page="periode"><span class="ico">🗓️</span> Periode</a>
+        <a href="#" data-page="absen-kegiatan"><span class="ico">🏅</span> Absen Kegiatan</a>
         <a href="#" data-page="sesi-libur"><span class="ico">⏰</span> Sesi & Hari Libur</a>
         <a href="#" data-page="izin-sidik"><span class="ico">🔐</span> Izin Sidik Jari & Ujian</a>
         <a href="#" data-page="arsip-absensi"><span class="ico">🗂️</span> Arsip Absensi</a>
@@ -4201,6 +4202,67 @@
 
 
   <!-- ========== PAGE: CEK SYARAT NAIK / LULUS ========== -->
+
+  <!-- ========== PAGE: ABSEN KEGIATAN (Olahraga / Paskibra / Pramuka) ========== -->
+  <div class="page" id="page-absen-kegiatan">
+    <div class="page-title">🏅 Absen Kegiatan
+      <span class="periode-badge" id="badgeKegiatanInfo">terpisah dari absen KBM</span>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <p style="font-size:12px;color:#555;margin:0 0 10px;line-height:1.45">
+        Absensi <b>Olahraga / Paskibra / Pramuka</b> tidak memakai sesi KBM dan <b>tidak digabung</b> ke rekap absensi umum / syarat naik.
+        Boleh dilakukan di luar jam sekolah. Hanya pembina kegiatan &amp; admin.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">
+        <label style="font-size:12px;font-weight:600">Kegiatan</label>
+        <select id="kgKegiatan" style="padding:8px 10px;border-radius:8px;border:1.5px solid #cfd8dc;min-width:140px"></select>
+        <label style="font-size:12px;font-weight:600">Tanggal</label>
+        <input type="date" id="kgTanggal" style="padding:8px 10px;border-radius:8px;border:1.5px solid #cfd8dc" />
+        <label style="font-size:12px;font-weight:600">Status</label>
+        <select id="kgStatus" style="padding:8px 10px;border-radius:8px;border:1.5px solid #cfd8dc">
+          <option value="Hadir">Hadir</option>
+          <option value="Tidak Hadir">Tidak Hadir</option>
+          <option value="Izin">Izin</option>
+          <option value="Sakit">Sakit</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <input type="text" id="kgKode" inputmode="numeric" placeholder="Scan / ketik NISN siswa" autocomplete="off"
+          style="flex:1;min-width:160px;padding:10px 12px;border-radius:8px;border:1.5px solid #cfd8dc;font-size:16px;letter-spacing:1px" />
+        <button type="button" class="btn btn-primary" id="btnKgAbsen">✓ Catat</button>
+        <button type="button" class="btn btn-outline" id="btnKgReload">↻ Muat Daftar</button>
+      </div>
+      <p id="kgMsg" style="font-size:12px;margin-top:8px;min-height:18px;color:#1565c0"></p>
+    </div>
+
+    <div class="card" id="kgPembinaCard" style="margin-bottom:12px;display:none">
+      <b style="font-size:13px;color:#1565c0">Pengaturan Pembina (Admin)</b>
+      <p style="font-size:11px;color:#666;margin:6px 0 8px">Pilih guru pembina untuk kegiatan yang dipilih di atas, lalu simpan.</p>
+      <div id="kgPembinaList" style="max-height:180px;overflow-y:auto;border:1px solid #e0e7ef;border-radius:8px;padding:8px;margin-bottom:8px"></div>
+      <button type="button" class="btn btn-success btn-sm" id="btnKgSavePembina">💾 Simpan Pembina</button>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">
+        <b style="font-size:13px;color:#1565c0">Daftar absen</b>
+        <input type="search" id="kgQ" placeholder="Cari nama / NISN…" style="flex:1;min-width:120px;padding:6px 10px;border-radius:8px;border:1px solid #cfd8dc;font-size:12px" />
+        <span id="kgMeta" style="font-size:11px;color:#888"></span>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table" style="width:100%;font-size:12px">
+          <thead>
+            <tr>
+              <th>No</th><th>NISN</th><th>Nama</th><th>Kelas</th><th>Status</th><th>Jam</th><th>Oleh</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyKgAbsen">
+            <tr><td colspan="8" style="padding:14px;text-align:center;color:#888">Pilih kegiatan &amp; muat daftar</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-syarat-naik">
     <div class="page-title">📋 Cek Syarat Naik Kelas / Lulus
       <span class="periode-badge" id="badgePeriodeSyarat">—</span>
@@ -5271,6 +5333,7 @@ async function refreshStoreFromDb() {
       const s = getSession();
       if (s && s.role) applyRoleMenus(s.role);
       else updateWaliMenuVisibility(null);
+      try { refreshKegiatanMenuVisibility(); } catch (_) {}
     } catch (_) {}
     return true;
   } catch (e) {
@@ -5403,6 +5466,7 @@ function applyRoleMenus(role) {
   } catch (_) {}
   // Menu Wali: hanya admin + guru yang benar-benar ditugaskan wali kelas
   try { updateWaliMenuVisibility(role); } catch (_) {}
+  try { refreshKegiatanMenuVisibility(); } catch (_) {}
 }
 
 /** Tampilkan/sembunyikan menu Syarat Naik & Nilai (Wali). Default: sembunyi. */
@@ -6661,7 +6725,7 @@ try {
 } catch (_) {}
 
 function resolveNavTarget(page) {
-  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','profil-saya','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal','download-absensi','backup-data','login-log','ruang-ujian'];
+  const known = ['dashboard','data-siswa','data-guru','data-lulusan','periode','sidik-jari-siswa','scan-barcode','sesi-libur','input-izin','mapel-kelas','data-sekolah','profil-saya','edit-profil-user','input-daftar-nilai','rekap-data','reset-pin','naik-kelas','syarat-naik','nilai-saya','izin-sidik','tugas-ujian','arsip-absensi','integrasi-gdrive','pengumuman-lulus','validasi-lulusan','jadwal-mapel','jadwal-mapel-kelas','cari-siswa','bank-soal','download-absensi','backup-data','login-log','ruang-ujian','absen-kegiatan'];
   let target = known.includes(page) ? page : 'placeholder';
   if (page === 'input-nilai' || page === 'daftar-nilai') target = 'input-daftar-nilai';
   if (page === 'pengumuman-lulus') target = 'validasi-lulusan';
@@ -6795,7 +6859,7 @@ function navigate(page, opts = {}) {
   // sidik-jari-siswa: untuk siswa (daftar/absen mandiri), bukan khusus guru
   const GURU_PAGES = new Set([
     'scan-barcode','input-daftar-nilai','bank-soal','cari-siswa',
-    'download-absensi','input-izin','rekap-data'
+    'download-absensi','input-izin','rekap-data','absen-kegiatan'
   ]);
   const SISWA_PAGES = new Set([
     'sidik-jari-siswa','nilai-saya','syarat-naik','tugas-ujian','jadwal-mapel-kelas'
@@ -6867,6 +6931,7 @@ function navigate(page, opts = {}) {
   if (target === 'backup-data') runPage(() => initBackupPage());
   if (target === 'reset-pin') runPage(() => initResetPinPage());
   if (target === 'naik-kelas') runPage(() => initNaikKelasPage());
+  if (target === 'absen-kegiatan') runPage(() => initAbsenKegiatanPage());
   if (target === 'syarat-naik') runPage(() => initSyaratNaikPage());
   if (target === 'nilai-saya') runPage(() => initNilaiSayaPage());
   if (target === 'izin-sidik') runPage(() => initIzinSidikPage());
@@ -12787,6 +12852,191 @@ function renderSyaratResult(data) {
     banner.innerHTML = `<span>↓</span> <span>BELUM MEMENUHI SYARAT ${lulusLabel}</span>`;
   }
 }
+
+
+
+/* ===== ABSEN KEGIATAN (Olahraga / Paskibra / Pramuka) ===== */
+const KEGIATAN_LABEL = { olahraga: 'Olahraga', paskibra: 'Paskibra', pramuka: 'Pramuka' };
+let _kgAssigned = []; // kegiatan yang diampu guru / semua untuk admin
+
+async function refreshKegiatanMenuVisibility() {
+  const sess = getSession();
+  const nav = document.getElementById('navAbsenKegiatan');
+  if (!nav) return;
+  if (!sess || !sess.token) { nav.style.display = 'none'; return; }
+  if (sess.role === 'admin') { nav.style.display = ''; return; }
+  if (sess.role !== 'guru') { nav.style.display = 'none'; return; }
+  try {
+    const res = await apiCall('kegiatan_list', {});
+    _kgAssigned = (res.data || []).filter(k => k.assigned);
+    nav.style.display = _kgAssigned.length ? '' : 'none';
+  } catch (_) {
+    nav.style.display = 'none';
+  }
+}
+
+async function initAbsenKegiatanPage() {
+  const sess = getSession();
+  if (!sess || (sess.role !== 'admin' && sess.role !== 'guru')) {
+    toast('Hanya pembina kegiatan / Admin', 'err');
+    try { navigate('dashboard'); } catch (_) {}
+    return;
+  }
+  const tgl = document.getElementById('kgTanggal');
+  if (tgl && !tgl.value) {
+    const d = new Date();
+    tgl.value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  const pembinaCard = document.getElementById('kgPembinaCard');
+  if (pembinaCard) pembinaCard.style.display = sess.role === 'admin' ? '' : 'none';
+
+  try {
+    const res = await apiCall('kegiatan_list', {});
+    const list = sess.role === 'admin' ? (res.all || res.data || []) : (res.data || []);
+    _kgAssigned = list.filter(k => k.assigned || sess.role === 'admin');
+    const sel = document.getElementById('kgKegiatan');
+    if (sel) {
+      const cur = sel.value;
+      sel.innerHTML = _kgAssigned.map(k =>
+        `<option value="${escapeHtml(k.key)}">${escapeHtml(k.label || KEGIATAN_LABEL[k.key] || k.key)}</option>`
+      ).join('');
+      if (!sel.options.length) {
+        sel.innerHTML = '<option value="">— Tidak ada kegiatan —</option>';
+      } else if (cur && [...sel.options].some(o => o.value === cur)) {
+        sel.value = cur;
+      }
+    }
+    if (sess.role === 'admin') renderKgPembinaChecks(res.all || res.data || []);
+  } catch (e) {
+    toast(errToText(e), 'err');
+  }
+  await loadKgAbsenList();
+}
+
+function renderKgPembinaChecks(allKegiatan) {
+  const box = document.getElementById('kgPembinaList');
+  if (!box) return;
+  const key = document.getElementById('kgKegiatan')?.value || '';
+  const item = (allKegiatan || []).find(k => k.key === key) || { pembina: [] };
+  const selected = new Set((item.pembina || []).map(p => String(p.guru_id)));
+  const gurus = (store.guru || []).filter(g => {
+    const st = String(g.status || 'Aktif').toLowerCase();
+    return st === 'aktif' || st === '' || st === 'null';
+  }).slice().sort((a,b) => String(a.nama||'').localeCompare(String(b.nama||''),'id'));
+  if (!gurus.length) {
+    box.innerHTML = '<div style="color:#888;font-size:12px">Data guru kosong. Muat ulang / login admin.</div>';
+    return;
+  }
+  box.innerHTML = gurus.map(g => {
+    const id = String(g.id);
+    const chk = selected.has(id) ? ' checked' : '';
+    return `<label style="display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:12px;cursor:pointer">
+      <input type="checkbox" class="kg-pembina-cb" value="${escapeHtml(id)}"${chk} />
+      <span>${escapeHtml(g.nama || '')}${g.nip ? ' <small style="color:#888">· ' + escapeHtml(String(g.nip)) + '</small>' : ''}</span>
+    </label>`;
+  }).join('');
+}
+
+async function loadKgAbsenList() {
+  const tb = document.getElementById('tbodyKgAbsen');
+  const meta = document.getElementById('kgMeta');
+  const kegiatan = document.getElementById('kgKegiatan')?.value || '';
+  const tanggal = document.getElementById('kgTanggal')?.value || '';
+  const q = document.getElementById('kgQ')?.value || '';
+  if (!tb) return;
+  if (!kegiatan) {
+    tb.innerHTML = '<tr><td colspan="8" style="padding:14px;text-align:center;color:#888">Pilih kegiatan</td></tr>';
+    return;
+  }
+  tb.innerHTML = '<tr><td colspan="8" style="padding:14px;text-align:center;color:#888">Memuat…</td></tr>';
+  try {
+    const res = await apiCall('kegiatan_list_absen', { kegiatan, dari: tanggal, sampai: tanggal, q });
+    const rows = res.data || [];
+    if (meta) meta.textContent = rows.length + ' data · ' + (KEGIATAN_LABEL[kegiatan] || kegiatan);
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="8" style="padding:14px;text-align:center;color:#888">Belum ada absen pada tanggal ini</td></tr>';
+      return;
+    }
+    tb.innerHTML = rows.map((r, i) => {
+      const jam = r.jam ? String(r.jam).slice(11, 19) : '—';
+      return `<tr data-id="${escapeHtml(String(r.id))}">
+        <td>${i + 1}</td>
+        <td style="font-family:monospace;font-size:11px">${escapeHtml(r.kode || '')}</td>
+        <td>${escapeHtml(r.nama || '')}</td>
+        <td>${escapeHtml(r.kelas || '')}</td>
+        <td><b>${escapeHtml(r.status || '')}</b></td>
+        <td style="font-size:11px">${escapeHtml(jam)}</td>
+        <td style="font-size:11px">${escapeHtml(r.scanned_by || '')}</td>
+        <td><button type="button" class="btn btn-outline btn-sm kg-del" data-id="${escapeHtml(String(r.id))}" style="padding:2px 6px;font-size:10px">🗑</button></td>
+      </tr>`;
+    }).join('');
+    tb.querySelectorAll('.kg-del').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!id || !await sisConfirm('Hapus absen kegiatan ini?')) return;
+        try {
+          await apiCall('kegiatan_delete_absen', { kegiatan, ids: [id] });
+          toast('Dihapus', 'ok');
+          loadKgAbsenList();
+        } catch (e) { toast(errToText(e), 'err'); }
+      });
+    });
+  } catch (e) {
+    tb.innerHTML = `<tr><td colspan="8" style="padding:14px;color:#c62828;text-align:center">${escapeHtml(errToText(e))}</td></tr>`;
+  }
+}
+
+async function doKgAbsen() {
+  const kegiatan = document.getElementById('kgKegiatan')?.value || '';
+  const tanggal = document.getElementById('kgTanggal')?.value || '';
+  const status = document.getElementById('kgStatus')?.value || 'Hadir';
+  const kode = String(document.getElementById('kgKode')?.value || '').replace(/\D/g, '');
+  const msg = document.getElementById('kgMsg');
+  if (!kegiatan) { toast('Pilih kegiatan', 'err'); return; }
+  if (!kode) { toast('NISN wajib', 'err'); return; }
+  try {
+    const res = await apiCall('kegiatan_absen', { kegiatan, tanggal, status, kode, metode: 'qr' });
+    if (msg) msg.textContent = res.message || 'OK';
+    toast(res.message || 'Tersimpan', res.status === 'success' ? 'ok' : 'err');
+    const inp = document.getElementById('kgKode');
+    if (inp) { inp.value = ''; inp.focus(); }
+    loadKgAbsenList();
+  } catch (e) {
+    if (msg) msg.textContent = errToText(e);
+    toast(errToText(e), 'err');
+  }
+}
+
+document.getElementById('btnKgAbsen')?.addEventListener('click', () => doKgAbsen());
+document.getElementById('btnKgReload')?.addEventListener('click', () => loadKgAbsenList());
+document.getElementById('kgKegiatan')?.addEventListener('change', async () => {
+  const sess = getSession();
+  if (sess?.role === 'admin') {
+    try {
+      const res = await apiCall('kegiatan_list', {});
+      renderKgPembinaChecks(res.all || res.data || []);
+    } catch (_) {}
+  }
+  loadKgAbsenList();
+});
+document.getElementById('kgTanggal')?.addEventListener('change', () => loadKgAbsenList());
+document.getElementById('kgQ')?.addEventListener('input', () => {
+  clearTimeout(window._kgQTimer);
+  window._kgQTimer = setTimeout(() => loadKgAbsenList(), 280);
+});
+document.getElementById('kgKode')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); doKgAbsen(); }
+});
+document.getElementById('btnKgSavePembina')?.addEventListener('click', async () => {
+  const kegiatan = document.getElementById('kgKegiatan')?.value || '';
+  if (!kegiatan) { toast('Pilih kegiatan', 'err'); return; }
+  const ids = [...document.querySelectorAll('.kg-pembina-cb:checked')].map(c => c.value);
+  try {
+    await apiCall('kegiatan_set_pembina', { kegiatan, guru_ids: ids });
+    toast('Pembina disimpan', 'ok');
+    await refreshKegiatanMenuVisibility();
+  } catch (e) { toast(errToText(e), 'err'); }
+});
 
 
 /* ===== Wali Kelas helpers + cetak Syarat / Nilai ===== */
