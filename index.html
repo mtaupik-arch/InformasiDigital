@@ -2884,6 +2884,8 @@
         <a href="#" data-page="input-daftar-nilai"><span class="ico">✏️</span> Input / Daftar Nilai</a>
         <a href="#" data-page="bank-soal"><span class="ico">📚</span> Bank Soal</a>
         <a href="#" data-page="download-absensi"><span class="ico">⬇️</span> Download Absensi</a>
+        <a href="#" data-page="syarat-naik" id="navGuruSyaratNaik"><span class="ico">📋</span> Cek Syarat Naik / Lulus (Wali)</a>
+        <a href="#" data-page="nilai-saya" id="navGuruNilaiSaya"><span class="ico">📈</span> Lihat Nilai Siswa (Wali)</a>
       </div>
     </div>
 
@@ -3543,9 +3545,10 @@
                 <th ><input type="checkbox" id="checkAllKelas" /></th>
                 <th >No</th>
                 <th>Kelas</th>
+                <th>Wali Kelas</th>
               </tr>
             </thead>
-            <tbody id="tbodyKelas"><tr class="empty-row"><td colspan="3">Memuat…</td></tr></tbody>
+            <tbody id="tbodyKelas"><tr class="empty-row"><td colspan="4">Memuat…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -4202,6 +4205,11 @@
     <div class="page-title">📋 Cek Syarat Naik Kelas / Lulus
       <span class="periode-badge" id="badgePeriodeSyarat">—</span>
     </div>
+    <div id="syaratPrintBar" class="syarat-print-bar" style="display:none;margin-bottom:10px;gap:8px;flex-wrap:wrap;align-items:center">
+      <button type="button" class="btn btn-outline btn-sm" id="btnSyaratPrintOne">🖨 Cetak Siswa Ini</button>
+      <button type="button" class="btn btn-primary btn-sm" id="btnSyaratPrintKelas">🖨 Cetak Semua Kelas Wali</button>
+      <span id="syaratPrintHint" style="font-size:11px;color:#666"></span>
+    </div>
 
     <div class="syarat-profile" id="syaratProfile">
       <div class="sp-photo" id="syaratPhoto">?</div>
@@ -4271,6 +4279,11 @@
   <div class="page" id="page-nilai-saya">
     <div class="page-title">📈 Lihat Nilai Saya
       <span class="periode-badge" id="badgePeriodeNilaiSaya">—</span>
+    </div>
+    <div id="nsPrintBar" class="syarat-print-bar" style="display:none;margin-bottom:10px;gap:8px;flex-wrap:wrap;align-items:center">
+      <button type="button" class="btn btn-outline btn-sm" id="btnNsPrintOne">🖨 Cetak Siswa Ini</button>
+      <button type="button" class="btn btn-primary btn-sm" id="btnNsPrintKelas">🖨 Cetak Semua Kelas Wali</button>
+      <span id="nsPrintHint" style="font-size:11px;color:#666"></span>
     </div>
 
     <div class="syarat-profile" id="nsProfile">
@@ -11024,15 +11037,22 @@ function renderKelasTable() {
   if (!tb) return;
   const rows = (store.kelas || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0) || String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
   if (!rows.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="3">Belum ada kelas. Klik + Tambah.</td></tr>';
+    tb.innerHTML = '<tr class="empty-row"><td colspan="4">Belum ada kelas. Klik + Tambah.</td></tr>';
     return;
   }
-  tb.innerHTML = rows.map((r, i) => `
-    <tr data-id="${escapeHtml(String(r.id))}">
+  const guruMap = Object.fromEntries((store.guru || []).map(g => [String(g.id), g]));
+  tb.innerHTML = rows.map((r, i) => {
+    const wali = r.wali_kelas_id != null ? guruMap[String(r.wali_kelas_id)] : null;
+    const waliLabel = wali
+      ? escapeHtml(wali.nama || '')
+      : (r.wali_kelas_id ? '<span style="color:#999">ID ' + escapeHtml(String(r.wali_kelas_id)).slice(0, 8) + '…</span>' : '<span style="color:#bbb">—</span>');
+    return `<tr data-id="${escapeHtml(String(r.id))}">
       <td><input type="checkbox" class="row-check-kelas" value="${escapeHtml(String(r.id))}" /></td>
       <td>${i + 1}</td>
       <td><b>${escapeHtml(r.nama || '')}</b></td>
-    </tr>`).join('');
+      <td style="font-size:12px">${waliLabel}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderBobotTable() {
@@ -11090,10 +11110,26 @@ function openKelasForm(id) {
   const row = id ? (store.kelas || []).find(r => String(r.id) === String(id)) : null;
   crudState = { entity: 'kelas', id: row ? row.id : null };
   document.getElementById('crudModalTitle').textContent = row ? 'Edit Kelas' : 'Tambah Kelas';
+  const guruAktif = (store.guru || []).filter(g => {
+    const st = String(g.status || 'Aktif').toLowerCase();
+    return st === 'aktif' || st === '' || st === 'null';
+  }).slice().sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
+  const curWali = row?.wali_kelas_id != null ? String(row.wali_kelas_id) : '';
+  const opts = ['<option value="">— Belum ditugaskan —</option>'].concat(
+    guruAktif.map(g => {
+      const sel = String(g.id) === curWali ? ' selected' : '';
+      const meta = g.nip ? (' · NIP ' + g.nip) : (g.pin && !String(g.pin).startsWith('$2') ? (' · PIN ' + g.pin) : '');
+      return `<option value="${escapeHtml(String(g.id))}"${sel}>${escapeHtml(g.nama || '')}${escapeHtml(meta)}</option>`;
+    })
+  );
   document.getElementById('crudModalBody').innerHTML = `
     <div class="form-grid">
       <div class="form-group"><label>Nama Kelas *</label><input name="nama" value="${escapeHtml(row?.nama || '')}" required placeholder="7A" /></div>
       <div class="form-group"><label>Urutan</label><input type="number" name="urutan" value="${row?.urutan ?? ((store.kelas||[]).length + 1)}" /></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Wali Kelas</label>
+        <select name="wali_kelas_id">${opts.join('')}</select>
+        <small style="color:#666;font-size:11px;display:block;margin-top:4px">Guru yang ditugaskan dapat mencetak Syarat Naik &amp; Nilai siswa di kelas ini.</small>
+      </div>
     </div>`;
   document.getElementById('crudModal').classList.add('active');
 }
@@ -12533,7 +12569,8 @@ async function loadNilaiSaya(nisn) {
   if (tb) tb.innerHTML = `<tr><td colspan="6" style="padding:14px;color:#888">Memuat nilai…</td></tr>`;
   try {
     const res = await apiCall('nilai_saya', { nisn: nisn || '' });
-    renderNilaiSaya(res.data || res);
+    _lastNilaiPayload = res.data || res;
+    renderNilaiSaya(_lastNilaiPayload);
   } catch (e) {
     if (tb) tb.innerHTML = `<tr><td colspan="6" style="padding:14px;color:#c62828">${escapeHtml(errToText(e))}</td></tr>`;
     toast(errToText(e), 'err');
@@ -12551,6 +12588,7 @@ async function initNilaiSayaPage() {
   const isSiswa = sess?.role === 'siswa';
   // Kolom pencarian hanya admin/guru — siswa otomatis dari NISN login
   if (searchWrap) searchWrap.style.display = (sess?.role === 'admin' || sess?.role === 'guru') ? '' : 'none';
+  try { updateWaliPrintBars(); } catch (_) {}
 
   if (isSiswa) {
     const nisn = sess.user?.nisn || sess.user?.kode || '';
@@ -12570,9 +12608,16 @@ function nsSearchList(q) {
   const qq = String(q || '').toLowerCase().trim();
   if (qq.length < 2) return [];
   const dig = qq.replace(/\D/g, '');
+  const sess = getSession();
+  const waliOnly = sess && sess.role === 'guru';
+  const waliNames = waliOnly ? getMyWaliKelasNames() : null;
   return (store.siswa || []).filter(s => {
     const st = String(s.status || 'Aktif').toLowerCase();
     if (!(st === 'aktif' || st === '' || st === 'null')) return false;
+    if (waliOnly) {
+      if (!waliNames || !waliNames.size) return false;
+      if (!waliNames.has(String(s.kelas || '').trim())) return false;
+    }
     const nama = String(s.nama || '').toLowerCase();
     const nisn = String(s.nisn || '');
     if (nama.includes(qq)) return true;
@@ -12711,6 +12756,223 @@ function renderSyaratResult(data) {
   }
 }
 
+
+/* ===== Wali Kelas helpers + cetak Syarat / Nilai ===== */
+function getSessionGuruId() {
+  const sess = getSession();
+  if (!sess || sess.role !== 'guru') return null;
+  const u = sess.user || {};
+  if (u.id) return String(u.id);
+  const pin = String(u.pin || '').replace(/\D/g, '');
+  const nip = String(u.nip || '').trim();
+  const hit = (store.guru || []).find(g =>
+    (pin && String(g.pin || '').replace(/\D/g, '') === pin) ||
+    (nip && String(g.nip || '').trim() === nip) ||
+    (u.nama && String(g.nama || '') === String(u.nama))
+  );
+  return hit ? String(hit.id) : null;
+}
+
+function getMyWaliKelasNames() {
+  const sess = getSession();
+  if (!sess) return new Set();
+  if (sess.role === 'admin') {
+    return new Set((store.kelas || []).map(k => String(k.nama || '').trim()).filter(Boolean));
+  }
+  if (sess.role !== 'guru') return new Set();
+  const gid = getSessionGuruId();
+  if (!gid) return new Set();
+  return new Set(
+    (store.kelas || [])
+      .filter(k => k.wali_kelas_id != null && String(k.wali_kelas_id) === gid)
+      .map(k => String(k.nama || '').trim())
+      .filter(Boolean)
+  );
+}
+
+function isGuruWaliAktif() {
+  const sess = getSession();
+  if (!sess) return false;
+  if (sess.role === 'admin') return true;
+  if (sess.role !== 'guru') return false;
+  return getMyWaliKelasNames().size > 0;
+}
+
+function listSiswaWaliKelas() {
+  const sess = getSession();
+  const names = getMyWaliKelasNames();
+  return (store.siswa || []).filter(s => {
+    const st = String(s.status || 'Aktif').toLowerCase();
+    if (!(st === 'aktif' || st === '' || st === 'null')) return false;
+    if (sess?.role === 'admin') return true;
+    return names.has(String(s.kelas || '').trim());
+  }).slice().sort((a, b) =>
+    String(a.kelas || '').localeCompare(String(b.kelas || ''), 'id') ||
+    String(a.nama || '').localeCompare(String(b.nama || ''), 'id')
+  );
+}
+
+function updateWaliPrintBars() {
+  const sess = getSession();
+  const show = !!(sess && (sess.role === 'admin' || (sess.role === 'guru' && isGuruWaliAktif())));
+  const names = getMyWaliKelasNames();
+  const hint = sess?.role === 'admin'
+    ? 'Admin: cetak satu siswa atau seluruh siswa (filter kelas via pencarian).'
+    : (names.size ? ('Kelas wali: ' + [...names].join(', ')) : 'Belum ditugaskan sebagai wali kelas');
+  ['syaratPrintBar', 'nsPrintBar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = show ? 'flex' : 'none';
+  });
+  const h1 = document.getElementById('syaratPrintHint');
+  const h2 = document.getElementById('nsPrintHint');
+  if (h1) h1.textContent = hint;
+  if (h2) h2.textContent = hint;
+}
+
+let _lastSyaratPayload = null;
+let _lastNilaiPayload = null;
+
+function openPrintWindow(htmlBody, title) {
+  const w = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
+  if (!w) { toast('Izinkan popup untuk mencetak', 'err'); return; }
+  w.document.open();
+  w.document.write(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>${title || 'Cetak'}</title>
+<style>
+  body{font-family:'Segoe UI',Tahoma,sans-serif;color:#111;margin:12px;font-size:12px}
+  h1{font-size:16px;color:#0000E6;margin:0 0 4px}
+  h2{font-size:14px;margin:0 0 6px;color:#1a237e}
+  .sub{font-size:11px;color:#555;margin-bottom:10px}
+  .meta p{margin:2px 0;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+  th,td{border:1px solid #333;padding:4px 6px;text-align:left}
+  th{background:#eef3fa}
+  .banner{margin-top:12px;padding:10px;border:1.5px solid #333;font-weight:800;text-align:center;font-size:13px}
+  .banner.ok{background:#e8f5e9;color:#1b5e20}
+  .banner.fail{background:#ffebee;color:#b71c1c}
+  .banner.warn{background:#fff8e1;color:#e65100}
+  .sheet{page-break-after:always;padding-bottom:16px}
+  .sheet:last-child{page-break-after:auto}
+  @media print{body{margin:8px}}
+</style></head><body>${htmlBody}
+<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script>
+</body></html>`);
+  w.document.close();
+}
+
+function buildSyaratPrintHtml(payload) {
+  const s = payload?.siswa || {};
+  const st = payload?.stats || {};
+  const sekolah = (store.sekolah && store.sekolah.nama) || document.querySelector('.nama-sekolah')?.textContent || 'Sekolah';
+  const jenis = st.jenis_syarat === 'lulus' ? 'Lulus' : 'Naik Kelas';
+  const ok = !!st.memenuhi;
+  const bannerCls = ok ? 'ok' : 'fail';
+  const bannerTxt = ok
+    ? ('MEMENUHI syarat ' + jenis + ' (' + (st.persen ?? 0) + '% ≥ ' + (st.batas ?? 80) + '%)')
+    : ('BELUM MEMENUHI syarat ' + jenis + ' (' + (st.persen ?? 0) + '% < ' + (st.batas ?? 80) + '%)');
+  return `<div class="sheet">
+    <h1>Cek Syarat ${escapeHtml(jenis)}</h1>
+    <div class="sub">${escapeHtml(sekolah)} · ${escapeHtml(String(st.tgl_mulai || '') + ' s/d ' + String(st.tgl_akhir || ''))}</div>
+    <div class="meta">
+      <p><b>Nama</b>: ${escapeHtml(s.nama || '—')}</p>
+      <p><b>NISN</b>: ${escapeHtml(s.nisn || '—')} &nbsp; <b>Kelas</b>: ${escapeHtml(s.kelas || '—')}</p>
+    </div>
+    <table>
+      <tr><th>Uraian</th><th>Jumlah</th></tr>
+      <tr><td>Hari sesi berjalan</td><td>${st.hari_sesi_berjalan ?? 0}</td></tr>
+      <tr><td>Sesi efektif</td><td>${st.sesi_efektif ?? 0}</td></tr>
+      <tr><td>Tepat Waktu (TW)</td><td>${st.tw ?? 0}</td></tr>
+      <tr><td>Terlambat (TL)</td><td>${st.tl ?? 0}</td></tr>
+      <tr><td>Sakit</td><td>${st.sakit ?? 0}</td></tr>
+      <tr><td>Izin</td><td>${st.izin ?? 0}</td></tr>
+      <tr><td>Alpa</td><td>${st.alpa ?? 0}</td></tr>
+      <tr><td>Bolos</td><td>${st.bolos ?? 0}</td></tr>
+      <tr><td><b>Nilai hadir</b></td><td><b>${st.nilai_hadir ?? 0}</b></td></tr>
+      <tr><td><b>Persentase</b></td><td><b>${st.persen ?? 0}%</b> (batas ${st.batas ?? 80}%)</td></tr>
+    </table>
+    <div class="banner ${bannerCls}">${escapeHtml(bannerTxt)}</div>
+  </div>`;
+}
+
+function buildNilaiPrintHtml(payload) {
+  const s = payload?.siswa || {};
+  const rows = payload?.rows || [];
+  const cols = payload?.columns || ['NRH', 'NR'];
+  const sekolah = (store.sekolah && store.sekolah.nama) || document.querySelector('.nama-sekolah')?.textContent || 'Sekolah';
+  const aktif = (store.periode || []).find(p => String(p.status || '').toLowerCase() === 'aktif');
+  const per = aktif ? `${aktif.tahun_ajaran || ''} · ${aktif.semester || ''}` : '';
+  const head = cols.map(c => `<th>${escapeHtml(c)}</th>`).join('');
+  const body = rows.length
+    ? rows.map((r, i) => {
+        const cells = cols.map(c => {
+          const v = r.scores?.[c];
+          return `<td>${v == null || v === '' ? '—' : v}</td>`;
+        }).join('');
+        return `<tr><td>${i + 1}</td><td>${escapeHtml(r.mapel_nama || r.mapel || '')}</td>${cells}</tr>`;
+      }).join('')
+    : `<tr><td colspan="${2 + cols.length}">Belum ada data nilai</td></tr>`;
+  return `<div class="sheet">
+    <h1>Laporan Nilai Siswa</h1>
+    <div class="sub">${escapeHtml(sekolah)}${per ? ' · ' + escapeHtml(per) : ''}</div>
+    <div class="meta">
+      <p><b>Nama</b>: ${escapeHtml(s.nama || '—')}</p>
+      <p><b>NISN</b>: ${escapeHtml(s.nisn || '—')} &nbsp; <b>Kelas</b>: ${escapeHtml(s.kelas || '—')}</p>
+    </div>
+    <table>
+      <thead><tr><th>No</th><th>Mata Pelajaran</th>${head}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+  </div>`;
+}
+
+async function printSyaratOne() {
+  if (!_lastSyaratPayload || !_lastSyaratPayload.siswa?.nisn) {
+    toast('Muat data siswa dulu', 'err'); return;
+  }
+  openPrintWindow(buildSyaratPrintHtml(_lastSyaratPayload), 'Syarat Naik - ' + (_lastSyaratPayload.siswa.nama || ''));
+}
+
+async function printSyaratKelas() {
+  const list = listSiswaWaliKelas();
+  if (!list.length) { toast('Tidak ada siswa di kelas wali', 'err'); return; }
+  if (!await sisConfirm('Cetak syarat kehadiran untuk ' + list.length + ' siswa?')) return;
+  toast('Menyiapkan ' + list.length + ' data…', 'ok');
+  const parts = [];
+  for (const s of list) {
+    try {
+      const res = await apiCall('cek_syarat_kehadiran', { nisn: String(s.nisn || '').replace(/\D/g, '') });
+      parts.push(buildSyaratPrintHtml(res.data || res));
+    } catch (e) {
+      parts.push(`<div class="sheet"><h2>${escapeHtml(s.nama || '')}</h2><p style="color:#c62828">${escapeHtml(errToText(e))}</p></div>`);
+    }
+  }
+  openPrintWindow(parts.join(''), 'Syarat Naik - Kelas Wali');
+}
+
+async function printNilaiOne() {
+  if (!_lastNilaiPayload || !_lastNilaiPayload.siswa?.nisn) {
+    toast('Muat data siswa dulu', 'err'); return;
+  }
+  openPrintWindow(buildNilaiPrintHtml(_lastNilaiPayload), 'Nilai - ' + (_lastNilaiPayload.siswa.nama || ''));
+}
+
+async function printNilaiKelas() {
+  const list = listSiswaWaliKelas();
+  if (!list.length) { toast('Tidak ada siswa di kelas wali', 'err'); return; }
+  if (!await sisConfirm('Cetak nilai untuk ' + list.length + ' siswa?')) return;
+  toast('Menyiapkan ' + list.length + ' data…', 'ok');
+  const parts = [];
+  for (const s of list) {
+    try {
+      const res = await apiCall('nilai_saya', { nisn: String(s.nisn || '').replace(/\D/g, '') });
+      parts.push(buildNilaiPrintHtml(res.data || res));
+    } catch (e) {
+      parts.push(`<div class="sheet"><h2>${escapeHtml(s.nama || '')}</h2><p style="color:#c62828">${escapeHtml(errToText(e))}</p></div>`);
+    }
+  }
+  openPrintWindow(parts.join(''), 'Nilai Siswa - Kelas Wali');
+}
+
 async function loadSyaratFor(nisn) {
   const banner = document.getElementById('syaratBanner');
   if (banner) {
@@ -12719,7 +12981,8 @@ async function loadSyaratFor(nisn) {
   }
   try {
     const res = await apiCall('cek_syarat_kehadiran', { nisn: nisn || '' });
-    renderSyaratResult(res.data || res);
+    _lastSyaratPayload = res.data || res;
+    renderSyaratResult(_lastSyaratPayload);
   } catch (e) {
     if (banner) {
       banner.className = 'syarat-banner fail';
@@ -12740,6 +13003,7 @@ async function initSyaratNaikPage() {
   const isSiswa = sess?.role === 'siswa';
   // Kolom pencarian hanya admin/guru — siswa otomatis dari NISN login
   if (searchWrap) searchWrap.style.display = (sess?.role === 'admin' || sess?.role === 'guru') ? '' : 'none';
+  try { updateWaliPrintBars(); } catch (_) {}
 
   if (isSiswa) {
     const nisn = sess.user?.nisn || sess.user?.kode || '';
@@ -12749,7 +13013,13 @@ async function initSyaratNaikPage() {
     const banner = document.getElementById('syaratBanner');
     if (banner) {
       banner.className = 'syarat-banner warn';
-      banner.innerHTML = '<span>Cari nama / NISN siswa untuk cek syarat kehadiran.</span>';
+      if (sess.role === 'guru' && !isGuruWaliAktif()) {
+        banner.innerHTML = '<span>Anda belum ditugaskan sebagai Wali Kelas. Hubungi Admin.</span>';
+      } else {
+        const names = getMyWaliKelasNames();
+        const extra = sess.role === 'guru' ? (' Kelas wali: <b>' + [...names].map(escapeHtml).join(', ') + '</b>.') : '';
+        banner.innerHTML = '<span>Cari nama / NISN siswa untuk cek syarat kehadiran.' + extra + '</span>';
+      }
     }
   } else {
     renderSyaratResult({ siswa: {}, stats: {} });
@@ -12765,9 +13035,16 @@ function syaratSearchList(q) {
   const qq = String(q || '').toLowerCase().trim();
   if (qq.length < 2) return [];
   const dig = qq.replace(/\D/g, '');
+  const sess = getSession();
+  const waliOnly = sess && sess.role === 'guru';
+  const waliNames = waliOnly ? getMyWaliKelasNames() : null;
   return (store.siswa || []).filter(s => {
     const st = String(s.status || 'Aktif').toLowerCase();
     if (!(st === 'aktif' || st === '' || st === 'null')) return false;
+    if (waliOnly) {
+      if (!waliNames || !waliNames.size) return false;
+      if (!waliNames.has(String(s.kelas || '').trim())) return false;
+    }
     const nama = String(s.nama || '').toLowerCase();
     const nisn = String(s.nisn || '');
     if (nama.includes(qq)) return true;
@@ -12804,7 +13081,12 @@ function showSyaratSuggest(items) {
   });
 }
 
-document.getElementById('btnSyaratCari')?.addEventListener('click', async () => {
+document.getElementById('btnSyaratPrintOne')?.addEventListener('click', () => printSyaratOne());
+document.getElementById('btnSyaratPrintKelas')?.addEventListener('click', () => printSyaratKelas());
+document.getElementById('btnNsPrintOne')?.addEventListener('click', () => printNilaiOne());
+document.getElementById('btnNsPrintKelas')?.addEventListener('click', () => printNilaiKelas());
+
+document.getElementById('btnSyaratCari')?.addEventListener('click, async () => {
   const q = document.getElementById('syaratQ')?.value?.trim() || '';
   if (!q) { toast('Isi nama atau NISN', 'err'); return; }
   const box = document.getElementById('syaratSuggest');
