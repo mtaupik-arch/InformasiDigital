@@ -13086,7 +13086,7 @@ document.getElementById('btnSyaratPrintKelas')?.addEventListener('click', () => 
 document.getElementById('btnNsPrintOne')?.addEventListener('click', () => printNilaiOne());
 document.getElementById('btnNsPrintKelas')?.addEventListener('click', () => printNilaiKelas());
 
-document.getElementById('btnSyaratCari')?.addEventListener('click, async () => {
+document.getElementById('btnSyaratCari')?.addEventListener('click', async () => {
   const q = document.getElementById('syaratQ')?.value?.trim() || '';
   if (!q) { toast('Isi nama atau NISN', 'err'); return; }
   const box = document.getElementById('syaratSuggest');
