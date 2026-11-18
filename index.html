@@ -15452,11 +15452,18 @@ async function assertFpIzin(roleTarget, ownerKey) {
       key = String(sess?.user?.nisn || sess?.user?.kode || '').replace(/\D/g, '');
     } else {
       key = String(sess?.user?.pin || sess?.user?.kode || '').replace(/\D/g, '');
+      // pin di sesi mungkin sudah hash ($2...) — jangan pakai
+      if (key.length < 6 || String(sess?.user?.pin || '').startsWith('$2')) {
+        key = String(sess?.user?.kode || '').replace(/\D/g, '');
+      }
     }
   }
-  if (!key) throw new Error('Kode pengguna tidak diketahui untuk cek izin.');
+  const refId = (r === 'guru' || r === 'siswa')
+    ? String(sess?.user?.id || '')
+    : '';
+  if (!key && !refId) throw new Error('Kode pengguna tidak diketahui untuk cek izin.');
   try {
-    const res = await apiCall('check_izin', { jenis, owner_key: key });
+    const res = await apiCall('check_izin', { jenis, owner_key: key || undefined, ref_id: refId || undefined });
     if (!res.allowed) {
       throw new Error(r === 'guru'
         ? 'Akun Guru ini belum diberi izin sidik jari oleh Admin.'
@@ -15464,11 +15471,12 @@ async function assertFpIzin(roleTarget, ownerKey) {
     }
   } catch (e) {
     if (String(e.message || e).includes('belum diberi izin')) throw e;
-    // jika API gagal, biarkan server yang menolak
+    // Jika server offline / error jaringan, biarkan server absen yang menolak
     console.warn('check_izin', e);
   }
   return true;
 }
+
 
 
 /* ===== Arsip Absensi ===== */
