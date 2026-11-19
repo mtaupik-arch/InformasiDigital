@@ -9078,10 +9078,12 @@ async function fpCheckRegisteredDb(identity, role) {
 }
 
 async function fpSaveToDatabase(identity, credId, role) {
+  const sess = getSession();
   const res = await apiCall('save_fingerprint', {
     owner_key: identity,
     credential_id: credId,
     role: role === 'admin' ? 'guru' : role,
+    ref_id: sess?.user?.id || undefined,
   });
   fpDbCache[(role === 'admin' ? 'guru' : role) + ':' + identity] = true;
   return res;
@@ -12912,6 +12914,9 @@ async function initAbsenKegiatanPage() {
       ).join('');
       if (!sel.options.length) {
         sel.innerHTML = '<option value="">— Tidak ada kegiatan —</option>';
+        if (sess.role === 'guru') {
+          toast('Anda belum ditugaskan sebagai pembina kegiatan. Minta Admin menambahkan di Absen Kegiatan → Pengaturan Pembina.', 'err');
+        }
       } else if (cur && [...sel.options].some(o => o.value === cur)) {
         sel.value = cur;
       }
@@ -12919,6 +12924,9 @@ async function initAbsenKegiatanPage() {
     if (sess.role === 'admin') renderKgPembinaChecks(res.all || res.data || []);
   } catch (e) {
     toast(errToText(e), 'err');
+    if (String(e.message || e).match(/kegiatan_pembina|does not exist|relation/i)) {
+      toast('Tabel kegiatan belum dibuat. Jalankan migrasi SQL absensi kegiatan.', 'err');
+    }
   }
   await loadKgAbsenList();
 }
@@ -14089,16 +14097,17 @@ async function renderIzinTable(rows) {
     const st = r.allowed
       ? '<span class="izin-status-pill on">ON</span>'
       : '<span class="izin-status-pill off">OFF</span>';
+    const refAttr = r.ref_id ? ` data-ref="${escapeHtml(String(r.ref_id))}"` : '';
     const sw = `<label class="izin-switch">
-        <input type="checkbox" class="izin-row-sw" data-key="${escapeHtml(r.owner_key)}"
+        <input type="checkbox" class="izin-row-sw" data-key="${escapeHtml(r.owner_key)}"${refAttr}
           ${r.allowed ? 'checked' : ''} ${isAdmin ? '' : 'disabled'} />
         <span class="slider"></span>
       </label>`;
-    const chk = `<input type="checkbox" class="izin-chk" data-key="${escapeHtml(r.owner_key)}" ${isAdmin ? '' : 'disabled'} />`;
+    const chk = `<input type="checkbox" class="izin-chk" data-key="${escapeHtml(r.owner_key)}"${refAttr} ${isAdmin ? '' : 'disabled'} />`;
     const isFp = izinTab === 'fp_guru' || izinTab === 'fp_siswa';
     const fpRole = isGuru ? 'guru' : 'siswa';
     const resetBtn = (isFp && isAdmin)
-      ? `<button type="button" class="btn btn-outline btn-sm izin-reset-fp" data-key="${escapeHtml(r.owner_key)}" data-role="${fpRole}" title="Reset sidik jari agar bisa daftar ulang di perangkat sah">Reset FP</button>`
+      ? `<button type="button" class="btn btn-outline btn-sm izin-reset-fp" data-key="${escapeHtml(r.owner_key)}" data-role="${fpRole}"${refAttr} title="Reset sidik jari agar bisa daftar ulang di perangkat sah">Reset FP</button>`
       : '';
     if (isGuru) {
       const duk = r.duk != null && r.duk !== '' ? r.duk : '—';
@@ -14126,9 +14135,10 @@ async function renderIzinTable(rows) {
     swEl.addEventListener('change', async () => {
       if (!isAdmin) return;
       const key = swEl.getAttribute('data-key') || '';
+      const refId = swEl.getAttribute('data-ref') || '';
       const allowed = !!swEl.checked;
       try {
-        await apiCall('set_izin_bulk', { jenis: izinTab, keys: [key], allowed });
+        await apiCall('set_izin_bulk', { jenis: izinTab, keys: [key], ref_ids: [refId], allowed });
         const row = izinRowsCache.find(x => String(x.owner_key) === key);
         if (row) row.allowed = allowed;
         renderIzinTable(izinRowsCache);
@@ -14145,10 +14155,11 @@ async function renderIzinTable(rows) {
       if (!isAdmin) return;
       const key = btn.getAttribute('data-key') || '';
       const r = btn.getAttribute('data-role') || 'guru';
-      if (!key) return;
-      if (!await sisConfirm('Reset sidik jari untuk ' + key + '?\nPengguna harus daftar ulang di perangkat yang sah.')) return;
+      const refId = btn.getAttribute('data-ref') || '';
+      if (!key && !refId) return;
+      if (!await sisConfirm('Reset sidik jari untuk ' + (key || refId) + '?\nPengguna harus daftar ulang di perangkat yang sah.')) return;
       try {
-        const res = await apiCall('revoke_fingerprint', { owner_key: key, role: r });
+        const res = await apiCall('revoke_fingerprint', { owner_key: key, role: r, ref_id: refId || undefined });
         toast(res.message || 'Sidik jari direset', 'ok');
         showBigPopup('ok', 'Reset Sidik Jari', res.message || 'Pengguna dapat daftar ulang sekali.', 2500);
       } catch (e) {
@@ -14212,15 +14223,20 @@ function selectedIzinKeys() {
     .map(c => c.getAttribute('data-key') || '')
     .filter(Boolean);
 }
+function selectedIzinRefIds() {
+  return [...document.querySelectorAll('#tbodyIzinUsers .izin-chk:checked')]
+    .map(c => c.getAttribute('data-ref') || '');
+}
 
 async function bulkIzin(allowed) {
   if (getSession()?.role !== 'admin') { toast('Hanya admin', 'err'); return; }
   const keys = selectedIzinKeys();
+  const ref_ids = selectedIzinRefIds();
   if (!keys.length) { toast('Centang minimal satu nama', 'err'); return; }
   const label = allowed ? 'memberi izin' : 'mencabut izin';
   if (!await sisConfirm(`${label} ${keys.length} user (${izinJenisLabel(izinTab)})?`)) return;
   try {
-    const res = await apiCall('set_izin_bulk', { jenis: izinTab, keys, allowed });
+    const res = await apiCall('set_izin_bulk', { jenis: izinTab, keys, ref_ids, allowed });
     toast(res.message || 'OK', 'ok');
     showBigPopup('ok', allowed ? 'Izin Diberikan' : 'Izin Dicabut',
       res.message || `${keys.length} user diperbarui.`, 2500);
