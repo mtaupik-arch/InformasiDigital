@@ -2884,6 +2884,7 @@
         <a href="#" data-page="input-daftar-nilai"><span class="ico">✏️</span> Input / Daftar Nilai</a>
         <a href="#" data-page="bank-soal"><span class="ico">📚</span> Bank Soal</a>
         <a href="#" data-page="download-absensi"><span class="ico">⬇️</span> Download Absensi</a>
+        <a href="#" data-page="absen-kegiatan" id="navAbsenKegiatan"><span class="ico">🏅</span> Absen Kegiatan</a>
         <a href="#" data-page="syarat-naik" id="navGuruSyaratNaik" class="nav-wali-only" style="display:none"><span class="ico">📋</span> Cek Syarat Naik / Lulus (Wali)</a>
         <a href="#" data-page="nilai-saya" id="navGuruNilaiSaya" class="nav-wali-only" style="display:none"><span class="ico">📈</span> Lihat Nilai Siswa (Wali)</a>
       </div>
@@ -12874,16 +12875,16 @@ let _kgAssigned = []; // kegiatan yang diampu guru / semua untuk admin
 async function refreshKegiatanMenuVisibility() {
   const sess = getSession();
   const nav = document.getElementById('navAbsenKegiatan');
-  if (!nav) return;
-  if (!sess || !sess.token) { nav.style.display = 'none'; return; }
-  if (sess.role === 'admin') { nav.style.display = ''; return; }
-  if (sess.role !== 'guru') { nav.style.display = 'none'; return; }
-  try {
-    const res = await apiCall('kegiatan_list', {});
-    _kgAssigned = (res.data || []).filter(k => k.assigned);
-    nav.style.display = _kgAssigned.length ? '' : 'none';
-  } catch (_) {
-    nav.style.display = 'none';
+  // Selalu tampilkan untuk admin & guru (halaman membatasi isi kegiatan)
+  const show = !!(sess && sess.token && (sess.role === 'admin' || sess.role === 'guru'));
+  if (nav) nav.style.display = show ? '' : 'none';
+  if (show && sess.role === 'guru') {
+    try {
+      const res = await apiCall('kegiatan_list', {});
+      _kgAssigned = (res.data || []).filter(k => k.assigned);
+    } catch (_) {
+      _kgAssigned = [];
+    }
   }
 }
 
