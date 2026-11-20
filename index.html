@@ -763,6 +763,25 @@
     .syarat-banner { font-size:12px; padding:8px 10px; }
   }
 
+
+  /* Mode anti-curang ujian */
+  #ujAntiOverlay {
+    position: fixed; inset: 0; z-index: 99999;
+    background: rgba(13, 27, 62, 0.96);
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; padding: 24px; text-align: center; color: #fff;
+  }
+  #ujAntiOverlay.show { display: flex; }
+  #ujAntiOverlay h2 { font-size: 20px; margin: 0 0 10px; color: #ffcc80; }
+  #ujAntiOverlay p { font-size: 14px; line-height: 1.5; max-width: 360px; opacity: .92; margin: 0 0 16px; }
+  #ujAntiOverlay .uj-anti-count { font-size: 12px; color: #ffab91; margin-bottom: 14px; }
+  #page-tugas-ujian.uj-anti-active {
+    background: #f7f9fc;
+  }
+  #page-tugas-ujian.uj-anti-active #ujLembarWrap {
+    user-select: none; -webkit-user-select: none;
+  }
+
   .ujian-locked {
     text-align:center; padding:28px 16px; color:#78909c;
   }
@@ -4437,6 +4456,13 @@
 
   <!-- ========== PAGE: TUGAS / UJIAN ========== -->
   <div class="page" id="page-tugas-ujian">
+    <div id="ujAntiOverlay" aria-hidden="true">
+      <div style="font-size:48px;margin-bottom:8px">⚠️</div>
+      <h2>Mode Anti-Curang</h2>
+      <p>Anda meninggalkan layar ujian (pindah tab, minimize, atau buka jendela lain). Kembali ke ujian dan aktifkan layar penuh untuk melanjutkan.</p>
+      <div class="uj-anti-count" id="ujAntiCount">Peringatan: 0</div>
+      <button type="button" class="btn btn-primary" id="btnUjAntiKembali" style="padding:12px 22px;font-size:15px">🔒 Kembali ke Ujian (Fullscreen)</button>
+    </div>
     <div class="page-title">📝 Kerjakan Tugas / Ujian <span class="periode-badge" id="badgePeriodeUjian">Periode: -</span></div>
     <div class="card" id="ujianContent">
       <div class="ujian-locked" id="ujianLocked">
@@ -14329,9 +14355,9 @@ function renderUjPaketList(rows) {
     return `<div class="uj-paket-card" data-bank-id="${escapeHtml(String(r.id))}" data-status-siswa="${escapeHtml(stSiswa)}">
       <div style="flex:1;min-width:160px">
         <div class="up-title">${escapeHtml(r.mapel_nama || 'Mapel')} · ${escapeHtml(r.jenis || '')} Ke-${r.penilaian_ke != null ? r.penilaian_ke : 1}${badge}</div>
-        <div class="up-meta">Kelas ${escapeHtml(r.kelas_nama || '—')} · ${r.jml_soal || 0} soal · Attempt ${r.attempt || 1}<br>${escapeHtml(ujFmtJadwal(r.waktu_mulai, r.waktu_selesai))}</div>
+        <div class="up-meta">Kelas ${escapeHtml(r.kelas_nama || '—')} · ${r.jml_soal || 0} soal · Attempt ${r.attempt || 1}${r.anti_curang ? ' · 🛡 Anti-curang' : ''}<br>${escapeHtml(ujFmtJadwal(r.waktu_mulai, r.waktu_selesai))}</div>
       </div>
-      <button type="button" class="btn ${isLihat ? 'btn-outline' : 'btn-primary'} btn-sm" data-uj-start="${escapeHtml(String(r.id))}" data-uj-status="${escapeHtml(stSiswa)}" data-uj-readonly="${isLihat ? '1' : '0'}" ${can ? '' : 'disabled'}>${btnLabel}</button>
+      <button type="button" class="btn ${isLihat ? 'btn-outline' : 'btn-primary'} btn-sm" data-uj-start="${escapeHtml(String(r.id))}" data-uj-status="${escapeHtml(stSiswa)}" data-uj-readonly="${isLihat ? '1' : '0'}" data-uj-anti="${r.anti_curang ? '1' : '0'}" ${can ? '' : 'disabled'}>${btnLabel}</button>
     </div>`;
   }).join('');
 }
@@ -15051,6 +15077,146 @@ async function ujSimpanJawabanKeServer(opts) {
 }
 
 
+
+/* ===== Mode Anti-Curang Ujian ===== */
+let _ujAnti = {
+  active: false,
+  violations: 0,
+  armed: false, // true setelah fullscreen berhasil
+  ignoreUntil: 0,
+};
+function ujAntiIsEnabled() {
+  return !!(!_ujState?.readonly && _ujState?.antiCurang);
+}
+function ujAntiShowOverlay(show) {
+  const el = document.getElementById('ujAntiOverlay');
+  if (!el) return;
+  el.classList.toggle('show', !!show);
+  el.setAttribute('aria-hidden', show ? 'false' : 'true');
+  const c = document.getElementById('ujAntiCount');
+  if (c) c.textContent = 'Peringatan: ' + (_ujAnti.violations || 0);
+}
+async function ujAntiRequestFs() {
+  try {
+    const root = document.documentElement;
+    if (!document.fullscreenElement && root.requestFullscreen) {
+      await root.requestFullscreen({ navigationUI: 'hide' });
+    } else if (!document.fullscreenElement && root.webkitRequestFullscreen) {
+      root.webkitRequestFullscreen();
+    }
+    return !!document.fullscreenElement || !!document.webkitFullscreenElement;
+  } catch (e) {
+    console.warn('fullscreen', e);
+    return false;
+  }
+}
+async function ujAntiExitFs() {
+  try {
+    if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+    else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
+  } catch (_) {}
+}
+function ujAntiOnViolation(reason) {
+  if (!_ujAnti.active || !_ujAnti.armed) return;
+  if (Date.now() < _ujAnti.ignoreUntil) return;
+  _ujAnti.violations += 1;
+  try {
+    if (_ujState?.ruangId && !_ujState.readonly) {
+      ujSaveDraftLocal(collectUjAnswers());
+    }
+  } catch (_) {}
+  ujAntiShowOverlay(true);
+  try { toast('Peringatan anti-curang: ' + (reason || 'keluar dari ujian'), 'err'); } catch (_) {}
+}
+function ujAntiOnVisibility() {
+  if (!_ujAnti.active || !_ujAnti.armed) return;
+  if (document.hidden) ujAntiOnViolation('pindah tab / layar tersembunyi');
+}
+function ujAntiOnBlur() {
+  if (!_ujAnti.active || !_ujAnti.armed) return;
+  // blur sering muncul saat membuka keyboard HP — beri jeda singkat
+  setTimeout(() => {
+    if (!_ujAnti.active || !_ujAnti.armed) return;
+    if (document.hidden) ujAntiOnViolation('jendela tidak fokus');
+    else if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      ujAntiOnViolation('keluar fullscreen');
+    }
+  }, 280);
+}
+function ujAntiOnFsChange() {
+  if (!_ujAnti.active || !_ujAnti.armed) return;
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    ujAntiOnViolation('keluar fullscreen');
+  }
+}
+function ujAntiBlockKeys(e) {
+  if (!_ujAnti.active) return;
+  const k = e.key || '';
+  const ctrl = e.ctrlKey || e.metaKey;
+  // Blokir pintasan umum buka tab/jendela baru / devtools
+  if (k === 'F11' || k === 'F12' || k === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    if (k === 'Escape') ujAntiOnViolation('tombol Escape');
+    return;
+  }
+  if (ctrl && ['c', 'C', 'v', 'V', 'x', 'X', 'a', 'A', 'p', 'P', 's', 'S', 'u', 'U', 't', 'T', 'n', 'N', 'w', 'W'].includes(k)) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}
+function ujAntiBlockContext(e) {
+  if (!_ujAnti.active) return;
+  e.preventDefault();
+}
+async function ujAntiStart() {
+  if (!ujAntiIsEnabled()) return;
+  _ujAnti.active = true;
+  _ujAnti.armed = false;
+  _ujAnti.violations = _ujAnti.violations || 0;
+  document.getElementById('page-tugas-ujian')?.classList.add('uj-anti-active');
+  document.addEventListener('visibilitychange', ujAntiOnVisibility);
+  window.addEventListener('blur', ujAntiOnBlur);
+  document.addEventListener('fullscreenchange', ujAntiOnFsChange);
+  document.addEventListener('webkitfullscreenchange', ujAntiOnFsChange);
+  document.addEventListener('keydown', ujAntiBlockKeys, true);
+  document.addEventListener('contextmenu', ujAntiBlockContext, true);
+  ujAntiShowOverlay(false);
+  const ok = await ujAntiRequestFs();
+  _ujAnti.ignoreUntil = Date.now() + 800;
+  _ujAnti.armed = true;
+  if (!ok) {
+    // Browser menolak fullscreen tanpa gesture — minta siswa ketuk tombol
+    ujAntiShowOverlay(true);
+    const c = document.getElementById('ujAntiCount');
+    if (c) c.textContent = 'Ketuk tombol di bawah untuk mengaktifkan layar penuh';
+  }
+}
+function ujAntiStop() {
+  _ujAnti.active = false;
+  _ujAnti.armed = false;
+  document.getElementById('page-tugas-ujian')?.classList.remove('uj-anti-active');
+  ujAntiShowOverlay(false);
+  document.removeEventListener('visibilitychange', ujAntiOnVisibility);
+  window.removeEventListener('blur', ujAntiOnBlur);
+  document.removeEventListener('fullscreenchange', ujAntiOnFsChange);
+  document.removeEventListener('webkitfullscreenchange', ujAntiOnFsChange);
+  document.removeEventListener('keydown', ujAntiBlockKeys, true);
+  document.removeEventListener('contextmenu', ujAntiBlockContext, true);
+  ujAntiExitFs();
+}
+document.getElementById('btnUjAntiKembali')?.addEventListener('click', async () => {
+  _ujAnti.ignoreUntil = Date.now() + 1200;
+  const ok = await ujAntiRequestFs();
+  if (ok || document.fullscreenElement || document.webkitFullscreenElement) {
+    ujAntiShowOverlay(false);
+    _ujAnti.armed = true;
+  } else {
+    toast('Izinkan mode layar penuh di browser, lalu coba lagi', 'err');
+  }
+});
+
+
 async function ujOpenLembar(bankId, opts = {}) {
   try {
     const forceReadonly = !!(opts && (opts.readonly || opts.status_siswa === 'Selesai'));
@@ -15090,6 +15256,8 @@ async function ujOpenLembar(bankId, opts = {}) {
       || statusRuang === 'Timeout'
       || statusRuang === 'Selesai ';
 
+    const bankMeta = d.bank || {};
+    const antiFlag = !!(opts.anti_curang || bankMeta.anti_curang || (_ujState && _ujState._antiFromList));
     _ujState = {
       ruangId: ruang.id,
       bankId,
@@ -15097,6 +15265,7 @@ async function ujOpenLembar(bankId, opts = {}) {
       siswa: d.siswa || _ujState.siswa,
       readonly: !!readonly,
       status: statusRuang,
+      antiCurang: antiFlag && !readonly,
     };
     if (d.siswa) ujSetSiswaHeader(d.siswa);
     const title = document.getElementById('ujLembarTitle');
@@ -15109,6 +15278,14 @@ async function ujOpenLembar(bankId, opts = {}) {
     document.getElementById('ujLembarWrap').style.display = '';
     const foot = document.getElementById('ujLembarFoot');
     if (foot) foot.style.display = readonly ? 'none' : 'flex';
+    // Mode anti-curang (fullscreen + pantau pindah tab)
+    try {
+      if (_ujState.antiCurang) {
+        await ujAntiStart();
+      } else {
+        ujAntiStop();
+      }
+    } catch (e) { console.warn('anti-curang', e); }
 
     // Gabungkan draft hanya jika masih boleh mengerjakan
     if (!readonly) {
@@ -15251,7 +15428,8 @@ document.getElementById('ujPaketList')?.addEventListener('click', async (e) => {
   if (!id) return;
   const st = btn.getAttribute('data-uj-status') || '';
   const ro = btn.getAttribute('data-uj-readonly') === '1' || st === 'Selesai';
-  ujOpenLembar(id, { readonly: ro, status_siswa: st });
+  const anti = btn.getAttribute('data-uj-anti') === '1';
+  ujOpenLembar(id, { readonly: ro, status_siswa: st, anti_curang: anti });
 });
 
 // Tombol ∑ rumus di isian jawaban siswa
@@ -15274,6 +15452,7 @@ document.getElementById('btnUjKembali')?.addEventListener('click', async () => {
       try { await ujSimpanJawabanKeServer({ silent: true }); } catch (_) {}
     }
   } catch (_) {}
+  try { ujAntiStop(); } catch (_) {}
   try { if (_ujHeartbeat) { clearInterval(_ujHeartbeat); _ujHeartbeat = null; } } catch (_) {}
   document.getElementById('ujLembarWrap').style.display = 'none';
   document.getElementById('ujListWrap').style.display = '';
@@ -15345,6 +15524,7 @@ document.getElementById('btnUjSelesai')?.addEventListener('click', async () => {
     return;
   }
   if (!await sisConfirm('Kumpulkan ujian sekarang? Jawaban tidak dapat diubah setelah dikumpulkan.')) return;
+  try { ujAntiStop(); } catch (_) {}
 
   const btn = document.getElementById('btnUjSelesai');
   const btnSimpan = document.getElementById('btnUjSimpan');
@@ -17413,7 +17593,7 @@ async function renderBankSoalTable() {
         <td style="text-align:center;font-weight:700">${r.jml_soal != null ? r.jml_soal : 0}</td>
         <td style="text-align:center;font-weight:700">${r.attempt != null ? r.attempt : 1}</td>
         <td>${fmtJadwal(r)}</td>
-        <td>${bsStatusPill(r.status)}</td>
+        <td>${bsStatusPill(r.status)}${r.anti_curang ? ' <span title="Anti-curang aktif" style="display:inline-block;background:#fff3e0;color:#e65100;font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;margin-left:4px">🛡</span>' : ''}</td>
         <td class="col-act">${acts}</td>
       </tr>`;
     }).join('');
@@ -17595,6 +17775,17 @@ function openBankSoalForm(row) {
         <label>Attempt (kesempatan)</label>
         <input type="number" name="attempt" id="bsFormAttempt" min="1" max="99" value="${row?.attempt != null ? Number(row.attempt) : 1}" />
       </div>
+      <div class="form-group full" style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:10px 12px">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-weight:600;color:#e65100">
+          <input type="checkbox" name="anti_curang" id="bsFormAntiCurang" value="1" ${row?.anti_curang ? 'checked' : ''} style="width:18px;height:18px;margin-top:2px;flex-shrink:0" />
+          <span>🛡 Mode Anti-Curang<br>
+            <small style="font-weight:500;color:#6d4c41;line-height:1.35;display:block;margin-top:4px">
+              Saat siswa mengerjakan: layar penuh (fullscreen), dilarang pindah tab/jendela/minimize.
+              Jika keluar dari ujian, layar peringatan muncul dan ujian dilanjutkan setelah kembali ke fullscreen.
+            </small>
+          </span>
+        </label>
+      </div>
       ${isEdit ? `<input type="hidden" name="id" value="${escapeHtml(String(row.id))}" />` : ''}
     </div>
     <p style="font-size:11px;color:#666;margin-top:8px">Penilaian Ke- mengikuti logika Input Nilai (1–30; yang sudah terpakai untuk mapel/kelas/jenis yang sama dinonaktifkan). Attempt = berapa kali siswa boleh mengerjakan paket ini.</p>`;
@@ -17699,6 +17890,7 @@ async function saveBankSoalHook() {
   data.penilaian_ke = Math.min(30, Math.max(1, Number(data.penilaian_ke || document.getElementById('bsFormKe')?.value) || 1));
   data.status = data.status || 'Draft';
   data.attempt = Math.min(99, Math.max(1, Number(data.attempt) || 1));
+  data.anti_curang = !!document.getElementById('bsFormAntiCurang')?.checked;
   // datetime-local (jam lokal user) → ISO UTC, tanpa geser ganda
   const wm = (data.waktu_mulai || document.getElementById('bsFormMulai')?.value || '').trim();
   const ws = (data.waktu_selesai || document.getElementById('bsFormSelesai')?.value || '').trim();
