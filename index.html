@@ -17681,6 +17681,55 @@ function bsKelasOptionsForMapel(mapelId, selectedKelas) {
   return opts;
 }
 
+
+/** Checkbox multi-kelas untuk form paket bank soal */
+function bsKelasListForMapel(mapelId) {
+  const set = new Map();
+  if (mapelId) {
+    for (const a of _bsAmpu) {
+      if (String(a.mapel_id) === String(mapelId) && a.kelas_id) {
+        set.set(String(a.kelas_id), a.kelas_nama || a.kelas_id);
+      }
+    }
+  }
+  if (getSession()?.role === 'admin' && !set.size) {
+    (store.kelas || []).filter(k => k.is_active !== false).forEach(k => {
+      set.set(String(k.id), k.nama);
+    });
+  }
+  return [...set.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'id'));
+}
+
+function bsKelasCheckboxesHtml(mapelId, row) {
+  let selected = [];
+  if (row && Array.isArray(row.kelas_ids) && row.kelas_ids.length) {
+    selected = row.kelas_ids.map(String);
+  } else if (row && row.kelas_id) {
+    selected = [String(row.kelas_id)];
+  }
+  const list = bsKelasListForMapel(mapelId);
+  if (!list.length) {
+    return '<span style="font-size:12px;color:#888">Pilih mapel dulu — kelas ampu akan muncul di sini</span>';
+  }
+  return list.map(([id, nama]) => {
+    const chk = selected.includes(String(id)) ? ' checked' : '';
+    return `<label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;cursor:pointer;padding:4px 2px">
+      <input type="checkbox" class="bs-kelas-cb" value="${escapeHtml(String(id))}"${chk} style="width:16px;height:16px" />
+      ${escapeHtml(String(nama))}
+    </label>`;
+  }).join('');
+}
+
+function bsCollectKelasIds() {
+  return [...document.querySelectorAll('#bsFormKelasBox .bs-kelas-cb:checked')].map(c => c.value).filter(Boolean);
+}
+
+function bsSyncKelasHidden() {
+  const ids = bsCollectKelasIds();
+  const hid = document.getElementById('bsFormKelas');
+  if (hid) hid.value = ids[0] || '';
+}
+
 function bsJenisOptions(selected) {
   const list = (store.bobot_nilai || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
   let opts = '<option value="">- Pilih Jenis -</option>';
@@ -17739,9 +17788,12 @@ function openBankSoalForm(row) {
         <label>Mapel *</label>
         <select name="mapel_id" id="bsFormMapel" required>${bsAmpuOptionsHtml(mapelId, kelasId)}</select>
       </div>
-      <div class="form-group">
-        <label>Kelas *</label>
-        <select name="kelas_id" id="bsFormKelas" required>${bsKelasOptionsForMapel(mapelId, kelasId)}</select>
+      <div class="form-group full">
+        <label>Kelas * <small style="font-weight:500;color:#666">(centang satu atau lebih kelas paralel yang diampu)</small></label>
+        <div id="bsFormKelasBox" style="display:flex;flex-wrap:wrap;gap:8px 14px;padding:10px 12px;border:1.5px solid #cfd8dc;border-radius:10px;background:#fafbfc;max-height:140px;overflow-y:auto">
+          ${bsKelasCheckboxesHtml(mapelId, row)}
+        </div>
+        <input type="hidden" name="kelas_id" id="bsFormKelas" value="${escapeHtml(String(kelasId || ''))}" />
       </div>
       <div class="form-group">
         <label>Jenis Penilaian *</label>
@@ -17793,11 +17845,17 @@ function openBankSoalForm(row) {
 
   document.getElementById('bsFormMapel')?.addEventListener('change', async (ev) => {
     const mid = ev.target.value;
-    const ksel = document.getElementById('bsFormKelas');
-    if (ksel) ksel.innerHTML = bsKelasOptionsForMapel(mid, '');
+    const box = document.getElementById('bsFormKelasBox');
+    if (box) box.innerHTML = bsKelasCheckboxesHtml(mid, null);
+    bsSyncKelasHidden();
     refreshBsFormKe();
   });
-  document.getElementById('bsFormKelas')?.addEventListener('change', () => refreshBsFormKe());
+  document.getElementById('bsFormKelasBox')?.addEventListener('change', (ev) => {
+    if (ev.target && ev.target.classList && ev.target.classList.contains('bs-kelas-cb')) {
+      bsSyncKelasHidden();
+      refreshBsFormKe();
+    }
+  });
   document.getElementById('bsFormJenis')?.addEventListener('change', () => refreshBsFormKe());
   // isi dropdown ke (async)
   refreshBsFormKe(keVal);
@@ -17882,8 +17940,12 @@ async function refreshBsFormKe(preferKe) {
 // Hook save into existing save pipeline via entity bank_soal
 async function saveBankSoalHook() {
   const data = typeof collectForm === 'function' ? collectForm() : {};
+  const kelasIds = typeof bsCollectKelasIds === 'function' ? bsCollectKelasIds() : [];
+  if (!kelasIds.length && data.kelas_id) kelasIds.push(String(data.kelas_id));
+  data.kelas_ids = kelasIds;
+  data.kelas_id = kelasIds[0] || data.kelas_id || '';
   if (!data.mapel_id || !data.kelas_id || !data.jenis) {
-    toast('Mapel, Kelas, dan Jenis wajib', 'err');
+    toast('Mapel, minimal 1 Kelas, dan Jenis wajib', 'err');
     return;
   }
   data.jml_soal = Number(data.jml_soal) || 0;
