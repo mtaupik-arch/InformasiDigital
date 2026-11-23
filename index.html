@@ -11325,19 +11325,18 @@ function openKelasForm(id) {
 function openBobotForm(id) {
   const row = id ? (store.bobot_nilai || []).find(r => String(r.id) === String(id)) : null;
   crudState = { entity: 'bobot_nilai', id: row ? row.id : null };
-  // Saran jenis baku + yang sudah ada di database
+  // Saran: baku + yang sudah ada (NH dan NRH terpisah)
   const jenisSuggest = [...new Set([
-    'NRH', 'PTS', 'ASAS', 'ASAJ', 'ASAT',
+    'NH', 'NRH', 'TGS', 'PTS', 'ASAS', 'ASAJ', 'ASAT',
     ...((store.bobot_nilai || []).map(b => String(b.jenis || '').toUpperCase()).filter(Boolean)),
   ])];
-  let jenisVal = String(row?.jenis || '').toUpperCase();
-  if (jenisVal === 'NH' || jenisVal === 'TGS' || jenisVal === 'HARIAN') jenisVal = 'NRH';
+  const jenisVal = String(row?.jenis || '').toUpperCase();
   document.getElementById('crudModalTitle').textContent = row ? 'Edit Bobot Nilai' : 'Tambah Bobot Nilai';
   document.getElementById('crudModalBody').innerHTML = `
     <div class="form-grid">
       <div class="form-group"><label>Jenis Nilai *</label>
         <input name="jenis" list="bobotJenisList" value="${escapeHtml(jenisVal)}"
-          placeholder="Contoh: NRH, PTS, PAS, PAT…" maxlength="20"
+          placeholder="Contoh: NH, NRH, PTS, PAS…" maxlength="20"
           style="text-transform:uppercase" required />
         <datalist id="bobotJenisList">
           ${jenisSuggest.map(j => `<option value="${escapeHtml(j)}"></option>`).join('')}
@@ -11348,10 +11347,9 @@ function openBobotForm(id) {
       <div class="form-group"><label>Urutan</label><input type="number" name="urutan" value="${row?.urutan ?? ((store.bobot_nilai||[]).length + 1)}" /></div>
     </div>
     <p style="font-size:11px;color:#666;margin-top:8px;line-height:1.45">
-      Ketik jenis baru bebas (huruf/angka, maks. 20), atau pilih saran:
-      <b>NRH</b> (rerata harian), <b>PTS</b>, <b>ASAS</b>, <b>ASAJ</b>, <b>ASAT</b>, dll.
-      Alias NH/TGS/HARIAN otomatis disimpan sebagai <b>NRH</b>.
-      NR dihitung dari bobot semua jenis yang terdaftar di sini.
+      Ketik jenis bebas (huruf/angka, maks. 20). Contoh:
+      <b>NH</b> = Nilai Harian · <b>NRH</b> = Nilai Rerata Harian · <b>PTS</b> · <b>ASAS</b> · <b>ASAJ</b> · <b>ASAT</b>.
+      Jenis yang sama <b>tidak boleh digandakan</b>. NR dihitung dari bobot semua jenis yang terdaftar.
     </p>`;
   document.getElementById('crudModal').classList.add('active');
 }
@@ -11389,6 +11387,15 @@ async function saveMapelKelasHook() {
     data.jenis = String(data.jenis).trim().toUpperCase().replace(/\s+/g, '');
     if (!/^[A-Z0-9_]{1,20}$/.test(data.jenis)) {
       toast('Jenis nilai: huruf/angka/underscore, max 20 karakter', 'err');
+      return;
+    }
+    // Validasi duplikat di klien (pesan cepat)
+    const dup = (store.bobot_nilai || []).find(b => {
+      if (id && String(b.id) === String(id)) return false;
+      return String(b.jenis || '').trim().toUpperCase().replace(/\s+/g, '') === data.jenis;
+    });
+    if (dup) {
+      toast('Jenis penilaian "' + data.jenis + '" sudah ada. Tidak boleh menambah jenis yang sama.', 'err');
       return;
     }
     data.urutan = Number(data.urutan) || 1;
