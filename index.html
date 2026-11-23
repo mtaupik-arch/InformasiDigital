@@ -11402,7 +11402,17 @@ async function saveMapelKelasHook() {
     data.bobot = data.bobot === '' || data.bobot == null ? null : Number(data.bobot);
     if (id) data.id = id;
     try {
-      await apiCall('save_bobot_nilai', { row: data });
+      const resBobot = await apiCall('save_bobot_nilai', { row: data });
+      // Pastikan store lokal ikut jenis baru (sebelum pindah ke Input Nilai)
+      if (resBobot?.data) {
+        const row = resBobot.data;
+        const list = (store.bobot_nilai || []).slice();
+        const ix = list.findIndex(b => String(b.id) === String(row.id));
+        if (ix >= 0) list[ix] = { ...list[ix], ...row };
+        else list.push(row);
+        store.bobot_nilai = list;
+        try { saveStore(store); } catch (_) {}
+      }
       await initMapelKelasPage();
       closeForm();
       toast('Bobot tersimpan', 'ok');
@@ -11547,14 +11557,17 @@ function fillNilaiFilters() {
     : '<option value="">— tidak ada mapel —</option>');
   if (curM && [...mapelSel.options].some(o => o.value === curM)) mapelSel.value = curM;
   fillNilaiKelasOptions();
-  const JENIS_BOBOT_OK = new Set(['NRH', 'PTS', 'ASAS', 'ASAJ', 'ASAT']);
+  // Semua jenis dari Bobot Nilai (termasuk NH, jenis custom, dll.) — jangan filter ke daftar baku saja
   const jenisList = (store.bobot_nilai || []).slice().sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
-  let jenisOpts = jenisList.length
-    ? [...new Set(jenisList.map(j => String(j.jenis || '').toUpperCase()).filter(j => JENIS_BOBOT_OK.has(j)))]
-    : [];
-  if (!jenisOpts.length) jenisOpts = ['NRH', 'PTS', 'ASAS', 'ASAJ', 'ASAT'];
-  // Input harian memakai jenis NRH (ke-1, ke-2, …)
-  if (!jenisOpts.includes('NRH')) jenisOpts = ['NRH', ...jenisOpts];
+  const seen = new Set();
+  let jenisOpts = [];
+  for (const b of jenisList) {
+    const j = String(b.jenis || '').trim().toUpperCase();
+    if (!j || seen.has(j)) continue;
+    seen.add(j);
+    jenisOpts.push(j);
+  }
+  if (!jenisOpts.length) jenisOpts = ['NH', 'NRH', 'PTS', 'ASAS', 'ASAJ', 'ASAT'];
   const curJ = jenisSel?.value;
   if (jenisSel) {
     jenisSel.innerHTML = jenisOpts.map(j => `<option value="${escapeHtml(j)}">${escapeHtml(j)}</option>`).join('');
