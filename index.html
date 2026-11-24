@@ -18054,7 +18054,8 @@ async function saveBankSoalHook() {
   if (crudState.id) data.id = crudState.id;
   try {
     const res = await apiCall('save_bank_soal', { row: data });
-    toast(res.message || 'Tersimpan', 'ok');
+    const nK = (data.kelas_ids || []).length;
+    toast((res.message || 'Tersimpan') + (nK > 1 ? ' · ' + nK + ' kelas paralel' : ''), 'ok');
     if (typeof closeForm === 'function') closeForm();
     await loadBankSoalList();
   } catch (e) {
