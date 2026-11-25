@@ -19194,7 +19194,8 @@ document.getElementById('btnBsSoalTemplate')?.addEventListener('click', async ()
     'Aturan:',
     '1) Nomor soal di awal baris: 1.  2.  3.  (atau No. 1)',
     '2) Opsi di baris sendiri: A.  B.  C.  D.',
-    '3) Kunci di baris sendiri: Kunci: B',
+    '3) Kunci di baris sendiri: Kunci: B  (PG) atau Kunci: 135 (isian)',
+    '4) Soal isian/esai: tanpa baris A. B. C. D. — langsung Kunci: angka/teks',
     '4) Sisipkan gambar/tabel di Word di bawah teks pertanyaan (sebelum opsi)',
     '5) Jangan gabung opsi dalam satu baris',
     '',
@@ -20115,17 +20116,34 @@ function parseSoalFromWordHtml(html) {
     const plain = blockText(cur.pertanyaan);
     if (plain.length >= 2 || /<img|<table|<svg|<!--TABLE_/i.test(cur.pertanyaan)) {
       const allPlain = plain + ' ' + blockText(cur.opsi_a || '') + ' ' + (cur.kunci || '');
-      const hasOpts = !!(cur.opsi_a && cur.opsi_b);
-      const kunciLetters = cur.kunci ? (String(cur.kunci).toUpperCase().match(/\b[A-E]\b/g) || []) : [];
-      const isBS = hasOpts && /benar/i.test(cur.opsi_a || '') && /salah/i.test(cur.opsi_b || '');
+      // Opsi dianggap ada hanya jika isinya bermakna (bukan "A." kosong / <p></p>)
+      const optMeaningful = (htmlOpt) => {
+        if (!htmlOpt) return false;
+        if (/<img|<table|<!--TABLE_|<svg/i.test(htmlOpt)) return true;
+        const t = blockText(htmlOpt).replace(/^[A-Ea-e][\.\)]\s*/, '').trim();
+        return t.length >= 1;
+      };
+      const meaningfulLetters = ['a', 'b', 'c', 'd', 'e'].filter(L => optMeaningful(cur['opsi_' + L]));
+      const hasOpts = meaningfulLetters.length >= 2;
+      // Ada penanda A./B. meski konten kosong (rumus Word sering hilang saat ekstrak)
+      const hadOptMarkers = !!(cur.opsi_a || cur.opsi_b || cur.opsi_c || cur.opsi_d);
+      const kunciStr = String(cur.kunci || '').trim();
+      const kunciLetters = kunciStr ? (kunciStr.toUpperCase().match(/\b[A-E]\b/g) || []) : [];
+      // Kunci angka / teks → isian; kunci A-E → PG/checkbox
+      const kunciIsLetterOnly = !!kunciStr && /^[A-Ea-e]([,;\s]+[A-Ea-e])*$/.test(kunciStr);
+      const kunciIsTextAnswer = !!kunciStr && !kunciIsLetterOnly;
+      const isBS = hasOpts && /benar/i.test(blockText(cur.opsi_a || '')) && /salah/i.test(blockText(cur.opsi_b || ''));
       const isMatch = /jodohkan|menjodohkan|kolom a|kolom b/i.test(allPlain);
-      const isCheck = kunciLetters.length >= 2;
+      const isCheck = kunciIsLetterOnly && kunciLetters.length >= 2;
+      const looksUraian = /uraian|jelaskan|uraikan|mengapa|bagaimana|sebutkan|deskripsikan|analisislah/i.test(plain);
 
       if (isBS) cur.jenis = 'Benar / Salah';
       else if (isMatch) cur.jenis = 'Menjodohkan';
       else if (isCheck) cur.jenis = 'Checkbox';
-      else if (!hasOpts) cur.jenis = /uraian|jelaskan|sebutkan/i.test(plain) ? 'Uraian' : 'Isian Singkat';
-      else cur.jenis = jenisDefault;
+      else if (kunciIsTextAnswer || (!hasOpts && !hadOptMarkers)) {
+        // Contoh: Kunci: 135 / tanpa baris A.B.C.D.
+        cur.jenis = looksUraian ? 'Uraian' : 'Isian Singkat';
+      } else cur.jenis = jenisDefault;
 
       if (cur.jenis === 'Benar / Salah' && cur.kunci) {
         if (/benar/i.test(cur.kunci)) cur.kunci = 'A';
@@ -20139,17 +20157,20 @@ function parseSoalFromWordHtml(html) {
       }
 
       const opsi = [];
-      ['a', 'b', 'c', 'd', 'e'].forEach(L => {
-        let htmlOpt = cur['opsi_' + L];
-        if (!htmlOpt) return;
-        // rapikan sisa <p></p> dari label opsi kosong
-        htmlOpt = String(htmlOpt)
-          .replace(/<p>\s*<\/p>/gi, '')
-          .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')
-          .trim();
-        htmlOpt = stripOpsiLetterPrefix(htmlOpt, L);
-        opsi.push({ label: L.toUpperCase(), text: htmlOpt || '' });
-      });
+      // Isian/uraian: tanpa opsi. PG: simpan opsi (termasuk yang kosong jika ada penanda A–D)
+      if (cur.jenis === 'Pilihan Ganda' || cur.jenis === 'Checkbox' || cur.jenis === 'Benar / Salah' || cur.jenis === 'Menjodohkan') {
+        ['a', 'b', 'c', 'd', 'e'].forEach(L => {
+          let htmlOpt = cur['opsi_' + L];
+          if (!htmlOpt && !hadOptMarkers) return;
+          if (!htmlOpt) return;
+          htmlOpt = String(htmlOpt)
+            .replace(/<p>\s*<\/p>/gi, '')
+            .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')
+            .trim();
+          htmlOpt = stripOpsiLetterPrefix(htmlOpt, L);
+          opsi.push({ label: L.toUpperCase(), text: htmlOpt || '' });
+        });
+      }
 
       soals.push({
         nomor: cur.nomor,
