@@ -4915,6 +4915,7 @@
     <div id="bsPanelBank">
       <p style="font-size:12px;color:#546e7a;margin:0 0 10px;line-height:1.4">
         Guru hanya dapat membuat / mengedit / menghapus paket soal untuk <b>mapel &amp; kelas yang diampu</b>.
+        Centang kelas target di form paket — hanya siswa di kelas yang dicentang yang melihat soal saat ujian.
         Status: <b>Draft</b> (belum dibuka), <b>Aktif</b> (siap/ujian berjalan), <b>Selesai</b>.
       </p>
       <div class="bs-toolbar">
@@ -15504,6 +15505,8 @@ async function initTugasUjianPage() {
       nisn: sessNisn || undefined,
       identifier: sessNisn || sess?.user?.identifier || undefined,
       siswa_id: sess?.user?.id || sess?.user?.siswa_id || undefined,
+      // kelas sesi → filter paket hanya kelas yang dicentang di bank soal
+      kelas: sess?.user?.kelas || sessSiswa.kelas || undefined,
     });
     const siswa = res.siswa || null;
     if (siswa && (siswa.nama || siswa.nisn)) {
