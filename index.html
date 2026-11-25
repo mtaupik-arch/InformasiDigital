@@ -19335,6 +19335,10 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
       throw new Error('Tidak ada soal terdeteksi. Gunakan format Template (NO: / JENIS: / PERTANYAAN: / A. / KUNCI:) atau nomor 1. 2. 3. Pastikan persamaan disimpan sebagai Equation di Word (bukan gambar saja).');
     }
     // Bungkus \(...\) menjadi span.bs-math agar KaTeX render stabil
+    // Pastikan isian (kunci 135, tanpa opsi) tidak tertandai Pilihan Ganda
+    const itemsFixed = reclassifyImportedSoal(items);
+    items.length = 0;
+    itemsFixed.forEach(x => items.push(x));
     items.forEach(it => {
       it.pertanyaan = wrapLatexDelimsToMathSpan(it.pertanyaan);
       if (Array.isArray(it.opsi)) {
@@ -19793,8 +19797,24 @@ function parseOneSoalBlock(block, defaultNo) {
   if (!pertanyaan && !opsi.length) return null;
   if (!pertanyaan) pertanyaan = '(lihat opsi)';
 
-  if (opsi.length >= 2 && (!jenis || jenis === 'Pilihan Ganda')) {
-    /* keep */
+  // Deteksi kunci di body jika belum (format "Kunci: 135")
+  if (!kunci) {
+    const km = b.match(/\bKunci\s*[:.]\s*([^\n]+)/i);
+    if (km) kunci = km[1].trim();
+  }
+  // Buang kunci dari pertanyaan
+  pertanyaan = pertanyaan.replace(/\bKunci\s*[:.]\s*[^\n]*/ig, '').trim();
+
+  const meaningful = opsi.filter(o => String(o.text || '').replace(/<[^>]+>/g, '').trim().length > 0);
+  const kunciClean = String(kunci || '').trim();
+  const letterKunci = !!kunciClean && /^[A-Ea-e]([,;\s]+[A-Ea-e])*$/.test(kunciClean);
+  if (!getLine('JENIS') && !getLine('Tipe') && !getLine('Type')) {
+    if ((kunciClean && !letterKunci) || meaningful.length < 2) {
+      jenis = /jelaskan|uraikan|mengapa|bagaimana|sebutkan/i.test(pertanyaan) ? 'Uraian' : 'Isian Singkat';
+      if (meaningful.length < 2) opsi = [];
+    } else {
+      jenis = 'Pilihan Ganda';
+    }
   }
 
   return {
@@ -19802,7 +19822,7 @@ function parseOneSoalBlock(block, defaultNo) {
     jenis_soal: jenis,
     pertanyaan,
     opsi,
-    kunci: String(kunci || '').replace(/\s+/g, ''),
+    kunci: kunciClean,
     skor,
   };
 }
@@ -20032,16 +20052,61 @@ function extractOpsiFromHtml(segmentHtml) {
 function parseBankSoalImportHtml(htmlContent, plainText) {
   // Parser utama: sama seperti index_ok (parseSoalFromWordHtml) — andal untuk opsi & soal
   const fromOk = parseSoalFromWordHtml(String(htmlContent || ''));
-  if (fromOk.length) return fromOk;
+  if (fromOk.length) return reclassifyImportedSoal(fromOk);
 
   // Fallback teks
-  return parseBankSoalImportText(plainText || stripHtmlToText(htmlContent || ''));
+  return reclassifyImportedSoal(parseBankSoalImportText(plainText || stripHtmlToText(htmlContent || '')));
 }
 
 /**
  * Port dari index_ok.html — parse HTML Word hasil mammoth menjadi soal + opsi A–D utuh.
  * Placeholder tabel: <!--TABLE_n--> agar tidak bocor ke semua soal.
  */
+
+
+/** Pastikan isian/esai tidak tertandai PG: kunci non-huruf atau tanpa opsi bermakna */
+function reclassifyImportedSoal(items) {
+  return (items || []).map((it) => {
+    const row = Object.assign({}, it);
+    let kunci = String(row.kunci || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').trim();
+    if (!kunci) {
+      const plainQ = String(row.pertanyaan || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ');
+      const km = plainQ.match(/\bKunci\s*[:.]\s*([^\n<]+)/i);
+      if (km) {
+        kunci = km[1].trim();
+        row.kunci = kunci;
+        row.pertanyaan = String(row.pertanyaan || '')
+          .replace(/<(?:p|div|li)[^>]*>\s*Kunci\s*[:.][\s\S]*$/i, '')
+          .replace(/Kunci\s*[:.]\s*[^<]*/gi, '')
+          .trim();
+      }
+    }
+    const opsi = Array.isArray(row.opsi) ? row.opsi : [];
+    const meaningful = opsi.filter((o) => {
+      const t = typeof o === 'object' ? String(o.text || '') : String(o || '');
+      const plain = t.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/^[A-Ea-e][\.\)]\s*/, '').trim();
+      return plain.length > 0 || /<img|<table/i.test(t);
+    });
+    const letterKunci = !!kunci && /^[A-Ea-e]([,;\s]+[A-Ea-e])*$/.test(kunci);
+    const textKunci = !!kunci && !letterKunci;
+    const plainQ = String(row.pertanyaan || '').replace(/<[^>]+>/g, ' ');
+    const looksUraian = /jelaskan|uraikan|mengapa|bagaimana|sebutkan|deskripsikan|analisislah/i.test(plainQ);
+
+    if (textKunci || meaningful.length < 2) {
+      if (letterKunci && meaningful.length < 2) {
+        row.jenis_soal = 'Pilihan Ganda';
+        row.jenis = 'Pilihan Ganda';
+      } else if (!letterKunci) {
+        row.jenis_soal = looksUraian ? 'Uraian' : 'Isian Singkat';
+        row.jenis = row.jenis_soal;
+        row.opsi = [];
+      }
+    }
+    if (row.jenis && !row.jenis_soal) row.jenis_soal = row.jenis;
+    if (row.jenis_soal && !row.jenis) row.jenis = row.jenis_soal;
+    return row;
+  });
+}
 
 function parseSoalFromWordHtml(html) {
   let h = String(html || '');
