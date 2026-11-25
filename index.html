@@ -15347,6 +15347,7 @@ async function ujOpenLembar(bankId, opts = {}) {
       bank_soal_id: bankId,
       nisn: nisn || undefined,
       siswa_id: sess?.user?.id || undefined,
+      kelas: _ujState.siswa?.kelas || sess?.user?.kelas || undefined,
       mode: forceReadonly ? 'lihat' : 'kerjakan',
       readonly: forceReadonly ? true : false,
       hanya_lihat: forceReadonly ? true : false,
