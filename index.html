@@ -11859,21 +11859,173 @@ async function importNilaiFile(file, massal) {
     await loadNilaiInput();
   } catch (e) { toast(errToText(e), 'err'); showBigPopup('err', 'Gagal Import', errToText(e), 0); }
 }
-function exportNilaiDaftarExcel() {
+/** Warna sel nilai (sama CSS nv-lt70/80/90/ge90) → ARGB Excel */
+function nilaiScoreExcelStyle(v) {
+  if (v == null || v === '' || v === '—') {
+    return { bg: 'FFF5F5F5', fg: 'FF78909C', bold: false };
+  }
+  const n = Number(v);
+  if (!Number.isFinite(n)) return { bg: 'FFFFFFFF', fg: 'FF333333', bold: false };
+  // <70 merah · <80 oranye · <90 hijau · ≥90 biru
+  if (n < 70) return { bg: 'FFFFEBEE', fg: 'FFC62828', bold: true };
+  if (n < 80) return { bg: 'FFFFF3E0', fg: 'FFEF6C00', bold: true };
+  if (n < 90) return { bg: 'FFE8F5E9', fg: 'FF2E7D32', bold: true };
+  return { bg: 'FFE3F2FD', fg: 'FF1565C0', bold: true };
+}
+
+async function exportNilaiDaftarExcel() {
   const thead = document.getElementById('theadNilaiDaftar');
   const tb = document.getElementById('tbodyNilaiDaftar');
+  const btn = document.getElementById('btnNilaiExportDaftar');
   if (!thead || !tb) return;
   const headers = [...thead.querySelectorAll('th')].map(th => th.textContent.trim());
-  const aoa = [headers];
+  const dataRows = [];
   tb.querySelectorAll('tr').forEach(tr => {
     if (tr.classList.contains('empty-row')) return;
-    aoa.push([...tr.querySelectorAll('td')].map(td => td.textContent.trim()));
+    const cells = [...tr.querySelectorAll('td')].map(td => td.textContent.trim());
+    if (cells.length) dataRows.push(cells);
   });
-  if (aoa.length < 2) { toast('Tidak ada data untuk export', 'err'); return; }
-  const ws = XLSX.utils.aoa_to_sheet(aoa); const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Daftar Nilai');
-  XLSX.writeFile(wb, 'daftar_nilai.xlsx');
-  toast('Export selesai', 'ok');
+  if (!dataRows.length) { toast('Tidak ada data untuk export', 'err'); return; }
+
+  const mapelId = document.getElementById('nilaiFilterMapel')?.value || '';
+  const kelasId = document.getElementById('nilaiFilterKelas')?.value || '';
+  const mapelNama = (store.mapel || []).find(m => String(m.id) === String(mapelId))?.nama
+    || (store.mapel || []).find(m => String(m.id) === String(mapelId))?.kode || 'Mapel';
+  const kelasNama = (store.kelas || []).find(k => String(k.id) === String(kelasId))?.nama || 'Kelas';
+  const periode = (typeof periodeLabel === 'function' ? periodeLabel() : '') || '';
+  const safeName = (s) => String(s || '').replace(/[^\w\u00C0-\u024F\s.-]+/g, '').trim().replace(/\s+/g, '_') || 'data';
+  const fname = 'Daftar_Nilai_' + safeName(mapelNama) + '_' + safeName(kelasNama) + '.xlsx';
+
+  const prevLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Excel…'; }
+
+  try {
+    // Prefer ExcelJS (warna + border seperti tampilan web)
+    let usedStyled = false;
+    try {
+      const ExcelJSLib = await ensureExcelJS();
+      const wb = new ExcelJSLib.Workbook();
+      const ws = wb.addWorksheet('Daftar Nilai', {
+        views: [{ state: 'frozen', ySplit: 1 }],
+      });
+
+      // Judul
+      const title = 'DAFTAR NILAI · ' + mapelNama + ' · ' + kelasNama;
+      ws.mergeCells(1, 1, 1, Math.max(headers.length, 1));
+      const cTitle = ws.getCell(1, 1);
+      cTitle.value = title;
+      cTitle.font = { bold: true, size: 13, name: 'Arial', color: { argb: 'FF1A237E' } };
+      cTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+      if (periode) {
+        ws.mergeCells(2, 1, 2, Math.max(headers.length, 1));
+        const cPer = ws.getCell(2, 1);
+        cPer.value = periode;
+        cPer.font = { size: 11, name: 'Arial', color: { argb: 'FF455A64' } };
+        cPer.alignment = { horizontal: 'center' };
+      }
+      const headerRowIdx = periode ? 4 : 3;
+
+      // Header kolom
+      headers.forEach((h, i) => {
+        const cell = ws.getCell(headerRowIdx, i + 1);
+        cell.value = h;
+        cell.font = { bold: true, size: 10, name: 'Arial', color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF0D47A1' } },
+          left: { style: 'thin', color: { argb: 'FF0D47A1' } },
+          bottom: { style: 'thin', color: { argb: 'FF0D47A1' } },
+          right: { style: 'thin', color: { argb: 'FF0D47A1' } },
+        };
+      });
+      ws.getRow(headerRowIdx).height = 22;
+
+      // Data
+      // Kolom: 0=No, 1=NISN, 2=Nama, 3=L/P, 4..n-2=skor, n-1=NR
+      dataRows.forEach((row, ri) => {
+        const excelRow = headerRowIdx + 1 + ri;
+        row.forEach((val, ci) => {
+          const cell = ws.getCell(excelRow, ci + 1);
+          const isScoreCol = ci >= 4; // skor + NR
+          const isNama = ci === 2;
+          const isNo = ci === 0;
+          // Nilai numerik jika skor dan bukan "—"
+          let numVal = null;
+          if (isScoreCol && val !== '—' && val !== '' && val != null) {
+            const n = Number(String(val).replace(',', '.'));
+            if (Number.isFinite(n)) numVal = n;
+          }
+          cell.value = numVal != null ? numVal : (val == null ? '' : val);
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFCFD8DC' } },
+            left: { style: 'thin', color: { argb: 'FFCFD8DC' } },
+            bottom: { style: 'thin', color: { argb: 'FFCFD8DC' } },
+            right: { style: 'thin', color: { argb: 'FFCFD8DC' } },
+          };
+          if (isScoreCol) {
+            const st = nilaiScoreExcelStyle(numVal != null ? numVal : val);
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: st.bg } };
+            cell.font = { bold: st.bold, size: 11, name: 'Arial', color: { argb: st.fg } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            if (numVal != null) cell.numFmt = '0.##';
+          } else if (isNama) {
+            cell.font = { bold: true, size: 10, name: 'Arial', color: { argb: 'FF1A237E' } };
+            cell.alignment = { horizontal: 'left', vertical: 'middle' };
+          } else if (isNo) {
+            cell.font = { size: 10, name: 'Arial', color: { argb: 'FF546E7A' } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          } else {
+            cell.font = { size: 10, name: 'Arial', color: { argb: 'FF37474F' } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          }
+          // zebra baris non-skor
+          if (!isScoreCol && ri % 2 === 1) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F9FC' } };
+          }
+        });
+      });
+
+      // Lebar kolom
+      headers.forEach((h, i) => {
+        let w = 8;
+        if (i === 0) w = 5;
+        else if (i === 1) w = 12;
+        else if (i === 2) w = 28;
+        else if (i === 3) w = 5;
+        else w = Math.max(8, Math.min(12, String(h).length + 2));
+        ws.getColumn(i + 1).width = w;
+      });
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { try { URL.revokeObjectURL(a.href); } catch (_) {} a.remove(); }, 1500);
+      usedStyled = true;
+      toast('Export Excel (berwarna) selesai', 'ok');
+    } catch (eStyled) {
+      console.warn('ExcelJS export gagal, fallback SheetJS', eStyled);
+    }
+
+    if (!usedStyled) {
+      // Fallback tanpa warna
+      const aoa = [headers, ...dataRows];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Daftar Nilai');
+      XLSX.writeFile(wb, fname);
+      toast('Export selesai (tanpa warna)', 'ok');
+    }
+  } catch (e) {
+    console.error(e);
+    toast('Gagal export: ' + errToText(e), 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = prevLabel || '⬇️ Export Excel'; }
+  }
 }
 async function initNilaiPage() {
   const lab = document.getElementById('badgePeriodeNilai');
