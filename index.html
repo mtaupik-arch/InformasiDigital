@@ -1005,11 +1005,20 @@
   }
   .uj-fb-frac .uj-fb-den { padding:1px 3px 0; font-size:0.95em; }
   .uj-soal-card .us-isian-wrap {
-    display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start;
+    display:flex !important; flex-wrap:wrap; gap:8px; align-items:flex-start;
+    width:100%; margin-top:10px; visibility:visible !important;
   }
   .uj-soal-card textarea.us-isian {
-    flex:1; min-width:160px; min-height:72px; padding:8px 10px; border:1px solid #cfd8dc; border-radius:8px;
-    font-size:13px; font-family:inherit; resize:vertical; box-sizing:border-box;
+    display:block !important; visibility:visible !important; opacity:1 !important;
+    flex:1 1 220px; min-width:180px; width:100%;
+    min-height:88px; height:auto; padding:10px 12px;
+    border:1.5px solid #90a4ae !important; border-radius:8px;
+    font-size:15px !important; line-height:1.4; font-family:inherit;
+    resize:vertical; box-sizing:border-box; background:#fff !important; color:#111 !important;
+    -webkit-appearance:none; appearance:none;
+  }
+  .uj-soal-card .us-isian-wrap.us-uraian textarea.us-isian {
+    min-height:140px !important; flex-basis:100%;
   }
   .uj-soal-card .btn-uj-math {
     flex-shrink:0; padding:8px 12px; font-size:14px; font-weight:800;
@@ -14465,14 +14474,22 @@ function renderUjSoalList(soal, readonly) {
   }
   box.innerHTML = soal.map((s, idx) => {
     const no = s.nomor != null ? s.nomor : (idx + 1);
-    const jenis = s.jenis_soal || 'Pilihan Ganda';
+    const jenis = s.jenis_soal || s.jenis || 'Pilihan Ganda';
     const jl = String(jenis).toLowerCase();
-    const opsi = Array.isArray(s.opsi) ? s.opsi : [];
+    let opsi = Array.isArray(s.opsi) ? s.opsi : [];
+    // opsi kosong / hanya placeholder → anggap tidak ada pilihan
+    const opsiIsi = opsi.filter(o => {
+      const t = typeof o === 'object' ? String(o.text || o.label || '') : String(o || '');
+      return t.trim().length > 0;
+    });
+    const isEsai = /uraian|isian|esai|essay|unggah|tertulis|text/.test(jl)
+      || (!opsiIsi.length && !/pilihan|ganda|pg|benar|salah|check|checkbox|jodoh/.test(jl));
     let ansHtml = '';
-    const jaw = s.jawaban != null ? String(s.jawaban) : '';
-    if (jl.includes('uraian') || jl.includes('isian') || jl.includes('unggah') || (!opsi.length && !jl.includes('pilihan') && !jl.includes('benar') && !jl.includes('check'))) {
-      ansHtml = `<div class="us-isian-wrap">
-        <textarea class="us-isian" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${readonly ? 'readonly' : ''} placeholder="Ketik jawaban, atau tekan ∑ untuk pilih akar / pecahan / pangkat…">${escapeHtml(jaw)}</textarea>
+    const jaw = s.jawaban != null ? String(s.jawaban) : (s.jawaban_teks != null ? String(s.jawaban_teks) : '');
+    if (isEsai) {
+      const isUraian = /uraian|esai|essay|tertulis/.test(jl);
+      ansHtml = `<div class="us-isian-wrap${isUraian ? ' us-uraian' : ''}">
+        <textarea class="us-isian" rows="${isUraian ? 6 : 3}" data-item-id="${escapeHtml(String(s.id))}" data-nomor="${no}" data-jenis="${escapeHtml(jenis)}" ${readonly ? 'readonly' : ''} placeholder="${isUraian ? 'Tulis jawaban esai / uraian di sini…' : 'Ketik jawaban singkat, atau tekan ∑ untuk rumus…'}">${escapeHtml(jaw)}</textarea>
         ${readonly ? '' : `<button type="button" class="btn-opsi-math btn-uj-math" data-uj-math-item="${escapeHtml(String(s.id))}" title="Sisipkan rumus">∑</button>`}
         <div class="us-isian-preview" data-preview-for="${escapeHtml(String(s.id))}"></div>
       </div>`;
