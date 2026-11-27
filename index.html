@@ -19627,7 +19627,10 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
         buf = pre.buffer;
         eqCount = pre.eqCount || 0;
         mathHtmlFromXml = pre.mathHtml || '';
-        if (eqCount) toast(`∑ ${eqCount} persamaan dikonversi ke LaTeX`, 'ok');
+        const imgN = pre.imageCount || 0;
+        if (eqCount || imgN) {
+          toast(`∑ ${eqCount} persamaan` + (imgN ? ` · ${imgN} gambar` : '') + ' dikonversi dari Word', 'ok');
+        }
       } catch (preErr) {
         console.warn('preprocessDocxMathToLatex', preErr);
         toast('⚠️ Konversi rumus dilewati: ' + (preErr && preErr.message ? preErr.message : 'error') + ' — lanjut import teks', 'err');
@@ -19820,15 +19823,55 @@ async function preprocessDocxMathToLatex(arrayBuffer) {
     return `<w:r><w:t xml:space="preserve">${texts}</w:t></w:r>`;
   });
 
-  // Bangun HTML paragraf langsung dari XML (sumber kebenaran untuk kunci multi-langkah)
-  // sehingga tidak bergantung mammoth yang bisa menghilangkan marker/rumus
+  // Peta rId gambar → data-URI base64 (dari word/media + rels)
+  const relsFile = zip.file('word/_rels/document.xml.rels');
+  const imageMap = {}; // rId -> data:image/...;base64,...
+  if (relsFile) {
+    try {
+      const relsXml = await relsFile.async('string');
+      const relRe = /<Relationship\b[^>]*>/gi;
+      let rm;
+      while ((rm = relRe.exec(relsXml))) {
+        const tag = rm[0];
+        if (!/\/image"/i.test(tag) && !/relationships\/image/i.test(tag)) continue;
+        const idM = tag.match(/\bId="([^"]+)"/i);
+        const tgtM = tag.match(/\bTarget="([^"]+)"/i);
+        if (!idM || !tgtM) continue;
+        let target = tgtM[1].replace(/\\/g, '/');
+        // Target biasanya "media/image1.png" relatif ke word/
+        if (target.startsWith('/')) target = target.slice(1);
+        if (target.startsWith('word/')) {
+          /* ok */
+        } else {
+          target = 'word/' + target.replace(/^\.\//, '');
+        }
+        const imgFile = zip.file(target) || zip.file(target.replace(/^word\//, ''));
+        if (!imgFile) continue;
+        try {
+          const b64 = await imgFile.async('base64');
+          const lower = target.toLowerCase();
+          let mime = 'image/png';
+          if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) mime = 'image/jpeg';
+          else if (lower.endsWith('.gif')) mime = 'image/gif';
+          else if (lower.endsWith('.webp')) mime = 'image/webp';
+          else if (lower.endsWith('.bmp')) mime = 'image/bmp';
+          else if (lower.endsWith('.svg')) mime = 'image/svg+xml';
+          imageMap[idM[1]] = 'data:' + mime + ';base64,' + b64;
+        } catch (imgErr) {
+          console.warn('docx image read', target, imgErr);
+        }
+      }
+    } catch (relsErr) {
+      console.warn('docx rels', relsErr);
+    }
+  }
+
+  // Bangun HTML paragraf langsung dari XML (sumber kebenaran untuk kunci multi-langkah + gambar)
   const paragraphs = [];
   const paraRe = /<w:p[\s>][\s\S]*?<\/w:p>/g;
   let pm;
   while ((pm = paraRe.exec(xml))) {
     const p = pm[0];
-    // skip empty paragraphs without drawing/image
-    const hasImg = /<a:blip|<w:drawing|<v:imagedata/i.test(p);
     const texts = [...p.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)].map(x =>
       String(x[1] || '')
         .replace(/&lt;/g, '<')
@@ -19838,28 +19881,37 @@ async function preprocessDocxMathToLatex(arrayBuffer) {
         .replace(/&apos;/g, "'")
     ).join('');
     const line = texts.replace(/\u00a0/g, ' ');
-    if (!line.trim() && !hasImg) {
-      paragraphs.push('');
+    // Ambil rId gambar di paragraf ini
+    const embeds = [...p.matchAll(/\br:embed="([^"]+)"/g)].map(x => x[1]);
+    const imgs = embeds.map(id => imageMap[id]).filter(Boolean);
+    if (!line.trim() && !imgs.length) {
+      paragraphs.push({ text: '', imgs: [] });
       continue;
     }
-    paragraphs.push(line);
+    paragraphs.push({ text: line, imgs });
   }
-  // HTML untuk parser: setiap baris non-kosong → <p>
-  const mathHtml = paragraphs.map((line) => {
-    if (!line || !String(line).trim()) return '<p></p>';
-    // escape HTML selain marker MATH
-    const esc = String(line)
+
+  // HTML untuk parser: teks + <img> data-URI
+  const mathHtml = paragraphs.map((row) => {
+    const line = row && row.text != null ? row.text : String(row || '');
+    const imgs = (row && row.imgs) || [];
+    if (!String(line).trim() && !imgs.length) return '<p></p>';
+    let esc = String(line)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      // kembalikan marker
-      .replace(/\[\[MATH:([\s\S]*?)\]\]/g, (_, L) => '[[MATH:' + L.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&') + ']]');
-    return '<p>' + esc + '</p>';
+      .replace(/\[\[MATH:([\s\S]*?)\]\]/g, (_, L) =>
+        '[[MATH:' + L.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&') + ']]'
+      );
+    const imgHtml = imgs.map((src) =>
+      '<img src="' + src + '" alt="gambar soal" style="max-width:100%;height:auto;display:block;margin:8px 0;" />'
+    ).join('');
+    return '<p>' + esc + (esc && imgHtml ? '<br/>' : '') + imgHtml + '</p>';
   }).join('\n');
 
   zip.file(path, xml);
   const buffer = await zip.generateAsync({ type: 'arraybuffer' });
-  return { buffer, eqCount, mathHtml, paragraphs };
+  return { buffer, eqCount, mathHtml, paragraphs, imageCount: Object.keys(imageMap).length };
 }
 
 function ommlStripPr(s) {
