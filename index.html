@@ -19781,10 +19781,11 @@ async function preprocessDocxMathToLatex(arrayBuffer) {
 
 function ommlStripPr(s) {
   let out = String(s || '');
-  for (let i = 0; i < 40; i++) {
-    const n = out
-      .replace(/<(m:\w+Pr|w:rPr)(\s[^>]*)?>((?:(?!<\/\1>).)*)<\/\1>/g, '')
-      .replace(/<(m:\w+Pr|w:rPr)(\s[^>]*)?\/>/g, '');
+  for (let i = 0; i < 60; i++) {
+    // Self-closing dulu
+    let n = out.replace(/<(m:\w+Pr|w:rPr)(\s[^>]*)?\/>/g, '');
+    // Hapus elemen *Pr beserta isi (nested OK dengan non-greedy + ulang)
+    n = n.replace(/<(m:\w+Pr|w:rPr)(\s[^>]*)?>[\s\S]*?<\/\1>/g, '');
     if (n === out) break;
     out = n;
   }
@@ -19808,70 +19809,149 @@ function ommlPlain(fragment) {
   return out.replace(/[\n\r]+/g, '').trim();
 }
 
-/** OMML XML → LaTeX (pecahan, akar, pangkat, subscript) */
+/**
+ * OMML XML → LaTeX.
+ * Urutan: proses elemen terdalam dulu (pangkat/subscript/akar/pecahan)
+ * agar struktur bersarang seperti (3^4)^3 dan 4^{5}/4^{3} benar.
+ */
 function ommlToLatex(ommlXml) {
   let s = ommlStripPr(ommlXml);
-  // Hapus rPr sisa & buka run
   s = s.replace(/<w:rPr[\s\S]*?<\/w:rPr>/g, '').replace(/<w:rPr[^/]*\/>/g, '');
   s = s.replace(/<m:r(\s[^>]*)?>/g, '').replace(/<\/m:r>/g, '');
-  // Hapus radPr yang mungkin tersisa
+  s = s.replace(/<w:r(\s[^>]*)?>/g, '').replace(/<\/w:r>/g, '');
   s = s.replace(/<m:radPr[\s\S]*?<\/m:radPr>/g, '');
   s = s.replace(/<m:fPr[\s\S]*?<\/m:fPr>/g, '');
 
-  const convertInner = (frag) => {
+  const plainOrLatex = (frag) => {
     const t = String(frag || '');
-    if (/<m:/.test(t)) {
-      // rekursi terbatas: jalankan pass yang sama pada fragmen
-      return ommlToLatex(`<m:oMath>${t}</m:oMath>`) || ommlPlain(t);
-    }
-    return ommlPlain(t);
+    if (!t) return '';
+    // Sudah murni LaTeX / teks tanpa tag OMML
+    if (!/<m:/.test(t)) return t.replace(/[\n\r]+/g, '').trim();
+    // Masih ada tag OMML → konversi, tapi jaga teks LaTeX yang sudah ada di antaranya
+    return ommlToLatex(`<m:oMath>${t}</m:oMath>`) || ommlPlain(t);
   };
 
-  for (let i = 0; i < 80; i++) {
+  // Ganti elemen m:tag terdalam (tidak berisi tag yang sama) → ulangi sampai habis
+  const convertTagInnermost = (input, tag, handler) => {
+    const open = '<m:' + tag;
+    const close = '</m:' + tag + '>';
+    let out = input;
+    let guard = 0;
+    while (guard++ < 60) {
+      let found = false;
+      let searchFrom = 0;
+      while (true) {
+        const iOpen = out.indexOf(open, searchFrom);
+        if (iOpen < 0) break;
+        // pastikan benar-benar tag (bukan prefix): <m:sSup> atau <m:sSup ...>
+        const after = out.slice(iOpen + open.length, iOpen + open.length + 1);
+        if (after && after !== '>' && after !== ' ') {
+          searchFrom = iOpen + open.length;
+          continue;
+        }
+        // cari closing yang matching (depth)
+        let depth = 0;
+        let i = iOpen;
+        let iClose = -1;
+        while (i < out.length) {
+          const nextOpen = out.indexOf(open, i + 1);
+          const nextClose = out.indexOf(close, i + 1);
+          if (nextClose < 0) break;
+          if (nextOpen >= 0 && nextOpen < nextClose) {
+            depth++;
+            i = nextOpen;
+          } else {
+            if (depth === 0) { iClose = nextClose; break; }
+            depth--;
+            i = nextClose;
+          }
+        }
+        if (iClose < 0) {
+          searchFrom = iOpen + open.length;
+          continue;
+        }
+        const full = out.slice(iOpen, iClose + close.length);
+        // Innermost = tidak ada open tag yang sama di dalamnya
+        if (full.indexOf(open, open.length) >= 0) {
+          // bukan terdalam, mulai cari dari dalam
+          searchFrom = iOpen + open.length;
+          continue;
+        }
+        // Terapkan handler
+        let replacement;
+        try {
+          replacement = handler(full);
+        } catch (_) {
+          replacement = ommlPlain(full);
+        }
+        if (replacement === full) {
+          searchFrom = iClose + close.length;
+          continue;
+        }
+        out = out.slice(0, iOpen) + replacement + out.slice(iClose + close.length);
+        found = true;
+        break; // restart search dari awal setelah perubahan
+      }
+      if (!found) break;
+    }
+    return out;
+  };
+
+  for (let i = 0; i < 40; i++) {
     const prev = s;
-    // 1) pecahan
-    s = s.replace(
-      /<m:f>\s*<m:num>([\s\S]*?)<\/m:num>\s*<m:den>([\s\S]*?)<\/m:den>\s*<\/m:f>/g,
-      (_, num, den) => `\\frac{${convertInner(num)}}{${convertInner(den)}}`
-    );
-    // 2) pangkat & subscript
-    s = s.replace(
-      /<m:sSup>\s*<m:e>([\s\S]*?)<\/m:e>\s*<m:sup>([\s\S]*?)<\/m:sup>\s*<\/m:sSup>/g,
-      (_, e, sup) => {
-        const base = convertInner(e);
-        const sp = convertInner(sup);
-        return base.length === 1 ? `${base}^{${sp}}` : `{${base}}^{${sp}}`;
+
+    s = convertTagInnermost(s, 'sSup', (full) => {
+      const em = full.match(/<m:e>([\s\S]*)<\/m:e>/);
+      const sm = full.match(/<m:sup>([\s\S]*)<\/m:sup>/);
+      if (!em || !sm) return ommlPlain(full);
+      const base = plainOrLatex(em[1]);
+      const sp = plainOrLatex(sm[1]);
+      return base.length === 1 ? `${base}^{${sp}}` : `{${base}}^{${sp}}`;
+    });
+
+    s = convertTagInnermost(s, 'sSub', (full) => {
+      const em = full.match(/<m:e>([\s\S]*)<\/m:e>/);
+      const sm = full.match(/<m:sub>([\s\S]*)<\/m:sub>/);
+      if (!em || !sm) return ommlPlain(full);
+      const base = plainOrLatex(em[1]);
+      const sb = plainOrLatex(sm[1]);
+      return base.length === 1 ? `${base}_{${sb}}` : `{${base}}_{${sb}}`;
+    });
+
+    s = convertTagInnermost(s, 'sSubSup', (full) => {
+      const em = full.match(/<m:e>([\s\S]*)<\/m:e>/);
+      const subm = full.match(/<m:sub>([\s\S]*)<\/m:sub>/);
+      const supm = full.match(/<m:sup>([\s\S]*)<\/m:sup>/);
+      if (!em) return ommlPlain(full);
+      return `{${plainOrLatex(em[1])}}_{${plainOrLatex(subm ? subm[1] : '')}}^{${plainOrLatex(supm ? supm[1] : '')}}`;
+    });
+
+    s = convertTagInnermost(s, 'rad', (full) => {
+      const degM = full.match(/<m:deg>([\s\S]*)<\/m:deg>/);
+      const eM = full.match(/<m:e>([\s\S]*)<\/m:e>/);
+      const e = eM ? plainOrLatex(eM[1]) : '';
+      if (degM) {
+        const deg = plainOrLatex(degM[1]);
+        return deg ? `\\sqrt[${deg}]{${e}}` : `\\sqrt{${e}}`;
       }
-    );
-    s = s.replace(
-      /<m:sSub>\s*<m:e>([\s\S]*?)<\/m:e>\s*<m:sub>([\s\S]*?)<\/m:sub>\s*<\/m:sSub>/g,
-      (_, e, sub) => {
-        const base = convertInner(e);
-        const sb = convertInner(sub);
-        return base.length === 1 ? `${base}_{${sb}}` : `{${base}}_{${sb}}`;
-      }
-    );
-    s = s.replace(
-      /<m:sSubSup>\s*<m:e>([\s\S]*?)<\/m:e>\s*<m:sub>([\s\S]*?)<\/m:sub>\s*<m:sup>([\s\S]*?)<\/m:sup>\s*<\/m:sSubSup>/g,
-      (_, e, sub, sup) => `{${convertInner(e)}}_{${convertInner(sub)}}^{${convertInner(sup)}}`
-    );
-    // 3) akar — deg opsional / self-closing / kosong
-    s = s.replace(
-      /<m:rad>\s*(?:<m:deg\s*\/>|<m:deg>\s*<\/m:deg>|<m:deg>([\s\S]*?)<\/m:deg>)?\s*<m:e>([\s\S]*?)<\/m:e>\s*<\/m:rad>/g,
-      (_, deg, e) => {
-        const d = convertInner(deg || '').trim();
-        const base = convertInner(e);
-        return d ? `\\sqrt[${d}]{${base}}` : `\\sqrt{${base}}`;
-      }
-    );
-    // fallback: rad tanpa deg eksplisit
-    s = s.replace(
-      /<m:rad>\s*<m:e>([\s\S]*?)<\/m:e>\s*<\/m:rad>/g,
-      (_, e) => `\\sqrt{${convertInner(e)}}`
-    );
+      return `\\sqrt{${e}}`;
+    });
+
+    s = convertTagInnermost(s, 'f', (full) => {
+      const numM = full.match(/<m:num>([\s\S]*)<\/m:num>/);
+      const denM = full.match(/<m:den>([\s\S]*)<\/m:den>/);
+      if (!numM || !denM) return ommlPlain(full);
+      return `\\frac{${plainOrLatex(numM[1])}}{${plainOrLatex(denM[1])}}`;
+    });
+
     if (s === prev) break;
   }
-  return ommlPlain(s);
+
+  // Sisa tag → plain text
+  if (/<m:/.test(s)) {
+    s = ommlPlain(s);
+  }
+  return String(s || '').replace(/\s+/g, ' ').trim();
 }
 
 /** Ubah marker MATH / \( latex \) menjadi <span class="bs-math"> + render KaTeX */
