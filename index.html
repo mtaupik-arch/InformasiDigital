@@ -1417,6 +1417,8 @@
   .bs-ru-status.mengerjakan { background:#fff8e1; color:#ef6c00; }
   .bs-ru-status.selesai { background:#e8f5e9; color:#2e7d32; }
   .bs-ru-status.timeout { background:#ffebee; color:#c62828; }
+  .bs-ru-status.dikunci { background:#fce4ec; color:#c62828; border:1px solid #ef9a9a; }
+
   .bs-meta { font-size:11px; color:#78909c; margin-bottom:8px; }
   .bs-table-wrap { overflow-x:auto; background:#fff; border-radius:8px; border:1px solid #e2e8f0; }
   table.bs-table {
@@ -5075,6 +5077,7 @@
           <option value="Mengerjakan">Mengerjakan</option>
           <option value="Selesai">Selesai</option>
           <option value="Timeout">Timeout</option>
+          <option value="Dikunci">Dikunci (anti-curang)</option>
         </select>
         <button type="button" class="btn btn-outline btn-sm" id="btnBsRuReload">↻</button>
       </div>
@@ -5097,12 +5100,13 @@
               <th>Nama</th>
               <th style="width:72px">Kelas</th>
               <th style="width:88px">Status</th>
+              <th style="width:72px;text-align:center" title="Jumlah pelanggaran anti-curang">⚠ Curang</th>
               <th style="width:88px">Sisa Waktu</th>
               <th style="width:56px;text-align:center">Skor</th>
             </tr>
           </thead>
           <tbody id="tbodyRuangUjian">
-            <tr><td colspan="8" class="bs-empty">Memuat…</td></tr>
+            <tr><td colspan="9" class="bs-empty">Memuat…</td></tr>
           </tbody>
         </table>
       </div>
@@ -15636,7 +15640,7 @@ document.getElementById('btnUjAntiKembali')?.addEventListener('click', async () 
 
 async function ujOpenLembar(bankId, opts = {}) {
   try {
-    const forceReadonly = !!(opts && (opts.readonly || opts.status_siswa === 'Selesai'));
+    const forceReadonly = !!(opts && (opts.readonly || opts.status_siswa === 'Selesai' || opts.status_siswa === 'Dikunci'));
     toast(forceReadonly ? 'Membuka lembar (hanya lihat)…' : 'Menyiapkan lembar ujian…', 'ok');
     const sess = getSession();
     const nisn = String(
@@ -15676,15 +15680,29 @@ async function ujOpenLembar(bankId, opts = {}) {
 
     const bankMeta = d.bank || {};
     const antiFlag = !!(opts.anti_curang || bankMeta.anti_curang || (_ujState && _ujState._antiFromList));
+    const antiMax = bankMeta.anti_curang_max != null
+      ? Number(bankMeta.anti_curang_max)
+      : (opts.anti_curang_max != null ? Number(opts.anti_curang_max) : 3);
+    const antiCount = ruang.anti_curang_count != null
+      ? Number(ruang.anti_curang_count)
+      : (d.ruang && d.ruang.anti_curang_count != null ? Number(d.ruang.anti_curang_count) : 0);
+    const isLocked = String(statusRuang || '') === 'Dikunci' || (antiFlag && antiMax > 0 && antiCount >= antiMax);
     _ujState = {
       ruangId: ruang.id,
       bankId,
       soal: d.soal || [],
       siswa: d.siswa || _ujState.siswa,
-      readonly: !!readonly,
-      status: statusRuang,
-      antiCurang: antiFlag && !readonly,
+      readonly: !!readonly || isLocked,
+      status: isLocked ? 'Dikunci' : statusRuang,
+      antiCurang: antiFlag && !readonly && !isLocked,
+      antiCurangMax: Number.isFinite(antiMax) ? antiMax : 3,
+      antiCurangCount: Number.isFinite(antiCount) ? antiCount : 0,
     };
+    if (isLocked) {
+      _ujAnti.locked = true;
+      _ujAnti.violations = _ujState.antiCurangCount;
+      _ujAnti.max = _ujState.antiCurangMax;
+    }
     if (d.siswa) ujSetSiswaHeader(d.siswa);
     const title = document.getElementById('ujLembarTitle');
     if (title) {
@@ -17891,7 +17909,10 @@ function bsStatusPill(st) {
 
 function bsRuStatusPill(st) {
   const s = String(st || 'Mengerjakan');
-  const cls = s === 'Selesai' ? 'selesai' : (s === 'Timeout' ? 'timeout' : 'mengerjakan');
+  let cls = 'mengerjakan';
+  if (s === 'Selesai') cls = 'selesai';
+  else if (s === 'Timeout') cls = 'timeout';
+  else if (s === 'Dikunci') cls = 'dikunci';
   return `<span class="bs-ru-status ${cls}">${escapeHtml(s)}</span>`;
 }
 
@@ -18445,13 +18466,18 @@ function renderRuangUjianTable() {
     meta.textContent = `${rows.length} ditampil · ${_bsRuRows.length} total · ${nM} sedang mengerjakan`;
   }
   if (!rows.length) {
-    if (tb) tb.innerHTML = '<tr><td colspan="8" class="bs-empty">Belum ada siswa di ruang ujian.</td></tr>';
+    if (tb) tb.innerHTML = '<tr><td colspan="9" class="bs-empty">Belum ada siswa di ruang ujian.</td></tr>';
     return;
   }
   if (tb) {
     tb.innerHTML = rows.map((r, i) => {
       const skor = r.skor != null && r.skor !== '' ? r.skor : '—';
       const waktu = r.sisa_detik != null ? bsFmtWaktu(r.sisa_detik) : (r.waktu_label || '—');
+      const nCur = r.anti_curang_count != null ? Number(r.anti_curang_count) : 0;
+      const logN = Array.isArray(r.anti_curang_log) ? r.anti_curang_log.length : 0;
+      const curHtml = nCur > 0
+        ? `<span style="display:inline-block;background:#ffebee;color:#c62828;font-weight:800;font-size:12px;padding:2px 8px;border-radius:10px" title="${escapeHtml(String(logN))} log pelanggaran">${nCur}</span>`
+        : '<span style="color:#9e9e9e">0</span>';
       return `<tr>
         <td style="text-align:center"><input type="checkbox" class="bs-ru-check" value="${escapeHtml(String(r.id))}" /></td>
         <td class="col-no">${i + 1}</td>
@@ -18459,6 +18485,7 @@ function renderRuangUjianTable() {
         <td style="font-weight:600">${escapeHtml(r.nama || '—')}</td>
         <td>${escapeHtml(r.kelas || '—')}</td>
         <td>${bsRuStatusPill(r.status)}</td>
+        <td style="text-align:center">${curHtml}</td>
         <td style="font-variant-numeric:tabular-nums;font-weight:600">${escapeHtml(String(waktu))}</td>
         <td style="text-align:center;font-weight:800">${escapeHtml(String(skor))}</td>
       </tr>`;
