@@ -3978,7 +3978,7 @@
               <button type="button" id="btnKatrolM1Down" title="-0,25">▼</button>
             </span>
           </label>
-          <span class="nk-hint" id="nilaiKatrolHint">((NR+M1×NM)/(1+M1))</span>
+          <span class="nk-hint" id="nilaiKatrolHint">((NR+M1×NM)/(1+M1))×(%HADIR/100)</span>
         </div>
         <span class="spacer"></span>
         <span id="nilaiDaftarCount" style="font-size:11px;color:#666"></span>
@@ -12035,7 +12035,7 @@ async function exportNilaiDaftarExcel() {
       cTitle.value = title;
       cTitle.font = { bold: true, size: 13, name: 'Arial', color: { argb: 'FF1A237E' } };
       cTitle.alignment = { horizontal: 'center', vertical: 'middle' };
-      const sub2 = (periode ? periode + ' · ' : '') + 'KATROL: M1=' + kp.m1 + ' · NM=' + kp.nm + ' · rumus (NR+M1×NM)/(1+M1)';
+      const sub2 = (periode ? periode + ' · ' : '') + 'KATROL: M1=' + kp.m1 + ' · NM=' + kp.nm + ' · rumus ((NR+M1×NM)/(1+M1))×(%HADIR/100)';
       ws.mergeCells(2, 1, 2, Math.max(headers.length, 1));
       const cPer = ws.getCell(2, 1);
       cPer.value = sub2;
@@ -12047,9 +12047,11 @@ async function exportNilaiDaftarExcel() {
       headers.forEach((h, i) => {
         const cell = ws.getCell(headerRowIdx, i + 1);
         cell.value = h;
-        const isKatrol = String(h).toUpperCase() === 'KATROL';
-        cell.font = { bold: true, size: 10, name: 'Arial', color: { argb: isKatrol ? 'FFF57F17' : 'FFFFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isKatrol ? 'FFFFF9C4' : 'FF1565C0' } };
+        const hu = String(h).toUpperCase();
+        const isKatrol = hu === 'KATROL';
+        const isHadir = hu.includes('HADIR');
+        cell.font = { bold: true, size: 10, name: 'Arial', color: { argb: isKatrol ? 'FFF57F17' : (isHadir ? 'FF1B5E20' : 'FFFFFFFF') } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isKatrol ? 'FFFFF9C4' : (isHadir ? 'FFE8F5E9' : 'FF1565C0') } };
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         cell.border = {
           top: { style: 'thin', color: { argb: 'FF0D47A1' } },
@@ -12072,7 +12074,7 @@ async function exportNilaiDaftarExcel() {
           // Nilai numerik jika skor dan bukan "—"
           let numVal = null;
           if (isScoreCol && val !== '—' && val !== '' && val != null) {
-            const n = Number(String(val).replace(',', '.'));
+            const n = Number(String(val).replace('%', '').replace(',', '.').trim());
             if (Number.isFinite(n)) numVal = n;
           }
           cell.value = numVal != null ? numVal : (val == null ? '' : val);
