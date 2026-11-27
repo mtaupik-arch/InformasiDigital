@@ -6680,6 +6680,14 @@ function renderRekapKehadiran(role, sesiList, absenRows) {
 }
 
 async function renderDashboard() {
+  // Jangan biarkan UI stuck di "Memuat sesi…"
+  try {
+    const chip0 = document.getElementById('dashSesiChips');
+    if (chip0 && /Memuat/i.test(chip0.textContent || '')) {
+      chip0.innerHTML = '<span class="sesi-chip">Memuat data…</span>';
+    }
+  } catch (_) {}
+
   /* Pola dashboard libur meniru index-3 (SMPN 1 Sobang):
      - Informasi Sesi: keterangan libur merah + tanggal
      - Legend status: semua "-"
@@ -6805,7 +6813,10 @@ async function renderDashboard() {
   let serverLibur = false;
   let serverLiburKet = '';
   try {
-    const logRes = await apiCall('list_absen_hari_ini', {});
+    const logRes = await Promise.race([
+      apiCall('list_absen_hari_ini', {}),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout absen')), 10000)),
+    ]);
     if (logRes && logRes.libur === true) {
       serverLibur = true;
       serverLiburKet = logRes.libur_keterangan || 'Hari Libur';
@@ -19609,12 +19620,15 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
       stage = 'konversi_persamaan';
       toast('∑ Mengonversi persamaan matematika…', 'ok');
       try {
-        const pre = await preprocessDocxMathToLatex(buf);
+        const prePromise = preprocessDocxMathToLatex(buf);
+        const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout konversi rumus (15s)')), 15000));
+        const pre = await Promise.race([prePromise, timeoutPromise]);
         buf = pre.buffer;
         eqCount = pre.eqCount || 0;
         if (eqCount) toast(`∑ ${eqCount} persamaan dikonversi ke LaTeX`, 'ok');
       } catch (preErr) {
         console.warn('preprocessDocxMathToLatex', preErr);
+        toast('⚠️ Konversi rumus dilewati: ' + (preErr && preErr.message ? preErr.message : 'error') + ' — lanjut import teks', 'err');
         // lanjut tanpa konversi — masih bisa import teks biasa
       }
       stage = 'mammoth';
@@ -19765,8 +19779,11 @@ async function preprocessDocxMathToLatex(arrayBuffer) {
     const safe = latex
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    return `<w:r><w:t xml:space="preserve">⟦MATH:${safe}⟧</w:t></w:r>`;
+      .replace(/>/g, '&gt;')
+      .replace(/\[/g, '')
+      .replace(/\]/g, '');
+    // Marker ASCII saja agar aman lewat mammoth/XML
+    return `<w:r><w:t xml:space="preserve">[[MATH:${safe}]]</w:t></w:r>`;
   });
   xml = xml.replace(/<m:oMathPara(\s[^>]*)?>[\s\S]*?<\/m:oMathPara>/g, (m) => {
     if (/<m:oMath/.test(m)) return m;
@@ -19835,17 +19852,19 @@ function ommlToLatex(ommlXml) {
   const convertTagInnermost = (input, tag, handler) => {
     const open = '<m:' + tag;
     const close = '</m:' + tag + '>';
-    let out = input;
+    let out = String(input || '');
     let guard = 0;
-    while (guard++ < 60) {
+    const maxOut = Math.max(out.length * 4, 50000);
+    while (guard++ < 80) {
       let found = false;
       let searchFrom = 0;
-      while (true) {
+      let innerGuard = 0;
+      while (innerGuard++ < 5000) {
         const iOpen = out.indexOf(open, searchFrom);
         if (iOpen < 0) break;
         // pastikan benar-benar tag (bukan prefix): <m:sSup> atau <m:sSup ...>
         const after = out.slice(iOpen + open.length, iOpen + open.length + 1);
-        if (after && after !== '>' && after !== ' ') {
+        if (after && after !== '>' && after !== ' ' && after !== '\t' && after !== '\n' && after !== '\r') {
           searchFrom = iOpen + open.length;
           continue;
         }
@@ -19888,7 +19907,12 @@ function ommlToLatex(ommlXml) {
           searchFrom = iClose + close.length;
           continue;
         }
-        out = out.slice(0, iOpen) + replacement + out.slice(iClose + close.length);
+        const next = out.slice(0, iOpen) + replacement + out.slice(iClose + close.length);
+        if (next.length > maxOut) {
+          // proteksi overflow
+          return ommlPlain(out);
+        }
+        out = next;
         found = true;
         break; // restart search dari awal setelah perubahan
       }
@@ -22261,27 +22285,47 @@ document.getElementById('btnBackupRestore')?.addEventListener('click', async () 
       const bootP = refreshStoreFromDb();
       const timed = Promise.race([
         bootP,
-        new Promise((resolve) => setTimeout(() => resolve(false), 12000)),
+        new Promise((resolve) => setTimeout(() => resolve(false), 8000)),
       ]);
       await timed;
       try { applySekolahToUI(); } catch (_) {}
       try { renderUserUI(getSession()); } catch (_) {}
       try {
-        // Penting: setelah bootstrap, kembalikan ke halaman yang di-refresh (bukan selalu dashboard)
         const want = startPage || navCurrent || 'dashboard';
         if (want && want !== 'dashboard') {
           navigate(want, { fromHash: true, init: true, noScroll: true });
         } else {
-          await renderDashboard();
+          await Promise.race([
+            renderDashboard(),
+            new Promise((resolve) => setTimeout(resolve, 10000)),
+          ]);
         }
       } catch (_) {}
     } catch (e) {
       console.warn('init bootstrap', e);
       try {
         if (typeof renderStrukturOrganisasi === 'function') renderStrukturOrganisasi();
-        if (typeof renderDashboard === 'function') await renderDashboard();
+        if (typeof renderDashboard === 'function') {
+          await Promise.race([
+            renderDashboard(),
+            new Promise((resolve) => setTimeout(resolve, 8000)),
+          ]);
+        }
       } catch (_) {}
     }
+    // Pastikan chip sesi tidak stuck "Memuat…"
+    try {
+      const chip = document.getElementById('dashSesiChips');
+      if (chip && /Memuat/i.test(chip.textContent || '')) {
+        chip.innerHTML = '<span class="sesi-chip">Sesi</span>';
+      }
+      document.querySelectorAll('.empty-row').forEach(tr => {
+        if (/Memuat/i.test(tr.textContent || '')) {
+          const td = tr.querySelector('td');
+          if (td) td.textContent = '—';
+        }
+      });
+    } catch (_) {}
 
     if (session?.token) {
       try { await apiCall('apply_ab_status', {}); } catch (_) {}
