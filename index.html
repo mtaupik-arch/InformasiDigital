@@ -19619,33 +19619,63 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
       // Konversi persamaan Word (OMML) → LaTeX agar tidak hilang saat import
       stage = 'konversi_persamaan';
       toast('∑ Mengonversi persamaan matematika…', 'ok');
+      let mathHtmlFromXml = '';
       try {
         const prePromise = preprocessDocxMathToLatex(buf);
         const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout konversi rumus (15s)')), 15000));
         const pre = await Promise.race([prePromise, timeoutPromise]);
         buf = pre.buffer;
         eqCount = pre.eqCount || 0;
+        mathHtmlFromXml = pre.mathHtml || '';
         if (eqCount) toast(`∑ ${eqCount} persamaan dikonversi ke LaTeX`, 'ok');
       } catch (preErr) {
         console.warn('preprocessDocxMathToLatex', preErr);
         toast('⚠️ Konversi rumus dilewati: ' + (preErr && preErr.message ? preErr.message : 'error') + ' — lanjut import teks', 'err');
-        // lanjut tanpa konversi — masih bisa import teks biasa
       }
       stage = 'mammoth';
       toast('📄 Mengurai dokumen Word…', 'ok');
-      const res = await mammoth.convertToHtml({
-        arrayBuffer: buf,
-        convertImage: mammoth.images.imgElement(function (image) {
-          return image.read('base64').then(function (imageBuffer) {
-            return {
-              src: 'data:' + image.contentType + ';base64,' + imageBuffer,
-            };
+      let mammothHtml = '';
+      try {
+        const res = await mammoth.convertToHtml({
+          arrayBuffer: buf,
+          convertImage: mammoth.images.imgElement(function (image) {
+            return image.read('base64').then(function (imageBuffer) {
+              return {
+                src: 'data:' + image.contentType + ';base64,' + imageBuffer,
+              };
+            });
+          }),
+        });
+        mammothHtml = res.value || '';
+        const resText = await mammoth.extractRawText({ arrayBuffer: buf });
+        text = resText.value || '';
+      } catch (mamErr) {
+        console.warn('mammoth', mamErr);
+        text = '';
+      }
+      // UTAMAKAN HTML dari document.xml (memuat semua langkah kunci + rumus)
+      // Mammoth sering menghilangkan OMML / memecah struktur "Kunci:" multi-paragraf
+      if (mathHtmlFromXml && eqCount > 0) {
+        // Sisipkan gambar dari mammoth (jika ada) ke HTML xml berdasarkan urutan
+        const imgs = (mammothHtml.match(/<img[^>]*>/gi) || []);
+        let htmlXml = mathHtmlFromXml;
+        if (imgs.length) {
+          // Tempel gambar di paragraf kosong / setelah soal yang menyebut gambar
+          let imgIdx = 0;
+          htmlXml = htmlXml.replace(/<p><\/p>/g, () => {
+            if (imgIdx < imgs.length) return '<p>' + imgs[imgIdx++] + '</p>';
+            return '<p></p>';
           });
-        }),
-      });
-      htmlContent = res.value || '';
-      const resText = await mammoth.extractRawText({ arrayBuffer: buf });
-      text = resText.value || '';
+          while (imgIdx < imgs.length) {
+            htmlXml += '<p>' + imgs[imgIdx++] + '</p>';
+          }
+        }
+        htmlContent = htmlXml;
+        // Plain text untuk fallback parser
+        text = mathHtmlFromXml.replace(/<[^>]+>/g, '\n').replace(/\[\[MATH:([\s\S]*?)\]\]/g, '$1');
+      } else {
+        htmlContent = mammothHtml;
+      }
     } else if (name.endsWith('.html') || name.endsWith('.htm')) {
       stage = 'html';
       htmlContent = await file.text();
@@ -19762,38 +19792,74 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
  */
 async function preprocessDocxMathToLatex(arrayBuffer) {
   if (typeof JSZip === 'undefined') {
-    return { buffer: arrayBuffer, eqCount: 0 };
+    return { buffer: arrayBuffer, eqCount: 0, mathHtml: '', paragraphs: [] };
   }
   const zip = await JSZip.loadAsync(arrayBuffer);
   const path = 'word/document.xml';
   const f = zip.file(path);
-  if (!f) return { buffer: arrayBuffer, eqCount: 0 };
+  if (!f) return { buffer: arrayBuffer, eqCount: 0, mathHtml: '', paragraphs: [] };
   let xml = await f.async('string');
   let eqCount = 0;
-  // Marker tanpa backslash — aman lewat XML + mammoth (\\frac sering rusak jadi form-feed)
+  // Konversi setiap oMath → marker [[MATH:latex]]
   xml = xml.replace(/<m:oMath(\s[^>]*)?>[\s\S]*?<\/m:oMath>/g, (m) => {
     eqCount++;
     let latex = ommlToLatex(m);
     latex = String(latex || '').trim();
     if (!latex) latex = '?';
+    // Jangan hapus [ ] di latex (penting untuk \sqrt[n]{x}); escape untuk XML saja
     const safe = latex
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\[/g, '')
-      .replace(/\]/g, '');
-    // Marker ASCII saja agar aman lewat mammoth/XML
+      .replace(/>/g, '&gt;');
     return `<w:r><w:t xml:space="preserve">[[MATH:${safe}]]</w:t></w:r>`;
   });
   xml = xml.replace(/<m:oMathPara(\s[^>]*)?>[\s\S]*?<\/m:oMathPara>/g, (m) => {
-    if (/<m:oMath/.test(m)) return m;
+    if (/<m:oMath/.test(m) || /\[\[MATH:/.test(m)) return m;
     const texts = [...m.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)].map(x => x[1]).join('');
     if (!texts.trim()) return '';
     return `<w:r><w:t xml:space="preserve">${texts}</w:t></w:r>`;
   });
+
+  // Bangun HTML paragraf langsung dari XML (sumber kebenaran untuk kunci multi-langkah)
+  // sehingga tidak bergantung mammoth yang bisa menghilangkan marker/rumus
+  const paragraphs = [];
+  const paraRe = /<w:p[\s>][\s\S]*?<\/w:p>/g;
+  let pm;
+  while ((pm = paraRe.exec(xml))) {
+    const p = pm[0];
+    // skip empty paragraphs without drawing/image
+    const hasImg = /<a:blip|<w:drawing|<v:imagedata/i.test(p);
+    const texts = [...p.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)].map(x =>
+      String(x[1] || '')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+    ).join('');
+    const line = texts.replace(/\u00a0/g, ' ');
+    if (!line.trim() && !hasImg) {
+      paragraphs.push('');
+      continue;
+    }
+    paragraphs.push(line);
+  }
+  // HTML untuk parser: setiap baris non-kosong → <p>
+  const mathHtml = paragraphs.map((line) => {
+    if (!line || !String(line).trim()) return '<p></p>';
+    // escape HTML selain marker MATH
+    const esc = String(line)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      // kembalikan marker
+      .replace(/\[\[MATH:([\s\S]*?)\]\]/g, (_, L) => '[[MATH:' + L.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&') + ']]');
+    return '<p>' + esc + '</p>';
+  }).join('\n');
+
   zip.file(path, xml);
   const buffer = await zip.generateAsync({ type: 'arraybuffer' });
-  return { buffer, eqCount };
+  return { buffer, eqCount, mathHtml, paragraphs };
 }
 
 function ommlStripPr(s) {
