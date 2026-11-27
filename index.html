@@ -19233,7 +19233,7 @@ function renderBankSoalItems() {
       </div>
       <div class="bsi-q">${it.pertanyaan || ''}</div>
       ${opsiHtml}
-      ${it.kunci ? `<div class="bsi-kunci">Kunci: ${bsFormatKunciHtml(it.kunci)}</div>` : ''}
+      ${it.kunci ? `<div class="bsi-kunci" style="white-space:pre-wrap;line-height:1.45">Kunci: ${typeof bsFormatKunciHtml === 'function' ? bsFormatKunciHtml(String(it.kunci)).replace(/\n/g, '<br>') : escapeHtml(String(it.kunci)).replace(/\n/g, '<br>')}</div>` : ''}
     </div>`;
   }
 
@@ -20669,9 +20669,22 @@ function parseSoalFromWordHtml(html) {
     // Semua blok setelah "Kunci:" sampai soal berikutnya → kunci (bukan pertanyaan)
     if (inKunci) {
       pendingOptLetter = null;
-      const add = t || (/<img|⟦MATH:|\[\[MATH:|\\\(/i.test(block) ? block : '');
-      if (add) {
-        cur.kunci = (cur.kunci ? String(cur.kunci) + '\n' : '') + (t || blockText(block) || block);
+      // Pertahankan marker MATH + teks; jangan buang rumus
+      let piece = '';
+      if (/⟦MATH:|\[\[MATH:|\\\(|\\\[|\$\$/i.test(block)) {
+        // Ambil teks dengan marker dari HTML
+        piece = String(block)
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/(?:p|div|li|h[1-6])>/gi, '\n')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&nbsp;/gi, ' ')
+          .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+          .trim();
+      } else {
+        piece = t || blockText(block);
+      }
+      if (piece) {
+        cur.kunci = (cur.kunci ? String(cur.kunci) + '\n' : '') + piece;
       }
       continue;
     }
@@ -20718,58 +20731,61 @@ function parseSoalFromWordHtml(html) {
 }
 
 /**
- * Dari teks kunci (bisa berisi langkah + "Jadi ... adalah X") ambil jawaban bersih.
- * Simpan sebagai teks/LaTeX marker — JANGAN HTML KaTeX.
+ * Bersihkan kunci import: simpan LANGKAH + jawaban akhir sebagai teks/LaTeX.
+ * JANGAN HTML KaTeX mentah; JANGAN potong hanya jawaban akhir.
  */
 function normalizeKunciFromSolution(kunciRaw) {
   let k = String(kunciRaw || '').trim();
   if (!k) return '';
-  // Jika sudah HTML KaTeX penuh, ekstrak data-latex / text
-  if (/<span[^>]*class="[^"]*bs-math|katex|data-latex=/i.test(k)) {
-    const latexList = [];
-    k.replace(/data-latex="([^"]*)"/gi, (_, L) => {
-      try { latexList.push(L.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')); } catch (_) {}
-      return '';
-    });
-    if (latexList.length) {
-      // ambil latex terakhir (biasanya hasil akhir)
-      k = latexList[latexList.length - 1];
-    } else {
+
+  // Marker MATH → [[MATH:...]]
+  k = k.replace(/⟦MATH:([\s\S]*?)⟧/g, (_, L) => '[[MATH:' + String(L).trim() + ']]');
+
+  // HTML KaTeX / bs-math → ganti tiap span dengan [[MATH:latex]] agar langkah tetap utuh
+  if (/<span|katex|data-latex=/i.test(k)) {
+    try {
       const d = document.createElement('div');
       d.innerHTML = k;
-      k = (d.textContent || '').replace(/\s+/g, ' ').trim();
+      d.querySelectorAll('.bs-math[data-latex], [data-latex]').forEach((el) => {
+        const latex = (el.getAttribute('data-latex') || '')
+          .replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+        const marker = document.createTextNode(latex ? ('[[MATH:' + latex + ']]') : (el.textContent || ''));
+        el.replaceWith(marker);
+      });
+      // Buang sisa .katex yang tidak punya data-latex
+      d.querySelectorAll('.katex').forEach((el) => {
+        const ann = el.querySelector('annotation[encoding="application/x-tex"]');
+        const latex = ann ? (ann.textContent || '').trim() : (el.textContent || '').trim();
+        el.replaceWith(document.createTextNode(latex ? ('[[MATH:' + latex + ']]') : latex));
+      });
+      // Pertahankan baris: ganti <br>/<p>/<div> dengan newline
+      d.querySelectorAll('br').forEach((el) => el.replaceWith(document.createTextNode('\n')));
+      d.querySelectorAll('p,div,li').forEach((el) => {
+        el.insertAdjacentText('afterend', '\n');
+      });
+      k = (d.textContent || '').replace(/\u00a0/g, ' ');
+    } catch (_) {
+      k = k.replace(/<[^>]+>/g, ' ');
     }
   }
-  // Marker MATH → biarkan sebagai [[MATH:...]] (bukan render)
-  k = k.replace(/⟦MATH:([\s\S]*?)⟧/g, (_, L) => '[[MATH:' + String(L).trim() + ']]');
-  // "Jadi ... adalah X" → ambil X
-  const jadi = k.match(/jadi[\s\S]{0,180}?adalah\s*[:.]?\s*([^\n]+)/i);
-  if (jadi && jadi[1]) {
-    let ans = jadi[1].trim();
-    // buang titik akhir
-    ans = ans.replace(/[.。]\s*$/, '').trim();
-    if (ans) k = ans;
-  }
-  // Batasi panjang kunci isian (hindari menumpuk seluruh langkah)
-  // Jika masih sangat panjang & ada beberapa baris, coba ambil baris terakhir yang berisi angka/rumus
-  if (k.length > 180 && /\n/.test(k)) {
-    const lines = k.split(/\n+/).map(s => s.trim()).filter(Boolean);
-    const last = lines[lines.length - 1] || k;
-    if (/jadi[\s\S]*adalah/i.test(last)) {
-      const m2 = last.match(/adalah\s*[:.]?\s*(.+)$/i);
-      if (m2) k = m2[1].replace(/[.。]\s*$/, '').trim();
-    } else if (last.length < k.length) {
-      k = last;
-    }
-  }
-  // Strip tag HTML sisa
+
+  // Sisa tag HTML → teks
   if (/</.test(k) && />/.test(k)) {
     const d = document.createElement('div');
     d.innerHTML = k;
-    const plain = (d.textContent || '').replace(/\s+/g, ' ').trim();
-    if (plain) k = plain;
+    d.querySelectorAll('br').forEach((el) => el.replaceWith(document.createTextNode('\n')));
+    d.querySelectorAll('p,div,li').forEach((el) => el.insertAdjacentText('afterend', '\n'));
+    k = (d.textContent || '').replace(/\u00a0/g, ' ');
   }
-  return String(k || '').trim();
+
+  // Rapikan spasi, pertahankan baris langkah
+  k = k
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+
+  return k;
 }
 
 function stripHtmlToText(html) {
