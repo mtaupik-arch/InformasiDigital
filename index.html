@@ -1760,6 +1760,44 @@
   .nilai-table td.nv-lt80 { background: #fff3e0; }
   .nilai-table td.nv-lt90 { background: #e8f5e9; }
   .nilai-table td.nv-ge90 { background: #e3f2fd; }
+  .nilai-table .col-katrol { min-width: 52px; text-align: center; font-weight: 800; }
+  .nilai-table thead th.col-katrol { background: #fff9c4 !important; color: #f57f17 !important; }
+
+  /* Kontrol Katrol (Daftar Nilai) */
+  .nilai-katrol-box {
+    display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    padding: 6px 10px; border-radius: 8px; border: 1.5px solid #ffd54f;
+    background: linear-gradient(135deg, #fffde7, #fff9c4);
+    font-size: 12px;
+  }
+  .nilai-katrol-box .nk-label {
+    font-weight: 800; color: #f57f17; letter-spacing: .3px; font-size: 11px;
+  }
+  .nilai-katrol-box .nk-field {
+    display: inline-flex; align-items: center; gap: 4px; margin: 0; font-weight: 600; color: #555;
+  }
+  .nilai-katrol-box .nk-field > span:first-child { font-size: 11px; min-width: 20px; }
+  .nilai-katrol-box input[type=number] {
+    width: 64px; padding: 4px 6px; border: 1.5px solid #90caf9; border-radius: 6px;
+    font-size: 13px; font-weight: 700; text-align: center; color: #1565c0; background: #e3f2fd;
+  }
+  .nilai-katrol-box #nilaiKatrolNM {
+    border-color: #42a5f5; background: #29b6f6; color: #fff;
+  }
+  .nilai-katrol-box #nilaiKatrolM1 {
+    border-color: #fbc02d; background: #ffee58; color: #333; width: 56px;
+  }
+  .nilai-katrol-box .nk-stepper {
+    display: inline-flex; flex-direction: column; gap: 1px;
+  }
+  .nilai-katrol-box .nk-stepper button {
+    width: 22px; height: 14px; padding: 0; border: 1px solid #f9a825; border-radius: 3px;
+    background: #fff; color: #f57f17; font-size: 8px; line-height: 1; cursor: pointer;
+  }
+  .nilai-katrol-box .nk-stepper button:hover { background: #fff8e1; }
+  .nilai-katrol-box .nk-hint {
+    font-size: 10px; color: #78909c; font-family: monospace;
+  }
 
   /* ===== REKAP DATA ABSENSI ===== */
   .rekap-page-title { font-size:20px; font-weight:800; color:#1a237e; margin-bottom:14px; }
@@ -3922,8 +3960,24 @@
       </div>
     </div>
     <div class="data-card nilai-panel" id="nilaiPanelDaftar" style="padding:12px;display:none">
-      <div class="crud-toolbar" style="margin-bottom:10px">
+      <div class="crud-toolbar" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;align-items:center">
         <button type="button" class="btn btn-outline btn-sm" id="btnNilaiExportDaftar">⬇️ Export Excel</button>
+        <div class="nilai-katrol-box" title="Katrol nilai: ((NR + M1×NM) / (1+M1))">
+          <span class="nk-label">KATROL</span>
+          <label class="nk-field">
+            <span>NM</span>
+            <input type="number" id="nilaiKatrolNM" min="0" max="100" step="0.01" value="100" title="Nilai maks yang diinginkan" />
+          </label>
+          <label class="nk-field">
+            <span>M1</span>
+            <span class="nk-stepper">
+              <button type="button" id="btnKatrolM1Up" title="+0,25">▲</button>
+              <input type="number" id="nilaiKatrolM1" min="0" max="50" step="0.25" value="0" title="Bobot katrol (naik/turun 0,25)" />
+              <button type="button" id="btnKatrolM1Down" title="-0,25">▼</button>
+            </span>
+          </label>
+          <span class="nk-hint" id="nilaiKatrolHint">((NR+M1×NM)/(1+M1))</span>
+        </div>
         <span class="spacer"></span>
         <span id="nilaiDaftarCount" style="font-size:11px;color:#666"></span>
       </div>
@@ -11729,36 +11783,85 @@ async function saveNilaiInput() {
     await loadNilaiInput();
   } catch (e) { toast(errToText(e), 'err'); showBigPopup('err', 'Gagal Simpan', errToText(e), 0); }
 }
+/** Payload terakhir daftar nilai (untuk hitung ulang KATROL tanpa reload API) */
+let _nilaiDaftarPayload = null;
+
+/** Baca parameter katrol dari form */
+function getNilaiKatrolParams() {
+  let m1 = Number(document.getElementById('nilaiKatrolM1')?.value);
+  let nm = Number(document.getElementById('nilaiKatrolNM')?.value);
+  if (!Number.isFinite(m1) || m1 < 0) m1 = 0;
+  if (!Number.isFinite(nm)) nm = 100;
+  if (nm < 0) nm = 0;
+  if (nm > 100) nm = 100;
+  // bulatkan M1 ke kelipatan 0.25
+  m1 = Math.round(m1 * 4) / 4;
+  return { m1, nm };
+}
+
+/**
+ * Rumus KATROL: (NR + M1×NM) / (1 + M1)
+ * M1=0 → sama dengan NR; M1 naik → ditarik ke NM (nilai maks yang diinginkan)
+ */
+function hitungKatrol(nr, m1, nm) {
+  if (nr == null || nr === '' || nr === '—') return null;
+  const n = Number(nr);
+  if (!Number.isFinite(n)) return null;
+  const M1 = Number(m1) || 0;
+  const NM = Number(nm);
+  if (!Number.isFinite(NM)) return null;
+  const den = 1 + M1;
+  if (den === 0) return n;
+  const raw = (n + M1 * NM) / den;
+  // batasi 0–100, 2 desimal
+  return Math.round(Math.min(100, Math.max(0, raw)) * 100) / 100;
+}
+
 function renderNilaiDaftar(payload) {
-  const columns = payload?.columns || [];
-  const rows = payload?.rows || [];
+  if (payload) _nilaiDaftarPayload = payload;
+  const data = payload || _nilaiDaftarPayload || {};
+  const columns = data?.columns || [];
+  const rows = data?.rows || [];
   const thead = document.getElementById('theadNilaiDaftar');
   const tb = document.getElementById('tbodyNilaiDaftar');
   const cnt = document.getElementById('nilaiDaftarCount');
   if (!thead || !tb) return;
   if (cnt) cnt.textContent = (rows.length || 0) + ' siswa';
+  const { m1, nm } = getNilaiKatrolParams();
   const colHeads = columns.map(c => `<th class="col-score">${escapeHtml(c.key)}</th>`).join('');
   thead.innerHTML = `<tr>
     <th class="col-no">No</th><th class="col-nisn">NISN</th><th class="col-nama">Nama</th><th class="col-lp">L/P</th>
-    ${colHeads}<th class="col-nr">NR</th></tr>`;
-  if (!rows.length) { tb.innerHTML = `<tr class="empty-row"><td colspan="${5 + columns.length}">Tidak ada data.</td></tr>`; return; }
+    ${colHeads}<th class="col-nr">NR</th><th class="col-katrol" title="(NR + M1×NM) / (1+M1)">KATROL</th></tr>`;
+  if (!rows.length) {
+    tb.innerHTML = `<tr class="empty-row"><td colspan="${6 + columns.length}">Tidak ada data.</td></tr>`;
+    return;
+  }
   tb.innerHTML = rows.map((r, i) => {
     const cells = columns.map(c => {
       const v = r.scores?.[c.key];
       const sc = nilaiScoreClass(v);
       return `<td class="col-score ${sc}">${v != null ? escapeHtml(String(v)) : '—'}</td>`;
     }).join('');
-    const nr = r.nr != null ? (Math.round(Number(r.nr) * 100) / 100) : '—';
-    const nrCls = nilaiScoreClass(nr === '—' ? null : nr);
+    const nr = r.nr != null ? (Math.round(Number(r.nr) * 100) / 100) : null;
+    const nrDisp = nr != null ? nr : '—';
+    const nrCls = nilaiScoreClass(nr);
+    const kat = hitungKatrol(nr, m1, nm);
+    const katDisp = kat != null ? kat : '—';
+    const katCls = nilaiScoreClass(kat);
     return `<tr>
       <td class="col-no">${i + 1}</td>
       <td class="col-nisn" title="NISN disamarkan">${maskNisn(String(r.nisn || ''))}</td>
       <td class="col-nama" title="${escapeHtml(r.nama || '')}">${escapeHtml(r.nama || '')}</td>
       <td class="col-lp">${escapeHtml(lpLabel(r.jenis_kelamin))}</td>
       ${cells}
-      <td class="col-nr ${nrCls}">${escapeHtml(String(nr))}</td>
+      <td class="col-nr ${nrCls}">${escapeHtml(String(nrDisp))}</td>
+      <td class="col-katrol ${katCls}">${escapeHtml(String(katDisp))}</td>
     </tr>`;
   }).join('');
+}
+
+function refreshNilaiKatrolColumn() {
+  if (_nilaiDaftarPayload) renderNilaiDaftar(_nilaiDaftarPayload);
 }
 async function loadNilaiDaftar() {
   const mapelId = document.getElementById('nilaiFilterMapel')?.value;
@@ -11910,27 +12013,28 @@ async function exportNilaiDaftarExcel() {
       });
 
       // Judul
+      const kp = (typeof getNilaiKatrolParams === 'function') ? getNilaiKatrolParams() : { m1: 0, nm: 100 };
       const title = 'DAFTAR NILAI · ' + mapelNama + ' · ' + kelasNama;
       ws.mergeCells(1, 1, 1, Math.max(headers.length, 1));
       const cTitle = ws.getCell(1, 1);
       cTitle.value = title;
       cTitle.font = { bold: true, size: 13, name: 'Arial', color: { argb: 'FF1A237E' } };
       cTitle.alignment = { horizontal: 'center', vertical: 'middle' };
-      if (periode) {
-        ws.mergeCells(2, 1, 2, Math.max(headers.length, 1));
-        const cPer = ws.getCell(2, 1);
-        cPer.value = periode;
-        cPer.font = { size: 11, name: 'Arial', color: { argb: 'FF455A64' } };
-        cPer.alignment = { horizontal: 'center' };
-      }
-      const headerRowIdx = periode ? 4 : 3;
+      const sub2 = (periode ? periode + ' · ' : '') + 'KATROL: M1=' + kp.m1 + ' · NM=' + kp.nm + ' · rumus (NR+M1×NM)/(1+M1)';
+      ws.mergeCells(2, 1, 2, Math.max(headers.length, 1));
+      const cPer = ws.getCell(2, 1);
+      cPer.value = sub2;
+      cPer.font = { size: 10, name: 'Arial', color: { argb: 'FF455A64' } };
+      cPer.alignment = { horizontal: 'center' };
+      const headerRowIdx = 4;
 
       // Header kolom
       headers.forEach((h, i) => {
         const cell = ws.getCell(headerRowIdx, i + 1);
         cell.value = h;
-        cell.font = { bold: true, size: 10, name: 'Arial', color: { argb: 'FFFFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
+        const isKatrol = String(h).toUpperCase() === 'KATROL';
+        cell.font = { bold: true, size: 10, name: 'Arial', color: { argb: isKatrol ? 'FFF57F17' : 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isKatrol ? 'FFFFF9C4' : 'FF1565C0' } };
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         cell.border = {
           top: { style: 'thin', color: { argb: 'FF0D47A1' } },
@@ -12059,6 +12163,46 @@ document.getElementById('btnNilaiImportMassal')?.addEventListener('click', () =>
 document.getElementById('nilaiImportFile')?.addEventListener('change', async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await importNilaiFile(f, false); });
 document.getElementById('nilaiImportMassalFile')?.addEventListener('change', async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await importNilaiFile(f, true); });
 document.getElementById('btnNilaiExportDaftar')?.addEventListener('click', exportNilaiDaftarExcel);
+
+function stepNilaiKatrolM1(delta) {
+  const inp = document.getElementById('nilaiKatrolM1');
+  if (!inp) return;
+  let v = Number(inp.value);
+  if (!Number.isFinite(v)) v = 0;
+  v = Math.round((v + delta) * 4) / 4;
+  if (v < 0) v = 0;
+  if (v > 50) v = 50;
+  inp.value = String(v);
+  refreshNilaiKatrolColumn();
+}
+document.getElementById('btnKatrolM1Up')?.addEventListener('click', () => stepNilaiKatrolM1(0.25));
+document.getElementById('btnKatrolM1Down')?.addEventListener('click', () => stepNilaiKatrolM1(-0.25));
+document.getElementById('nilaiKatrolM1')?.addEventListener('change', () => {
+  const inp = document.getElementById('nilaiKatrolM1');
+  if (inp) {
+    let v = Number(inp.value);
+    if (!Number.isFinite(v) || v < 0) v = 0;
+    v = Math.round(v * 4) / 4;
+    if (v > 50) v = 50;
+    inp.value = String(v);
+  }
+  refreshNilaiKatrolColumn();
+});
+document.getElementById('nilaiKatrolNM')?.addEventListener('change', () => {
+  const inp = document.getElementById('nilaiKatrolNM');
+  if (inp) {
+    let v = Number(inp.value);
+    if (!Number.isFinite(v)) v = 100;
+    if (v < 0) v = 0;
+    if (v > 100) v = 100;
+    inp.value = String(v);
+  }
+  refreshNilaiKatrolColumn();
+});
+document.getElementById('nilaiKatrolNM')?.addEventListener('input', () => {
+  // live preview saat ketik
+  if (_nilaiDaftarPayload) refreshNilaiKatrolColumn();
+});
 document.getElementById('nilaiFilterMapel')?.addEventListener('change', async () => { fillNilaiKelasOptions(); refreshNilaiTerisiKe(); });
 document.getElementById('nilaiFilterKelas')?.addEventListener('change', () => refreshNilaiTerisiKe());
 document.getElementById('nilaiFilterJenis')?.addEventListener('change', () => refreshNilaiTerisiKe());
@@ -19148,7 +19292,20 @@ function openBsiForm(item) {
     jSel.value = j0;
   }
   document.getElementById('bsiSkor').value = item?.skor != null ? item.skor : 1;
-  document.getElementById('bsiKunci').value = item?.kunci || '';
+  {
+    let kEdit = item?.kunci || '';
+    if (typeof normalizeKunciFromSolution === 'function') kEdit = normalizeKunciFromSolution(kEdit);
+    else if (/<span|katex|data-latex=/i.test(String(kEdit))) {
+      const d = document.createElement('div');
+      d.innerHTML = String(kEdit);
+      const latex = [];
+      d.querySelectorAll('[data-latex]').forEach(el => {
+        if (el.getAttribute('data-latex')) latex.push(el.getAttribute('data-latex'));
+      });
+      kEdit = latex.length ? latex[latex.length - 1] : (d.textContent || '').trim();
+    }
+    document.getElementById('bsiKunci').value = kEdit;
+  }
   let opsi = item?.opsi;
   if (typeof opsi === 'string') { try { opsi = JSON.parse(opsi); } catch { opsi = []; } }
   if (!Array.isArray(opsi) || !opsi.length) {
@@ -19503,9 +19660,24 @@ document.getElementById('bsSoalImportFile')?.addEventListener('change', async (e
           return o;
         });
       }
-      // Kunci: konversi marker MATH → HTML KaTeX agar tidak tampil mentah
-      if (it.kunci && /MATH:|\sqrt|sqrt\s*\{/i.test(String(it.kunci))) {
-        it.kunci = bsFormatKunciHtml(String(it.kunci));
+      // Kunci: simpan teks/LaTeX bersih — JANGAN HTML KaTeX (agar form edit tidak berantakan)
+      if (it.kunci) {
+        if (typeof normalizeKunciFromSolution === 'function') {
+          it.kunci = normalizeKunciFromSolution(String(it.kunci));
+        } else {
+          // fallback: buang tag HTML, biarkan marker MATH
+          let k = String(it.kunci);
+          if (/<span|katex|data-latex=/i.test(k)) {
+            const d = document.createElement('div');
+            d.innerHTML = k;
+            const latex = [];
+            d.querySelectorAll('[data-latex]').forEach(el => {
+              if (el.getAttribute('data-latex')) latex.push(el.getAttribute('data-latex'));
+            });
+            k = latex.length ? latex[latex.length - 1] : (d.textContent || '').trim();
+          }
+          it.kunci = k;
+        }
       }
     });
     const nImg = items.reduce((a, it) => a + (String(it.pertanyaan || '').match(/<img /gi) || []).length, 0);
@@ -19907,6 +20079,11 @@ function parseOneSoalBlock(block, defaultNo) {
   // --- Opsi A–H: beberapa strategi ---
   let opsi = extractOpsiFromText(b);
 
+  // Multi-baris setelah "Kunci:" (langkah + "Jadi ... adalah X")
+  if (!kunci || kunci.length < 2) {
+    const kmBlock = b.match(/\bKunci\s*[:.]\s*([\s\S]*?)(?=\n\s*\d{1,3}[\.\)\-]\s+|\n\s*NO\s*[:=]|$)/i);
+    if (kmBlock) kunci = kmBlock[1].trim();
+  }
   if (!kunci) {
     const km = b.match(/KUNCI\s*[:=]\s*([A-H0-9,\s\/\-]+)/i);
     if (km) kunci = km[1].trim();
@@ -19973,12 +20150,21 @@ function parseOneSoalBlock(block, defaultNo) {
     }
   }
 
+  let kunciFinal = kunciClean;
+  if (typeof normalizeKunciFromSolution === 'function') {
+    kunciFinal = normalizeKunciFromSolution(kunciClean) || kunciClean;
+  }
+  // Buang "Jadi ... adalah" dari pertanyaan (sisa import)
+  pertanyaan = pertanyaan
+    .replace(/\bJadi[,\s][\s\S]{0,200}?adalah\s+[^\n]+/gi, '')
+    .trim();
+
   return {
     nomor,
     jenis_soal: jenis,
     pertanyaan,
     opsi,
-    kunci: kunciClean,
+    kunci: kunciFinal,
     skor,
   };
 }
@@ -20291,6 +20477,8 @@ function parseSoalFromWordHtml(html) {
     return String(s || '')
       .replace(/<(?:p|div|li|h[1-6])[^>]*>\s*Kunci\s*[:.][\s\S]*$/i, '')
       .replace(/Kunci\s*[:.]\s*[^<]*/gi, '')
+      .replace(/<(?:p|div|li)[^>]*>\s*Jadi[\s\S]*?adalah[\s\S]*?<\/(?:p|div|li)>/gi, '')
+      .replace(/\bJadi[,\s][\s\S]{0,200}?adalah\s+[^<\n]+/gi, '')
       .trim();
   }
   function stripOpsiLetterPrefix(htmlStr, letter) {
@@ -20405,12 +20593,14 @@ function parseSoalFromWordHtml(html) {
     cur = null;
   }
 
+  let inKunci = false; // setelah baris "Kunci:" → blok berikutnya masuk kunci, bukan pertanyaan
+
   for (let bi = 0; bi < rawBlocks.length; bi++) {
     const block = rawBlocks[bi];
     const t = blockText(block);
 
     // lanjutkan opsi pending: "A." + blok berikutnya = konten opsi
-    if (pendingOptLetter && cur) {
+    if (pendingOptLetter && cur && !inKunci) {
       const isNewQ = /^(?:No\.?\s*)?\d{1,3}[\.\)]\s+\S/i.test(t);
       const isNewOpt = /^([A-Ea-e])[\.\)]\s*/.test(t) && t.length <= 3 || /^([A-Ea-e])[\.\)]\s+\S/.test(t);
       const isK = /^Kunci\s*[:.]/i.test(t);
@@ -20440,11 +20630,12 @@ function parseSoalFromWordHtml(html) {
       const afterLen = after.replace(/\s+/g, ' ').trim().length;
       const hasMedia = /<!--TABLE_|<img/i.test(block);
       const looksLikeQuestion = afterLen >= 8 || hasMedia ||
-        /berikut|adalah|perhatikan|hasil|jika|dari|tentukan|jelaskan|hitung|yang|pada|pilih|nilai|sederhanakan|bentuk/i.test(after);
+        /berikut|adalah|perhatikan|hasil|jika|dari|tentukan|jelaskan|hitung|yang|pada|pilih|nilai|sederhanakan|bentuk|tulislah|panjang|tripel|pythagoras/i.test(after);
 
       // hindari "1. 5" sebagai soal baru jika cur ada dan terlihat seperti opsi numerik pendek
       if (looksLikeQuestion) {
         flush();
+        inKunci = false;
         cur = {
           nomor: parseInt(qm[1], 10),
           jenis: jenisDefault,
@@ -20461,7 +20652,27 @@ function parseSoalFromWordHtml(html) {
 
     if (isKunci) {
       pendingOptLetter = null;
-      cur.kunci = t.replace(/^Kunci\s*[:.]?\s*/i, '').trim();
+      inKunci = true;
+      // Ambil teks setelah "Kunci:" pada baris yang sama (boleh kosong)
+      const sameLine = t.replace(/^Kunci\s*[:.]?\s*/i, '').trim();
+      cur.kunci = sameLine || '';
+      // Jika baris "Kunci:" masih berisi HTML/MATH di block, ambil sisa HTML setelah label
+      if (!sameLine && /⟦MATH:|\[\[MATH:|\\\(|\$\$|\\sqrt|\\frac/i.test(block)) {
+        const stripped = String(block)
+          .replace(/^[\s\S]*?Kunci\s*[:.]?\s*/i, '')
+          .trim();
+        if (stripped) cur.kunci = stripped;
+      }
+      continue;
+    }
+
+    // Semua blok setelah "Kunci:" sampai soal berikutnya → kunci (bukan pertanyaan)
+    if (inKunci) {
+      pendingOptLetter = null;
+      const add = t || (/<img|⟦MATH:|\[\[MATH:|\\\(/i.test(block) ? block : '');
+      if (add) {
+        cur.kunci = (cur.kunci ? String(cur.kunci) + '\n' : '') + (t || blockText(block) || block);
+      }
       continue;
     }
 
@@ -20483,15 +20694,82 @@ function parseSoalFromWordHtml(html) {
     }
 
     // blok lain → jika pending opt, sudah di-handle di atas; else pertanyaan
+    // Jangan masukkan baris "Jadi, ... adalah ..." ke pertanyaan (itu bagian kunci)
+    if (/^jadi\b/i.test(t) && /adalah\b/i.test(t)) {
+      cur.kunci = (cur.kunci ? String(cur.kunci) + '\n' : '') + t;
+      continue;
+    }
     cur.pertanyaan += block;
   }
   flush();
 
   soals.forEach(s => {
     s.pertanyaan = restoreTables(stripKunci(s.pertanyaan));
+    // Bersihkan sisa "Jadi ... adalah" di pertanyaan
+    s.pertanyaan = String(s.pertanyaan || '')
+      .replace(/<(?:p|div)[^>]*>\s*Jadi[\s\S]*?adalah[\s\S]*?<\/(?:p|div)>/gi, '')
+      .replace(/\bJadi[,\s][\s\S]{0,200}?adalah\s+[^\n<]+/gi, '')
+      .trim();
+    // Normalisasi kunci: prioritaskan jawaban akhir setelah "adalah"
+    s.kunci = normalizeKunciFromSolution(s.kunci);
   });
 
   return soals;
+}
+
+/**
+ * Dari teks kunci (bisa berisi langkah + "Jadi ... adalah X") ambil jawaban bersih.
+ * Simpan sebagai teks/LaTeX marker — JANGAN HTML KaTeX.
+ */
+function normalizeKunciFromSolution(kunciRaw) {
+  let k = String(kunciRaw || '').trim();
+  if (!k) return '';
+  // Jika sudah HTML KaTeX penuh, ekstrak data-latex / text
+  if (/<span[^>]*class="[^"]*bs-math|katex|data-latex=/i.test(k)) {
+    const latexList = [];
+    k.replace(/data-latex="([^"]*)"/gi, (_, L) => {
+      try { latexList.push(L.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')); } catch (_) {}
+      return '';
+    });
+    if (latexList.length) {
+      // ambil latex terakhir (biasanya hasil akhir)
+      k = latexList[latexList.length - 1];
+    } else {
+      const d = document.createElement('div');
+      d.innerHTML = k;
+      k = (d.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+  }
+  // Marker MATH → biarkan sebagai [[MATH:...]] (bukan render)
+  k = k.replace(/⟦MATH:([\s\S]*?)⟧/g, (_, L) => '[[MATH:' + String(L).trim() + ']]');
+  // "Jadi ... adalah X" → ambil X
+  const jadi = k.match(/jadi[\s\S]{0,180}?adalah\s*[:.]?\s*([^\n]+)/i);
+  if (jadi && jadi[1]) {
+    let ans = jadi[1].trim();
+    // buang titik akhir
+    ans = ans.replace(/[.。]\s*$/, '').trim();
+    if (ans) k = ans;
+  }
+  // Batasi panjang kunci isian (hindari menumpuk seluruh langkah)
+  // Jika masih sangat panjang & ada beberapa baris, coba ambil baris terakhir yang berisi angka/rumus
+  if (k.length > 180 && /\n/.test(k)) {
+    const lines = k.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    const last = lines[lines.length - 1] || k;
+    if (/jadi[\s\S]*adalah/i.test(last)) {
+      const m2 = last.match(/adalah\s*[:.]?\s*(.+)$/i);
+      if (m2) k = m2[1].replace(/[.。]\s*$/, '').trim();
+    } else if (last.length < k.length) {
+      k = last;
+    }
+  }
+  // Strip tag HTML sisa
+  if (/</.test(k) && />/.test(k)) {
+    const d = document.createElement('div');
+    d.innerHTML = k;
+    const plain = (d.textContent || '').replace(/\s+/g, ' ').trim();
+    if (plain) k = plain;
+  }
+  return String(k || '').trim();
 }
 
 function stripHtmlToText(html) {
